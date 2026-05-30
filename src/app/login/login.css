@@ -1,83 +1,159 @@
+/* ===========================================================================
+   Mercado Milagros — Login
+   Estilo profesional tipo Google (claro), color morado, con un fondo
+   ilustrado del mercado (puestos, toldos y luces) detrás de la tarjeta.
+   Todo está scopeado bajo .login para no afectar al resto del admin.
+   =========================================================================== */
+
 .login {
+  /* Morado de marca */
+  --pry: #6d3fe0;
+  --pry-600: #6035cf;
+  --pry-700: #5128b4;
+  --pry-100: #efeafe;
+  --pry-50: #f7f4ff;
+
+  /* Neutros estilo Google (interior de la tarjeta) */
+  --ink: #202124;
+  --muted: #5f6368;
+  --faint: #80868b;
+  --line: #dadce0;
+  --line-soft: #e8eaed;
+  --field: #ffffff;
+  --danger-bg: #fce8e6;
+  --danger-bd: #f3b7ae;
+  --danger-fg: #9b2c1f;
+
+  position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 32px 16px;
+  padding: 24px 16px;
   background:
-    radial-gradient(
-      circle at 20% -10%,
-      rgba(26, 115, 232, 0.12),
-      transparent 55%
-    ),
-    radial-gradient(
-      circle at 110% 110%,
-      rgba(123, 174, 249, 0.18),
-      transparent 50%
-    ),
-    var(--bg);
+    radial-gradient(70% 40% at 50% 114%, rgba(255, 201, 125, 0.24), transparent 62%),
+    radial-gradient(135% 120% at 50% -18%, #9173ff 0%, #6d3fe0 36%, #4d23a8 74%, #3a1888 100%);
   font-family: "Google Sans Text", "Roboto", system-ui, sans-serif;
-  color: var(--text);
+  color: var(--ink);
+  overflow: hidden;
 }
 
-.login__card {
+/* ---- Escena del mercado (fondo) --------------------------------------- */
+.login__scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  max-width: 420px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: var(--shadow-lg);
-  padding: 40px 36px 32px;
+  height: clamp(190px, 30vh, 320px);
+  pointer-events: none;
+  z-index: 0;
+}
+.login__row {
+  color: #ffffff;
+}
+.login__row--back {
+  opacity: 0.2;
+}
+.login__row--front {
+  opacity: 0.5;
+}
+.login__lights {
+  color: rgba(255, 255, 255, 0.45);
+}
+.login__bulbs line {
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 1.6;
+}
+.login__bulbs circle {
+  fill: #ffd98a;
+  filter: drop-shadow(0 0 6px rgba(255, 211, 130, 0.9));
+  animation: login-twinkle 4s ease-in-out infinite;
+}
+.login__bulbs g:nth-child(even) circle {
+  animation-delay: -2s;
+}
+
+/* ---- Tarjeta (estilo Google) ------------------------------------------ */
+.login__card {
+  position: relative;
+  z-index: 1;
+  width: min(416px, calc(100% - 32px));
+  padding: 40px 40px 30px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow:
+    0 24px 60px rgba(34, 12, 84, 0.34),
+    0 4px 14px rgba(34, 12, 84, 0.18);
+  animation: login-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.login__card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 28px;
+  height: 4px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #8260ff, #6d3fe0, #b9a3f2);
 }
 
+/* ---- Marca ------------------------------------------------------------- */
 .login__brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: "Google Sans", sans-serif;
 }
-.login__brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #7baef9, #1a73e8);
+.login__mark {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 13px;
   display: grid;
   place-items: center;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 700;
+  font-size: 22px;
   color: #fff;
-  font-weight: 600;
-  font-size: 18px;
-  letter-spacing: -0.02em;
+  background: linear-gradient(150deg, #8260ff, var(--pry-700));
+  box-shadow:
+    0 8px 20px rgba(81, 40, 180, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 .login__brand-name {
-  font-size: 13px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: "Google Sans", sans-serif;
+  font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 .login__brand-sub {
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--text);
+  font-size: 12px;
+  color: var(--muted);
   margin-top: 2px;
 }
 
+/* ---- Encabezado -------------------------------------------------------- */
 .login__head h1 {
   font-family: "Google Sans", sans-serif;
   font-weight: 400;
   font-size: 26px;
-  margin: 0 0 6px;
   letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: var(--ink);
 }
 .login__head p {
   margin: 0;
-  color: var(--text-muted);
   font-size: 14px;
   line-height: 1.5;
+  color: var(--muted);
 }
 
+/* ---- Formulario -------------------------------------------------------- */
 .login__form {
   display: flex;
   flex-direction: column;
@@ -85,67 +161,191 @@
 }
 
 .login__error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13.5px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--danger-fg);
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease,
+    margin 0.3s ease;
+}
+.login__error.is-visible {
+  max-height: 6rem;
+  opacity: 1;
+  padding: 10px 13px;
+  margin-bottom: 2px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-bd);
 }
 
-.login__submit {
-  height: 44px;
-  border-radius: 22px;
-  background: var(--accent);
-  color: #fff;
+.login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.login__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.login__input {
+  display: flex;
+  align-items: center;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.login__input:focus-within {
+  border-color: var(--pry);
+  box-shadow: 0 0 0 3px rgba(109, 63, 224, 0.16);
+}
+.login__input-icon {
+  margin-left: 12px;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+.login__input input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
   border: 0;
-  font-family: "Google Sans", sans-serif;
-  font-weight: 500;
-  font-size: 14.5px;
+  outline: 0;
+  background: transparent;
+  padding: 12px 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+}
+.login__input input::placeholder {
+  color: var(--faint);
+}
+.login__toggle {
+  display: grid;
+  place-items: center;
+  margin-right: 6px;
+  padding: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--faint);
   cursor: pointer;
-  transition: background 0.12s, box-shadow 0.12s, transform 0.06s;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.login__toggle:hover {
+  color: var(--ink);
+  background: #f1f3f4;
+}
+
+.login__caps {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--pry-600);
+}
+.login__caps.is-visible {
+  display: inline-flex;
+}
+
+/* ---- Botón ------------------------------------------------------------- */
+.login__submit {
   margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 46px;
+  border: 0;
+  border-radius: 10px;
+  font-family: "Google Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  background: var(--pry);
+  box-shadow: 0 8px 20px rgba(81, 40, 180, 0.28);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease,
+    opacity 0.15s ease;
 }
 .login__submit:hover:not(:disabled) {
-  background: var(--accent-hover);
-  box-shadow: var(--shadow-sm);
+  background: var(--pry-600);
+  box-shadow: 0 12px 26px rgba(81, 40, 180, 0.36);
 }
 .login__submit:active:not(:disabled) {
   transform: translateY(1px);
 }
 .login__submit:disabled {
-  background: var(--bg-sunken);
-  color: var(--text-faint);
+  background: #c9c2e8;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
-.login__foot {
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-.login__foot a {
-  color: var(--accent);
+.login__spinner {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  animation: login-spin 0.7s linear infinite;
 }
 
-.login__hint {
-  margin-top: 8px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--bg-soft);
-  border: 1px dashed var(--border-strong);
+/* ---- Pie --------------------------------------------------------------- */
+.login__foot {
   font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.55;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
 }
-.login__hint code {
-  background: var(--bg-sunken);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 11.5px;
-  color: var(--text);
+
+/* ---- Foco visible ------------------------------------------------------ */
+.login__toggle:focus-visible,
+.login__submit:focus-visible {
+  outline: 2px solid var(--pry-700);
+  outline-offset: 2px;
+}
+
+/* ---- Animaciones ------------------------------------------------------- */
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes login-twinkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ---- Responsive -------------------------------------------------------- */
+@media (max-width: 460px) {
+  .login {
+    padding: 16px;
+  }
+  .login__card {
+    padding: 30px 22px 24px;
+    border-radius: 18px;
+  }
+  .login__head h1 {
+    font-size: 23px;
+  }
+}
+
+/* ---- Movimiento reducido ----------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .login__card,
+  .login__spinner,
+  .login__lights circle {
+    animation: none !important;
+  }
+  .login__submit,
+  .login__input {
+    transition: none;
+  }
 }
