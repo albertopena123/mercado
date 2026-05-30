@@ -1,0 +1,283 @@
+/* Asambleas — reusa socios.css (tabla, modal, stats) y globals.css. */
+
+.asm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.asm-badge--programada {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.asm-badge--en_curso {
+  background: #fef3c7;
+  color: #92400e;
+}
+.asm-badge--cerrada {
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+.asm-tipo {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
+  padding: 1px 8px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+/* Quórum bar */
+.quorum {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.quorum__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.quorum__pct {
+  font-family: "Google Sans", sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+}
+.quorum__label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.quorum__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+  position: relative;
+}
+.quorum__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.quorum__fill--ok {
+  background: #16a34a;
+}
+.quorum__fill--low {
+  background: #d97706;
+}
+.quorum__min {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.5;
+}
+.quorum__breakdown {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.quorum__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.quorum__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.quorum__dot--presente {
+  background: #16a34a;
+}
+.quorum__dot--tardanza {
+  background: #2563eb;
+}
+.quorum__dot--justificado {
+  background: #d97706;
+}
+.quorum__dot--ausente {
+  background: #9ca3af;
+}
+
+/* Lista de asistencia */
+.asis-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.asis-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.asis-row:last-child {
+  border-bottom: none;
+}
+.asis-row__info {
+  min-width: 0;
+  flex: 1;
+}
+.asis-row__name {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asis-row__codigo {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Segmented control P/A/J/T */
+.asis-seg {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.asis-seg button {
+  background: var(--surface);
+  border: 0;
+  border-left: 1px solid var(--border);
+  padding: 7px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+.asis-seg button:first-child {
+  border-left: 0;
+}
+.asis-seg button:hover:not(:disabled) {
+  background: var(--bg-soft);
+}
+.asis-seg button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.asis-seg button.is-on--presente {
+  background: #dcfce7;
+  color: #166534;
+}
+.asis-seg button.is-on--ausente {
+  background: #f3f4f6;
+  color: #374151;
+}
+.asis-seg button.is-on--justificado {
+  background: #fef3c7;
+  color: #92400e;
+}
+.asis-seg button.is-on--tardanza {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Check-in en la puerta */
+.checkin {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.checkin__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+}
+.checkin__sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.checkin__form {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+.checkin__input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 2px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  color: var(--text);
+}
+.checkin__input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.checkin__form .btn {
+  height: auto;
+  padding: 0 22px;
+}
+.checkin__log {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.checkin__log li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.checkin__log--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.checkin__log--tarde {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.checkin__log--err {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.asm-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .asis-row {
+    flex-wrap: wrap;
+  }
+}

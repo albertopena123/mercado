@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Socio" ADD COLUMN     "saldoAFavor" DECIMAL(10,2) NOT NULL DEFAULT 0;

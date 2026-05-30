@@ -1,0 +1,458 @@
+/* ──────────────── Filter chips (status, role) ──────────────── */
+.usr-filter {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  padding: 0 12px 0 10px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: "Google Sans Text", sans-serif;
+}
+.usr-filter:hover {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+.usr-filter.is-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+
+/* Generic chip popover (role picker) */
+.chip-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  padding: 6px 0;
+  z-index: 60;
+  animation: pop 0.14s ease-out;
+}
+.chip-popover__opt {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chip-popover__opt:hover {
+  background: var(--bg-soft);
+}
+.chip-popover__opt.is-on {
+  color: var(--accent);
+  font-weight: 500;
+}
+.chip-popover__opt-check {
+  width: 16px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+/* Vertical divider used between filter chip groups */
+.filter-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border-strong);
+  margin: 0 4px;
+}
+
+/* ──────────────── Primary CTA button (used by Crear usuario) ──────────────── */
+.btn--cta {
+  background: var(--accent);
+  color: #fff;
+  height: 36px;
+  border-radius: 18px;
+  padding: 0 18px;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-family: "Google Sans", "Google Sans Text", sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.btn--cta:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
+}
+.btn--cta:disabled {
+  background: var(--bg-sunken);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+/* ──────────────── Avatar pill in rows ──────────────── */
+.usr-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.usr-row-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.usr-row-name__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: 320px;
+}
+.usr-row-name__t {
+  font-weight: 500;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.usr-row-name__t:hover {
+  text-decoration: underline;
+}
+.usr-row-name__t-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.usr-row-name__sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.badge--accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ──────────────── Row kebab menu ──────────────── */
+.usr-kebab {
+  position: relative;
+}
+.usr-kebab__menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  min-width: 200px;
+  padding: 6px 0;
+  z-index: 60;
+  animation: pop 0.14s ease-out;
+}
+.usr-kebab__menu--up {
+  top: auto;
+  bottom: 32px;
+}
+.usr-kebab__item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.usr-kebab__item:hover {
+  background: var(--bg-soft);
+}
+.usr-kebab__item--danger {
+  color: #b91c1c;
+}
+.usr-kebab__item:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+.usr-kebab__sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ──────────────── Roles picker (drawer + create modal) ──────────────── */
+.role-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.role-picker__opt {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.role-picker__opt:hover {
+  border-color: var(--border-strong);
+}
+.role-picker__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-softer);
+}
+.role-picker__opt input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.role-picker__name {
+  font-weight: 500;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.role-picker__desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ──────────────── Drawer sections ──────────────── */
+.usr-drawer-tabs {
+  display: flex;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.usr-drawer-tab {
+  background: transparent;
+  border: 0;
+  padding: 14px 14px 12px;
+  font-family: "Google Sans Text", sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.usr-drawer-tab:hover {
+  color: var(--text);
+}
+.usr-drawer-tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.usr-formgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.usr-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+.usr-toggle__label {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.usr-toggle__sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.usr-switch {
+  --w: 36px;
+  --h: 20px;
+  width: var(--w);
+  height: var(--h);
+  border-radius: var(--h);
+  background: var(--border-strong);
+  border: 0;
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.usr-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--h) - 4px);
+  height: calc(var(--h) - 4px);
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.usr-switch.is-on {
+  background: var(--accent);
+}
+.usr-switch.is-on::after {
+  transform: translateX(calc(var(--w) - var(--h)));
+}
+
+/* ──────────────── Confirm dialog ──────────────── */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(32, 33, 36, 0.5);
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fade 0.14s;
+}
+.confirm {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: slideUp 0.16s ease-out;
+}
+.confirm__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 24px 8px;
+}
+.confirm__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b91c1c;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.confirm__icon--info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.confirm__title {
+  font-family: "Google Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin: 0;
+}
+.confirm__body {
+  padding: 0 24px 20px 78px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.confirm__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+.btn--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+.btn--danger:hover {
+  background: #991b1b;
+}
+
+/* ──────────────── Toast stack ──────────────── */
+.toasts {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  background: #202124;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  max-width: 380px;
+  animation: toast-in 0.2s ease-out;
+}
+.toast--success {
+  background: #065f46;
+}
+.toast--error {
+  background: #991b1b;
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ──────────────── Small layout helpers ──────────────── */
+.inline-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

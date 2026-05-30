@@ -1,0 +1,348 @@
+.constancia-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.constancia-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* Aviso de vista previa (antes de emitir) */
+.constancia-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* La hoja */
+.constancia {
+  position: relative;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 56px 64px;
+  box-shadow: var(--shadow-sm);
+  font-family: "Times New Roman", Georgia, serif;
+  line-height: 1.7;
+}
+/* Marca de agua institucional: escudo tenue centrado detrás del texto. Se
+   fuerza print-color-adjust para que el sello salga también en el PDF/impresión. */
+.constancia::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/logos_sistema/logo_peru.png");
+  background-repeat: no-repeat;
+  background-position: center 47%;
+  background-size: 56%;
+  opacity: 0.07;
+  filter: grayscale(100%);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* El contenido del documento siempre por encima de la marca de agua. */
+.constancia > * {
+  position: relative;
+  z-index: 1;
+}
+/* Marca de agua mientras es vista previa (sin emitir) */
+.constancia--preview::after {
+  content: "VISTA PREVIA";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 84px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(15, 23, 42, 0.06);
+  transform: rotate(-24deg);
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+.constancia__folio {
+  text-align: center;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin: -18px 0 24px;
+}
+.constancia__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: center;
+  border-bottom: 4px double #1a1a1a;
+  padding-bottom: 16px;
+  margin-bottom: 32px;
+}
+.constancia__header-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.constancia__logo {
+  flex: 0 0 auto;
+  height: 72px;
+  width: auto;
+  object-fit: contain;
+}
+.constancia__org {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.constancia__org-sub {
+  font-size: 12px;
+  color: #555;
+  margin-top: 4px;
+}
+.constancia__title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 24px 0 28px;
+  text-decoration: underline;
+}
+.constancia__body {
+  font-size: 15.5px;
+  text-align: justify;
+}
+.constancia__body p {
+  margin: 0 0 16px;
+}
+.constancia__body b {
+  font-weight: 700;
+}
+.constancia__estado {
+  display: inline-block;
+  font-weight: 700;
+}
+.constancia__deuda--ok {
+  color: #15803d;
+  font-weight: 700;
+}
+.constancia__deuda--debe {
+  color: #b91c1c;
+  font-weight: 700;
+}
+.constancia__fecha {
+  margin-top: 36px;
+}
+.constancia__firmas {
+  display: flex;
+  justify-content: center;
+  gap: 56px;
+  margin-top: 80px;
+}
+.constancia__firma {
+  flex: 0 1 240px;
+  text-align: center;
+}
+.constancia__firma-line {
+  border-top: 1px solid #1a1a1a;
+  margin: 0 0 6px;
+}
+.constancia__firma-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+}
+.constancia__firma-sub {
+  font-size: 11.5px;
+  color: #555;
+  margin-top: 2px;
+}
+
+/* Bloque de verificación (QR + códigos) al pie del documento */
+.constancia-verif {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px dashed #94a3b8;
+}
+.constancia-verif__qr {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+}
+.constancia-verif__qr svg {
+  display: block;
+  width: 112px;
+  height: 112px;
+}
+.constancia-verif__info {
+  flex: 1;
+  min-width: 0;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+  line-height: 1.4;
+}
+.constancia-verif__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+.constancia-verif__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  margin: 0 0 3px;
+  border-bottom: 1px dotted #e2e8f0;
+  padding-bottom: 3px;
+}
+.constancia-verif__row > span {
+  color: #64748b;
+}
+.constancia-verif__row > b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: right;
+}
+.constancia-verif__note {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+.constancia-verif__url {
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+/* Pantalla de bloqueo (socio no hábil) */
+.constancia-bloqueo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 48px 40px;
+  text-align: center;
+  max-width: 520px;
+  margin: 24px auto 0;
+  box-shadow: var(--shadow-sm);
+}
+.constancia-bloqueo__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.constancia-bloqueo h2 {
+  font-family: "Google Sans", sans-serif;
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+.constancia-bloqueo p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+.constancia-bloqueo__sub {
+  font-size: 13px;
+}
+.constancia-bloqueo__deuda {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 15px;
+}
+.constancia-bloqueo button,
+.constancia-bloqueo .btn--cta {
+  margin: 0 auto;
+}
+.constancia-bloqueo > div {
+  justify-content: center;
+}
+
+@media print {
+  .topbar,
+  .sidebar,
+  .footer,
+  .sidebar__mobile-backdrop,
+  .no-print {
+    display: none !important;
+  }
+  .shell__body,
+  .main {
+    display: block !important;
+    overflow: visible !important;
+  }
+  .constancia-page {
+    padding: 0;
+    max-width: 100%;
+  }
+  .constancia {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .constancia-verif {
+    break-inside: avoid;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+/* Responsive: la constancia en pantalla de teléfono no se aplasta. */
+@media (max-width: 640px) {
+  .constancia-page {
+    padding: 16px 12px;
+  }
+  .constancia {
+    padding: 28px 22px;
+  }
+  .constancia__header {
+    gap: 12px;
+  }
+  .constancia__logo {
+    height: 54px;
+  }
+  .constancia-verif {
+    flex-wrap: wrap;
+  }
+  .constancia__firmas {
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+}

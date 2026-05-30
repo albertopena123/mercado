@@ -1,0 +1,889 @@
+/* ─────────── Page layout ─────────── */
+.socios-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Responsive: en móvil/tablet la tabla colapsa a tarjetas con etiqueta por
+   campo (data-label) y se reducen los gutters. Cubre socios, cuotas y puestos
+   (todos usan .socios-table) hasta 900px para que no desborde en tablet. */
+@media (max-width: 900px) {
+  .socios-page {
+    padding: 16px 12px;
+  }
+  .socios-table thead {
+    display: none;
+  }
+  .socios-table,
+  .socios-table tbody,
+  .socios-table tr,
+  .socios-table td {
+    display: block;
+    width: 100%;
+  }
+  .socios-table tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 8px 14px;
+    background: var(--surface);
+  }
+  .socios-table td {
+    border: none;
+    padding: 5px 0;
+  }
+  .socios-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+}
+
+.socios-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.socios-page__title {
+  font-family: "Google Sans", sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+}
+.socios-page__sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* .btn--cta vive en globals.css (disponible en todas las páginas). */
+
+/* Section header inside Create modal */
+.modal__section {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.modal__section:first-of-type {
+  margin-top: 4px;
+}
+
+/* ─────────── Stat cards ─────────── */
+.soc-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.soc-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.05s;
+}
+.soc-stat:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.soc-stat:active {
+  transform: translateY(1px);
+}
+.soc-stat.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.soc-stat__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.soc-stat--accent .soc-stat__dot {
+  background: var(--accent);
+}
+.soc-stat--green .soc-stat__dot {
+  background: #16a34a;
+}
+.soc-stat--amber .soc-stat__dot {
+  background: #d97706;
+}
+.soc-stat--neutral .soc-stat__dot {
+  background: #6b7280;
+}
+.soc-stat--red .soc-stat__dot {
+  background: #dc2626;
+}
+.soc-stat__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.soc-stat__value {
+  font-family: "Google Sans", sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+}
+.soc-stat__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─────────── Toolbar (search + filters) ─────────── */
+.socios-toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.socios-toolbar__search {
+  flex: 1 1 240px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.socios-toolbar__search:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.socios-toolbar__select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ─────────── Table ─────────── */
+.socios-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.socios-table th,
+.socios-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.socios-table th {
+  background: var(--bg-soft);
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0;
+}
+
+/* Sortable header button */
+.soc-th {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  transition: color 0.12s;
+}
+.soc-th:hover {
+  color: var(--text);
+}
+.soc-th.is-sorted {
+  color: var(--accent);
+}
+.soc-th__icon--idle {
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.soc-th:hover .soc-th__icon--idle {
+  opacity: 0.4;
+}
+
+.socios-table tbody tr {
+  cursor: pointer;
+}
+
+.socios-table tbody tr:hover {
+  background: var(--bg-soft);
+}
+
+/* Codigo + doc type emphasis */
+.soc-codigo {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--text);
+}
+.soc-doc-type {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Name cell with avatar */
+.soc-namecell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.soc-rowavatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  overflow: hidden;
+}
+.soc-rowavatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.soc-namecell__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─────────── Skeleton loading ─────────── */
+.socios-table--skeleton tbody tr {
+  cursor: default;
+}
+.socios-table--skeleton tbody tr:hover {
+  background: transparent;
+}
+.sk {
+  display: inline-block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-sunken) 0%,
+    var(--bg-soft) 50%,
+    var(--bg-sunken) 100%
+  );
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.2s ease-in-out infinite;
+}
+.sk--sm {
+  width: 64px;
+}
+.sk--md {
+  width: 96px;
+}
+.sk--lg {
+  width: 160px;
+}
+.sk--badge {
+  width: 60px;
+  height: 18px;
+  border-radius: 999px;
+}
+.sk--avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+@keyframes sk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ─────────── Estado badge (status pill) ─────────── */
+.estado-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.estado-badge--activo {
+  background: #dcfce7;
+  color: #166534;
+}
+.estado-badge--suspendido {
+  background: #fef3c7;
+  color: #92400e;
+}
+.estado-badge--retirado {
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+.estado-badge--fallecido {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ─────────── Empty state ─────────── */
+.socios-empty {
+  text-align: center;
+  padding: 64px 16px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px dashed var(--border-strong);
+}
+.socios-empty p {
+  margin: 0 0 16px;
+}
+.socios-empty button {
+  font: inherit;
+}
+
+/* ─────────── Pagination ─────────── */
+.socios-pagination {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.socios-pagination button {
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.socios-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─────────── Tabs inside drawer (replicado de usuarios) ─────────── */
+.soc-tabs {
+  display: flex;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.soc-tab {
+  background: transparent;
+  border: 0;
+  padding: 14px 14px 12px;
+  font-family: "Google Sans Text", sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.soc-tab:hover {
+  color: var(--text);
+}
+.soc-tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+/* ─────────── Forms inside drawer ─────────── */
+.soc-formgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.soc-formgrid--2col {
+  grid-template-columns: 1fr 1fr;
+}
+.soc-formgrid .field {
+  margin-bottom: 0;
+}
+.soc-formgrid h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 -4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ─────────── Avatar (drawer header) ─────────── */
+.soc-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 22px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.soc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ─────────── DocumentoInput ─────────── */
+.documento-input {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 2fr;
+  gap: 12px;
+}
+.documento-input .field {
+  margin-bottom: 0;
+}
+.field-error {
+  display: block;
+  color: #b91c1c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ─────────── DNI autocompletar status (RENIEC via UNAMAD) ─────────── */
+.dni-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  margin: -4px 0 12px;
+  max-width: 100%;
+  line-height: 1.3;
+  border: 1px solid transparent;
+}
+.dni-status--loading {
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.dni-status--success {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 500;
+}
+.dni-status--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.dni-status__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: socios-spin 0.8s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+@keyframes socios-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─────────── Modal header rich (avatar + subject) ─────────── */
+.modal__head--rich {
+  align-items: center !important;
+}
+.modal__head-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+.modal__head-text {
+  min-width: 0;
+  flex: 1;
+}
+.modal__head-text h2 {
+  margin: 0 0 2px;
+}
+.modal__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.modal__subject {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─────────── Sexo pills (radio segmentado) ─────────── */
+.sexo-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.sexo-pills__opt {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.sexo-pills__opt:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.sexo-pills__opt.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 500;
+}
+.sexo-pills__opt:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─────────── Inline form error banner ─────────── */
+.soc-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Error anclado bajo el control que lo produjo (no ocupa todo el ancho). */
+.soc-error--inline {
+  align-items: flex-start;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.adjuntos-foto__actions .soc-error--inline {
+  flex-basis: 100%;
+}
+
+/* ─────────── Adjuntos panel ─────────── */
+.adjuntos-section {
+  margin-bottom: 24px;
+}
+.adjuntos-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.adjuntos-foto {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.adjuntos-foto__img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.adjuntos-foto__placeholder {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  border: 1px dashed var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.adjuntos-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.adjuntos-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.adjuntos-list li:last-child {
+  border-bottom: none;
+}
+.adjuntos-list__tipo {
+  font-weight: 500;
+  color: var(--text);
+}
+.adjuntos-list__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.adjuntos-foto__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.adjuntos-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.adjuntos-hint--inline {
+  flex-basis: 100%;
+}
+.adjuntos-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.adjuntos-upload select {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface);
+}
+.adjuntos-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ─────────── Historial timeline ─────────── */
+.historial {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.historial li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.historial li:last-child {
+  border-bottom: none;
+}
+.historial__time {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.historial__transition {
+  display: block;
+  margin: 4px 0 2px;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+}
+.historial__actor {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.historial__motivo {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ─────────── Confirm dialog (replicado) ─────────── */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(32, 33, 36, 0.5);
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.confirm {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.confirm__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 24px 8px;
+}
+.confirm__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b91c1c;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.confirm__icon--info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.confirm__title {
+  font-family: "Google Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin: 0;
+}
+.confirm__body {
+  padding: 0 24px 20px 78px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.confirm__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+.btn--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+.btn--danger:hover {
+  background: #991b1b;
+}
+
+/* Modal styling viene de globals.css (.modal-backdrop, .modal, .modal__head,
+   .modal__body, .modal__foot, .modal__intro). Solo agregamos extras aquí. */
+.modal--sm {
+  max-width: 440px !important;
+}
+
+/* ─────────── Mobile collapse ─────────── */
+@media (max-width: 900px) {
+  .soc-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .socios-table thead {
+    display: none;
+  }
+  .socios-table,
+  .socios-table tbody,
+  .socios-table tr,
+  .socios-table td {
+    display: block;
+    width: 100%;
+  }
+  .socios-table tr {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: var(--surface);
+  }
+  .socios-table td {
+    border: none;
+    padding: 4px 0;
+  }
+  .soc-formgrid--2col {
+    grid-template-columns: 1fr;
+  }
+  .documento-input {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,403 @@
+// Conadis admin · Prisma schema
+// Postgres + RBAC (User ↔ Role ↔ Permission) + sessions
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  active       Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  roles    UserRole[]
+  sessions Session[]
+
+  socioAccount    Socio?           @relation("SocioUser")
+  sociosCreated   Socio[]          @relation("SocioCreatedBy")
+  sociosUpdated   Socio[]          @relation("SocioUpdatedBy")
+  socioAdjuntos   SocioAdjunto[]   @relation("SocioAdjuntoUploader")
+  socioEstadoLogs SocioEstadoLog[] @relation("SocioEstadoLogBy")
+
+  puestosCreated     Puesto[]           @relation("PuestoCreatedBy")
+  puestosUpdated     Puesto[]           @relation("PuestoUpdatedBy")
+  puestoAsignaciones PuestoAsignacion[] @relation("PuestoAsignacionBy")
+  asambleasCreated   Asamblea[]         @relation("AsambleaCreatedBy")
+  asistenciasReg     Asistencia[]       @relation("AsistenciaBy")
+  cuotasPago         Cuota[]            @relation("CuotaPagoBy")
+  constanciasEmitidas Constancia[]      @relation("ConstanciaEmitidoPor")
+
+  @@index([active])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  category    String
+
+  roles RolePermission[]
+
+  @@index([category])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Session {
+  id         String      @id @default(cuid())
+  userId     String
+  token      String      @unique
+  expiresAt  DateTime
+  createdAt  DateTime    @default(now())
+  userAgent  String?
+  ip         String?
+  clientType ClientType  @default(web)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum ClientType {
+  web
+  mobile
+}
+
+// ─────────────────────────── Padrón de socios ───────────────────────────
+
+enum TipoDocumento {
+  DNI
+  CE
+  PASAPORTE
+  RUC
+}
+
+enum EstadoSocio {
+  activo
+  suspendido
+  retirado
+  fallecido
+}
+
+enum Sexo {
+  M
+  F
+}
+
+model Socio {
+  id              String        @id @default(cuid())
+  codigo          String        @unique
+  tipoDocumento   TipoDocumento
+  numeroDocumento String
+  apellidoPaterno String
+  apellidoMaterno String?
+  nombres         String
+  fechaNacimiento DateTime?
+  sexo            Sexo?
+  estadoCivil     String?
+
+  telefono     String?
+  email        String?
+  direccion    String?
+  distrito     String?
+  provincia    String?
+  departamento String?
+
+  fechaIngreso  DateTime
+  estado        EstadoSocio @default(activo)
+  observaciones String?
+
+  // Saldo a favor (S/) acumulado cuando un pago por monto excede las cuotas
+  // pendientes; se consume en el siguiente pago.
+  saldoAFavor Decimal @default(0) @db.Decimal(10, 2)
+
+  // Concatenación normalizada (lowercase, sin tildes) de codigo + documento +
+  // apellidos + nombres. Permite búsqueda accent-insensitive sin extensiones
+  // de Postgres. Se mantiene en createSocio/updateSocio y en el seed.
+  searchKey String @default("")
+
+  fotoUrl String?
+
+  userId        String?  @unique
+  portalEnabled Boolean  @default(false)
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User?            @relation("SocioUser", fields: [userId], references: [id], onDelete: SetNull)
+  createdBy User?            @relation("SocioCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?            @relation("SocioUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  adjuntos  SocioAdjunto[]
+  estadoLog SocioEstadoLog[]
+
+  asignacionesPuesto PuestoAsignacion[]
+  asistencias        Asistencia[]
+  cuotas             Cuota[]
+  constancias        Constancia[]
+
+  @@unique([tipoDocumento, numeroDocumento])
+  @@index([estado])
+  @@index([apellidoPaterno, apellidoMaterno, nombres])
+}
+
+model SocioAdjunto {
+  id           String   @id @default(cuid())
+  socioId      String
+  tipo         String
+  url          String
+  mimeType     String
+  sizeBytes    Int?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  socio      Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation("SocioAdjuntoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+}
+
+model SocioEstadoLog {
+  id         String      @id @default(cuid())
+  socioId    String
+  fromEstado EstadoSocio
+  toEstado   EstadoSocio
+  motivo     String
+  byUserId   String?
+  createdAt  DateTime    @default(now())
+
+  socio  Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  byUser User? @relation("SocioEstadoLogBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+}
+
+// ─────────────────────────── Puestos ───────────────────────────
+
+enum EstadoPuesto {
+  activo
+  vacio
+  clausurado
+  construccion
+}
+
+model Puesto {
+  id            String       @id @default(cuid())
+  codigo        String       @unique
+  giro          String?
+  area          Float?
+  zona          String?
+  estado        EstadoPuesto @default(vacio)
+  fotoUrl       String?
+  observaciones String?
+  searchKey     String       @default("")
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User?              @relation("PuestoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  asignaciones PuestoAsignacion[]
+
+  @@index([estado])
+  @@index([giro])
+}
+
+model PuestoAsignacion {
+  id        String    @id @default(cuid())
+  puestoId  String
+  socioId   String
+  desde     DateTime  @default(now())
+  hasta     DateTime?
+  motivo    String?
+  byUserId  String?
+  createdAt DateTime  @default(now())
+
+  puesto Puesto @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  socio  Socio  @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  byUser User?  @relation("PuestoAsignacionBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([puestoId, hasta])
+  @@index([socioId, hasta])
+}
+
+// ─────────────────────────── Asambleas ───────────────────────────
+
+enum TipoAsamblea {
+  ordinaria
+  extraordinaria
+}
+
+enum EstadoAsamblea {
+  programada
+  en_curso
+  cerrada
+}
+
+enum EstadoAsistencia {
+  presente
+  ausente
+  justificado
+  tardanza
+}
+
+model Asamblea {
+  id           String         @id @default(cuid())
+  titulo       String
+  tipo         TipoAsamblea   @default(ordinaria)
+  fecha        DateTime // inicio de la entrada (fecha + hora)
+  lugar        String?
+  agenda       String?
+  estado       EstadoAsamblea @default(programada)
+  quorumMinimo Int?
+  toleranciaMin Int     @default(15) // minutos de tolerancia: hasta inicio+tol = presente
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?        @relation("AsambleaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  asistencias Asistencia[]
+
+  @@index([fecha])
+  @@index([estado])
+}
+
+model Asistencia {
+  id          String           @id @default(cuid())
+  asambleaId  String
+  socioId     String
+  estado      EstadoAsistencia @default(ausente)
+  observacion String?
+  byUserId    String?
+  updatedAt   DateTime         @updatedAt
+
+  asamblea Asamblea @relation(fields: [asambleaId], references: [id], onDelete: Cascade)
+  socio    Socio    @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  byUser   User?    @relation("AsistenciaBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@unique([asambleaId, socioId])
+  @@index([asambleaId])
+  @@index([socioId])
+}
+
+// ─────────────────────────── Cuotas / aportes ───────────────────────────
+
+enum EstadoCuota {
+  pendiente
+  pagada
+  anulada
+}
+
+model Cuota {
+  id          String      @id @default(cuid())
+  socioId     String
+  periodo     String // "2026-05"
+  concepto    String
+  monto       Decimal     @db.Decimal(10, 2)
+  vencimiento DateTime?
+  estado      EstadoCuota @default(pendiente)
+  pagadoEn    DateTime?
+  pagadoMonto Decimal?    @db.Decimal(10, 2)
+  metodoPago  String?
+  byUserId    String?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  socio  Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  byUser User? @relation("CuotaPagoBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@unique([socioId, periodo, concepto])
+  @@index([socioId, estado])
+  @@index([periodo])
+  @@index([estado])
+}
+
+// ─────────────────────────── Constancias emitidas ───────────────────────────
+//
+// Cada vez que se emite una constancia de socio hábil se registra aquí. El
+// registro es la "fuente de verdad" que respalda la verificación pública por
+// QR/código: aunque el socio cambie o se elimine después, el documento emitido
+// sigue siendo verificable gracias al snapshot de datos.
+model Constancia {
+  id String @id @default(cuid())
+
+  // Folio correlativo legible para registro/seguimiento ("000123-2026").
+  folio String @unique
+
+  // Código de verificación que viaja en el QR y se valida en
+  // /verificar/<codigo>. Aleatorio para que no se pueda adivinar.
+  codigo String @unique
+
+  // Snapshot al momento de emisión (la verificación muestra lo que decía el
+  // documento, no el estado actual del socio).
+  socioId         String?
+  socioCodigo     String
+  socioNombre     String
+  tipoDocumento   String
+  numeroDocumento String
+  estadoSnapshot  String
+
+  habil       Boolean   @default(true)
+  emitidoEn   DateTime  @default(now())
+  validoHasta DateTime?
+  anulada     Boolean   @default(false)
+
+  emitidoPorId String?
+
+  socio      Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  emitidoPor User?  @relation("ConstanciaEmitidoPor", fields: [emitidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([emitidoEn])
+}
