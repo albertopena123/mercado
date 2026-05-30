@@ -161,7 +161,7 @@ export function ConstanciaView({
           />
           <div className="constancia__header-text">
             <p className="constancia__org">
-              Asociación de Comerciantes del Mercado Modelo
+              Asociación de Comerciantes del Mercado Milagros
             </p>
             <p className="constancia__org-sub">Junta Directiva · Secretaría</p>
           </div>
@@ -181,7 +181,7 @@ export function ConstanciaView({
         <div className="constancia__body">
           <p>
             Por medio del presente documento, la Junta Directiva de la
-            Asociación de Comerciantes del Mercado Modelo deja constancia que:
+            Asociación de Comerciantes del Mercado Milagros deja constancia que:
           </p>
 
           <p>

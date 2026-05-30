@@ -14,7 +14,7 @@ function aleatorioBase32(n: number): string {
 /**
  * Código de verificación que viaja en el QR y se valida en /verificar/<codigo>.
  * Formato: `MM-2026-XXXX-XXXX` (8 caracteres aleatorios → 32^8 ≈ 1.1·10¹²
- * combinaciones, no adivinable a fuerza bruta). El prefijo MM = Mercado Modelo.
+ * combinaciones, no adivinable a fuerza bruta). El prefijo MM = Mercado Milagros.
  */
 export function generarCodigoVerificacion(anio: number): string {
   const r = aleatorioBase32(8);

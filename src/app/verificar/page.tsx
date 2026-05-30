@@ -9,7 +9,7 @@ export default function Page() {
       <div className="verif__card">
         <div className="verif__org">
           <p className="verif__org-name">
-            Asociación de Comerciantes del Mercado Modelo
+            Asociación de Comerciantes del Mercado Milagros
           </p>
           <p className="verif__org-sub">
             Verificación de autenticidad de constancia
