@@ -5,7 +5,7 @@ import { LoginForm } from "./LoginForm";
 import "./login.css";
 
 export const metadata = {
-  title: "Iniciar sesión · UNAMAD Admin",
+  title: "Iniciar sesión · Mercado Milagros",
 };
 
 export default async function LoginPage() {
@@ -16,16 +16,16 @@ export default async function LoginPage() {
     <main className="login">
       <div className="login__card">
         <div className="login__brand">
-          <div className="login__brand-mark">U</div>
+          <div className="login__brand-mark">M</div>
           <div>
-            <div className="login__brand-name">UNAMAD</div>
+            <div className="login__brand-name">Mercado Milagros</div>
             <div className="login__brand-sub">Consola de administración</div>
           </div>
         </div>
 
         <div className="login__head">
           <h1>Bienvenido</h1>
-          <p>Inicia sesión con tu cuenta institucional para continuar.</p>
+          <p>Inicia sesión con tu correo y contraseña para continuar.</p>
         </div>
 
         <Suspense fallback={null}>
@@ -33,8 +33,7 @@ export default async function LoginPage() {
         </Suspense>
 
         <div className="login__foot">
-          ¿Problemas para acceder? Contacta a{" "}
-          <a href="mailto:oti@unamad.edu.pe">oti@unamad.edu.pe</a>
+          ¿Problemas para acceder? Contacta al administrador del sistema.
         </div>
       </div>
     </main>

@@ -132,7 +132,7 @@ export function CuotasClient({
 
       <div className="socios-toolbar">
         <input
-          key={filters.q ?? ""}
+          key={`q-${filters.q ?? ""}`}
           className="socios-toolbar__search"
           placeholder="Buscar socio por nombre, DNI o código…"
           defaultValue={filters.q}
@@ -142,7 +142,7 @@ export function CuotasClient({
           }}
         />
         <input
-          key={filters.periodo ?? ""}
+          key={`periodo-${filters.periodo ?? ""}`}
           className="socios-toolbar__select"
           placeholder="Periodo AAAA-MM"
           defaultValue={filters.periodo}

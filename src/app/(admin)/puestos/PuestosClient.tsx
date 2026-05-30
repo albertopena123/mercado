@@ -130,7 +130,7 @@ export function PuestosClient({
 
       <div className="socios-toolbar">
         <input
-          key={filters.q ?? ""}
+          key={`q-${filters.q ?? ""}`}
           className="socios-toolbar__search"
           placeholder="Buscar por código, giro, zona…"
           defaultValue={filters.q}

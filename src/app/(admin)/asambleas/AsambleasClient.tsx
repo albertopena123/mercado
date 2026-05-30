@@ -74,7 +74,7 @@ export function AsambleasClient({
 
       <div className="socios-toolbar">
         <input
-          key={filters.q ?? ""}
+          key={`q-${filters.q ?? ""}`}
           ref={searchRef}
           className="socios-toolbar__search"
           placeholder="Buscar por título…"

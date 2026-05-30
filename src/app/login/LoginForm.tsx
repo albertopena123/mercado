@@ -51,7 +51,7 @@ export function LoginForm() {
       )}
 
       <label className="field">
-        <span className="field__label">Correo institucional</span>
+        <span className="field__label">Correo</span>
         <input
           type="email"
           inputMode="email"
@@ -59,7 +59,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="usuario@unamad.edu.pe"
+          placeholder="correo@ejemplo.com"
           autoFocus
         />
       </label>
