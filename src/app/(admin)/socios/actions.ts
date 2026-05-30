@@ -25,7 +25,12 @@ import {
   removeSocioDir,
   extFromMime,
 } from "@/lib/socios/storage";
-import { validateUpload, type UploadKind } from "@/lib/socios/limits";
+import {
+  validateUpload,
+  sniffMime,
+  SNIFF_BYTES,
+  type UploadKind,
+} from "@/lib/socios/limits";
 import type {
   ActionResult,
   CreateSocioInput,
@@ -795,7 +800,15 @@ export async function uploadAdjunto(
     // Una foto debe ser imagen; un documento admite además PDF. Backstop del
     // servidor: el cliente ya valida lo mismo antes de subir.
     const kind: UploadKind = trimmedTipo === "foto" ? "foto" : "doc";
-    const invalid = validateUpload(file, kind);
+
+    // Materializamos el archivo y detectamos su tipo REAL por contenido (magic
+    // bytes), sin confiar en file.type (a veces vacío, p. ej. imágenes de IA).
+    // El tamaño está acotado por bodySizeLimit, así que leer el buffer es seguro.
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const sniffed = sniffMime(buffer.subarray(0, SNIFF_BYTES));
+    const effectiveType = sniffed ?? file.type;
+
+    const invalid = validateUpload(file, kind, sniffed);
     if (invalid) return fail(invalid);
 
     const existing = await prisma.socio.findUnique({
@@ -809,15 +822,14 @@ export async function uploadAdjunto(
         socioId,
         tipo: trimmedTipo,
         url: "",
-        mimeType: file.type,
+        mimeType: effectiveType,
         sizeBytes: file.size,
         uploadedById: me.id,
       },
     });
 
-    const ext = extFromMime(file.type);
+    const ext = extFromMime(effectiveType);
     const fileName = `${row.id}.${ext}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
 
     let url: string;
     try {

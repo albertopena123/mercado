@@ -11,9 +11,23 @@ import {
   FOTO_ACCEPT,
   FOTO_FORMATOS,
   MAX_UPLOAD_MB,
+  SNIFF_BYTES,
   humanFileSize,
+  sniffMime,
   validateUpload,
 } from "@/lib/socios/limits";
+
+// Detecta el tipo real del archivo por su contenido (los primeros bytes), sin
+// depender de `file.type` —que el navegador a veces deja vacío, p. ej. en
+// imágenes de IA—. Devuelve null si no se pudo leer.
+async function detectMime(file: File): Promise<string | null> {
+  try {
+    const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+    return sniffMime(head);
+  } catch {
+    return null;
+  }
+}
 
 const TIPOS = [
   { value: "dni_scan", label: "DNI escaneado" },
@@ -43,14 +57,16 @@ export function AdjuntosPanel({
   const fotoRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
 
-  function onFoto(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
     setError(null);
     // Validación inmediata en el cliente: evita subir un archivo de 20 MB solo
-    // para que el servidor lo rechace.
-    const invalid = validateUpload(f, "foto");
+    // para que el servidor lo rechace. Detectamos el tipo por contenido para no
+    // depender de file.type (a veces vacío en imágenes de IA).
+    const sniffed = await detectMime(f);
+    const invalid = validateUpload(f, "foto", sniffed);
     if (invalid) {
       setError({ kind: "foto", msg: invalid });
       toast.error(invalid);
@@ -68,12 +84,13 @@ export function AdjuntosPanel({
     });
   }
 
-  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
     setError(null);
-    const invalid = validateUpload(f, "doc");
+    const sniffed = await detectMime(f);
+    const invalid = validateUpload(f, "doc", sniffed);
     if (invalid) {
       setError({ kind: "doc", msg: invalid });
       toast.error(invalid);
