@@ -43,14 +43,22 @@ export function armarPlano(
 }
 
 /**
- * Reordena las celdas de una banda (ordenadas asc. por número) para que, al
- * pintarlas fila por fila en una grilla de `cols` columnas, los números queden
- * de ABAJO hacia ARRIBA (el #1 abajo, los más altos arriba) — como el plano
- * físico. Mantiene el orden ascendente dentro de cada fila.
+ * Reordena las celdas de una banda (ordenadas asc. por número) en SERPENTINA,
+ * como el plano físico (2 columnas): la columna izquierda sube de abajo hacia
+ * arriba (1·2·3·4, con el #1 abajo) y luego continúa por la columna derecha de
+ * arriba hacia abajo (5·6·7·8). Devuelve el arreglo en orden de pintado fila a
+ * fila (auto-flow row), p. ej. [4,5, 3,6, 2,7, 1,8].
  */
-export function celdasBottomUp<T>(cells: T[], cols = 2): T[] {
-  const filas: T[][] = [];
-  for (let i = 0; i < cells.length; i += cols) filas.push(cells.slice(i, i + cols));
-  filas.reverse();
-  return filas.flat();
+export function celdasSerpiente<T>(cells: T[]): T[] {
+  const n = cells.length;
+  const rows = Math.ceil(n / 2);
+  const izq = cells.slice(0, rows); // columna izquierda (se pinta abajo→arriba)
+  const der = cells.slice(rows); // columna derecha (se pinta arriba→abajo)
+  const out: T[] = [];
+  for (let r = 0; r < rows; r++) {
+    out.push(izq[rows - 1 - r]); // izquierda, de abajo hacia arriba
+    const d = der[r]; // derecha, de arriba hacia abajo
+    if (d !== undefined) out.push(d);
+  }
+  return out;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
-import { armarPlano, celdasBottomUp } from "@/lib/puestos/plano";
+import { armarPlano, celdasSerpiente } from "@/lib/puestos/plano";
 import {
   GIRO_COLOR,
   GIRO_LABEL,
@@ -50,8 +50,8 @@ export function PuestoPlanoView({
     };
   }, [etapa]);
 
-  // El plano físico tiene el bloque A a la DERECHA (orden M…A) y numera de
-  // abajo hacia arriba (ver celdasBottomUp más abajo).
+  // El plano físico tiene el bloque A a la DERECHA (orden M…A) y numera en
+  // serpentina: izquierda sube (1 abajo) y derecha baja (ver celdasSerpiente).
   const plano = cells ? armarPlano(cells, { orden: "M-A" }) : null;
 
   return (
@@ -129,7 +129,7 @@ export function PuestoPlanoView({
                 <div className="pst-plano__bloque" key={b.bloque}>
                   {b.bandas.map((band) => (
                     <div className="pst-plano__banda" key={band.banda}>
-                      {celdasBottomUp(band.cells).map((c) => {
+                      {celdasSerpiente(band.cells).map((c) => {
                         const giroBg =
                           colorBy === "giro"
                             ? c.giro
