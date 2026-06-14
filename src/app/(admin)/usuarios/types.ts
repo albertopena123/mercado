@@ -13,6 +13,15 @@ export type UserRow = {
   roles: { id: string; key: string; name: string }[];
 };
 
+export type LinkableSocio = {
+  id: string;
+  codigo: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  nombreCompleto: string;
+  email: string | null;
+};
+
 export type RoleOption = {
   id: string;
   key: string;

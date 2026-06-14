@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
-import type { ActionResult } from "./types";
+import { normalizeToken } from "@/lib/socios/normalize";
+import type { ActionResult, LinkableSocio } from "./types";
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const NAME_MIN = 2;
@@ -537,5 +538,57 @@ export async function bulkDelete(
     if (e instanceof Denied) return fail(e.message);
     console.error("bulkDelete", e);
     return fail("No se pudo eliminar el lote.");
+  }
+}
+
+/* ───────────────────── búsqueda de socios vinculables ───────────────────── */
+
+export async function searchLinkableSocios(
+  q: string,
+): Promise<ActionResult<LinkableSocio[]>> {
+  try {
+    await authorize("users.write");
+    const tokens = (q ?? "")
+      .split(/\s+/)
+      .filter((t) => t.length > 0)
+      .map(normalizeToken);
+    if (tokens.length === 0) return ok([]);
+
+    const rows = await prisma.socio.findMany({
+      where: {
+        userId: null, // solo socios sin cuenta aún
+        estado: "activo",
+        AND: tokens.map((t) => ({ searchKey: { contains: t } })),
+      },
+      take: 8,
+      orderBy: [{ apellidoPaterno: "asc" }, { nombres: "asc" }],
+      select: {
+        id: true,
+        codigo: true,
+        tipoDocumento: true,
+        numeroDocumento: true,
+        apellidoPaterno: true,
+        apellidoMaterno: true,
+        nombres: true,
+        email: true,
+      },
+    });
+
+    return ok(
+      rows.map((s) => ({
+        id: s.id,
+        codigo: s.codigo,
+        tipoDocumento: s.tipoDocumento,
+        numeroDocumento: s.numeroDocumento,
+        nombreCompleto: [s.apellidoPaterno, s.apellidoMaterno, s.nombres]
+          .filter(Boolean)
+          .join(" "),
+        email: s.email,
+      })),
+    );
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("searchLinkableSocios", e);
+    return fail("No se pudo buscar en el padrón.");
   }
 }
