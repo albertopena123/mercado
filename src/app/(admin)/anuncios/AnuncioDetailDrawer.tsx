@@ -22,7 +22,14 @@ import {
   TIPOS_ANUNCIO,
   VISIBILIDADES,
 } from "@/lib/anuncios/labels";
-import { FOTO_ACCEPT, FOTO_FORMATOS, MAX_UPLOAD_MB } from "@/lib/socios/limits";
+import {
+  FOTO_ACCEPT,
+  FOTO_FORMATOS,
+  MAX_UPLOAD_MB,
+  SNIFF_BYTES,
+  sniffMime,
+  validateUpload,
+} from "@/lib/socios/limits";
 import {
   getAnuncio,
   updateAnuncio,
@@ -75,6 +82,21 @@ export function AnuncioDetailDrawer({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    // Validar tamaño/formato en el CLIENTE antes de enviar: así un archivo
+    // grande no choca con el límite de Server Actions de Next (que mostraría
+    // "Body exceeded …") sino que recibe nuestro mensaje claro.
+    let sniffed: string | null = null;
+    try {
+      const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+      sniffed = sniffMime(head);
+    } catch {
+      sniffed = null;
+    }
+    const invalid = validateUpload(file, "foto", sniffed);
+    if (invalid) {
+      toast.error(invalid);
+      return;
+    }
     setUploading(true);
     const res = await uploadAnuncioImagen(anuncioId, file);
     setUploading(false);

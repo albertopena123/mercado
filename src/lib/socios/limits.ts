@@ -6,7 +6,7 @@
 // Es la única fuente de verdad: el servidor y el cliente leen de aquí, así no
 // se desincronizan.
 
-export const MAX_UPLOAD_MB = 5;
+export const MAX_UPLOAD_MB = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 // La foto del socio solo puede ser una imagen.
