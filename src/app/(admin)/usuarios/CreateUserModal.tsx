@@ -247,10 +247,16 @@ export function CreateUserModal({ roles, onClose, onSubmit }: Props) {
             )}
           </label>
 
-          <div style={{ marginTop: 8 }}>
-            <div className="field__label" style={{ marginBottom: 8 }}>Roles asignados</div>
-            <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} disabled={submitting} />
-          </div>
+          {mode === "staff" ? (
+            <div style={{ marginTop: 8 }}>
+              <div className="field__label" style={{ marginBottom: 8 }}>Roles asignados</div>
+              <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} disabled={submitting} />
+            </div>
+          ) : (
+            <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-muted)" }}>
+              Se le asigna el rol <b>Socio</b> y acceso al portal automáticamente.
+            </p>
+          )}
         </div>
         <footer className="modal__foot">
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={submitting}>

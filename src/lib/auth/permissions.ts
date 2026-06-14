@@ -216,10 +216,11 @@ export const ROLE_DEFS = [
     ],
   },
   {
-    key: "reporter",
-    name: "Reportante",
+    key: "socio",
+    name: "Socio",
     description:
-      "Rol reservado para uso futuro (portal del socio).",
+      "Comerciante con acceso al portal del socio (/portal). El acceso real lo " +
+      "da el vínculo con el padrón; este rol lo identifica como socio.",
     system: true,
     permissions: [],
   },

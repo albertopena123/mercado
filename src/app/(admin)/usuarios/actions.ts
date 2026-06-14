@@ -181,6 +181,17 @@ export async function createUser(
             .filter(Boolean)
             .join(" ");
 
+          // Todo comerciante recibe el rol "Socio" (además de los que se elijan),
+          // para que quede identificado como socio del portal.
+          const socioRole = await tx.role.findUnique({
+            where: { key: "socio" },
+            select: { id: true },
+          });
+          const finalRoleIds = dedupe([
+            ...roleIds,
+            ...(socioRole ? [socioRole.id] : []),
+          ]);
+
           const created = await tx.user.create({
             data: {
               name,
@@ -188,7 +199,7 @@ export async function createUser(
               tipoDocumento: socio.tipoDocumento,
               numeroDocumento: socio.numeroDocumento,
               passwordHash,
-              roles: { create: roleIds.map((roleId) => ({ roleId })) },
+              roles: { create: finalRoleIds.map((roleId) => ({ roleId })) },
             },
           });
           await tx.socio.update({
