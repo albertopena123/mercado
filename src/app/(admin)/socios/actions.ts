@@ -630,6 +630,7 @@ export async function updateSocio(
         apellidoPaterno: true,
         apellidoMaterno: true,
         nombres: true,
+        userId: true,
       },
     });
     if (!existing) return fail("Socio no encontrado.");
@@ -688,7 +689,24 @@ export async function updateSocio(
     });
 
     try {
-      await prisma.socio.update({ where: { id }, data });
+      await prisma.$transaction(async (tx) => {
+        await tx.socio.update({ where: { id }, data });
+        // Enfoque A: el documento se denormaliza en User. Si el socio tiene
+        // cuenta y cambió su documento, propagamos el cambio al usuario.
+        const docCambia =
+          normalized.tipoDocumento !== undefined ||
+          normalized.numeroDocumento !== undefined;
+        if (existing.userId && docCambia) {
+          await tx.user.update({
+            where: { id: existing.userId },
+            data: {
+              tipoDocumento: normalized.tipoDocumento ?? existing.tipoDocumento,
+              numeroDocumento:
+                normalized.numeroDocumento ?? existing.numeroDocumento,
+            },
+          });
+        }
+      });
     } catch (e) {
       if (isP2002(e)) {
         return fail("Ya existe un socio con ese documento.", {
