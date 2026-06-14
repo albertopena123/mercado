@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { clientMeta, createSessionFor } from "@/lib/auth/server";
 
-const GENERIC_ERROR = "Correo o contraseña incorrectos.";
+const GENERIC_ERROR = "Correo/documento o contraseña incorrectos.";
 
 // ────────── C2: dummy hash for timing-attack mitigation ──────────
 // Generated once per process. The verifyPassword cost equals a real check so
@@ -76,23 +76,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Solicitud inválida." }, { status: 400 });
   }
 
-  const { email, password } =
+  const { identifier, email, password } =
     typeof body === "object" && body !== null
-      ? (body as { email?: unknown; password?: unknown })
+      ? (body as {
+          identifier?: unknown;
+          email?: unknown;
+          password?: unknown;
+        })
       : {};
 
-  if (typeof email !== "string" || typeof password !== "string") {
+  // Compat: clientes viejos podían enviar `email`; ahora preferimos `identifier`.
+  const rawId = typeof identifier === "string" ? identifier : email;
+
+  if (typeof rawId !== "string" || typeof password !== "string") {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!normalizedEmail || !password) {
+  const id = rawId.trim();
+  if (!id || !password) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-  });
+  // Si parece correo (tiene "@") buscamos por email; si no, por número de
+  // documento. findFirst en documento porque la unicidad es por (tipo+número).
+  const user = id.includes("@")
+    ? await prisma.user.findUnique({ where: { email: id.toLowerCase() } })
+    : await prisma.user.findFirst({
+        where: { numeroDocumento: id.replace(/\s+/g, "") },
+      });
 
   // C2: equalize timing — always run a scrypt verify, even when the email
   // doesn't exist. Discard the result; return the same generic 401.
