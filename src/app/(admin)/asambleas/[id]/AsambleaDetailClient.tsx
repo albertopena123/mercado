@@ -2,6 +2,7 @@
 
 import "../../socios/socios.css";
 import "../asambleas.css";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/admin/Icon";
@@ -224,17 +225,23 @@ export function AsambleaDetailClient({
             {initial.lugar ? ` · ${initial.lugar}` : ""}
           </span>
         </div>
-        {perms.canDelete && (
-          <button
-            className="btn btn--ghost"
-            style={{ color: "#b91c1c" }}
-            onClick={() => setConfirmingDelete(true)}
-            disabled={deleting}
-          >
-            <Icon name="trash" size={16} />
-            <span>Eliminar</span>
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <Link href={`/asambleas/${initial.id}/qr`} className="btn btn--ghost">
+            <Icon name="apps" size={16} />
+            <span>QR de asistencia</span>
+          </Link>
+          {perms.canDelete && (
+            <button
+              className="btn btn--ghost"
+              style={{ color: "#b91c1c" }}
+              onClick={() => setConfirmingDelete(true)}
+              disabled={deleting}
+            >
+              <Icon name="trash" size={16} />
+              <span>Eliminar</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {initial.agenda && (

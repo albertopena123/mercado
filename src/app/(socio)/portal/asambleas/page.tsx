@@ -37,26 +37,43 @@ export default async function AsambleasPage() {
       ) : (
         <section className="pt-panel">
           <div className="pt-list">
-            {asambleas.map((a) => (
-              <div key={a.asambleaId} className="pt-row">
-                <div className="pt-row__main">
-                  <div className="pt-row__title">{a.titulo}</div>
-                  <div className="pt-row__sub">
-                    {new Date(a.fecha).toLocaleString("es-PE", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    {a.lugar ? ` · ${a.lugar}` : ""}
+            {asambleas.map((a) => {
+              const fecha = new Date(a.fecha).toLocaleString("es-PE", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              const inner = (
+                <>
+                  <div className="pt-row__main">
+                    <div className="pt-row__title">{a.titulo}</div>
+                    <div className="pt-row__sub">
+                      {fecha}
+                      {a.lugar ? ` · ${a.lugar}` : ""}
+                    </div>
                   </div>
+                  <span className={`pt-badge pt-badge--${a.miEstado}`}>
+                    {ASIS_LABEL[a.miEstado]}
+                  </span>
+                </>
+              );
+              return a.codigo ? (
+                <Link
+                  key={a.asambleaId}
+                  href={`/portal/asambleas/${a.codigo}`}
+                  className="pt-row"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div key={a.asambleaId} className="pt-row">
+                  {inner}
                 </div>
-                <span className={`pt-badge pt-badge--${a.miEstado}`}>
-                  {ASIS_LABEL[a.miEstado]}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

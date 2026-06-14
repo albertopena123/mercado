@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { peruDateTime } from "@/lib/fecha";
+import { generarCodigoVerificacion, anioLima } from "@/lib/constancia/codigo";
 import type {
   ActionResult,
   CreateAsambleaInput,
@@ -228,6 +229,7 @@ export async function createAsamblea(
           agenda: input.agenda?.trim() || null,
           quorumMinimo: quorum,
           toleranciaMin: tolerancia,
+          codigoVerificacion: generarCodigoVerificacion(anioLima()),
           createdById: me.id,
         },
       });

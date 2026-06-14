@@ -148,6 +148,7 @@ export async function getMisComunicados(): Promise<MiComunicado[]> {
 /* ───────────────────────── Asambleas / reuniones ───────────────────────── */
 export type MiAsamblea = {
   asambleaId: string;
+  codigo: string | null;
   titulo: string;
   tipo: TipoAsamblea;
   fecha: string;
@@ -166,6 +167,7 @@ export async function getMisAsambleas(socioId: string): Promise<MiAsamblea[]> {
       asamblea: {
         select: {
           id: true,
+          codigoVerificacion: true,
           titulo: true,
           tipo: true,
           fecha: true,
@@ -177,6 +179,7 @@ export async function getMisAsambleas(socioId: string): Promise<MiAsamblea[]> {
   });
   return asis.map((a) => ({
     asambleaId: a.asamblea.id,
+    codigo: a.asamblea.codigoVerificacion,
     titulo: a.asamblea.titulo,
     tipo: a.asamblea.tipo,
     fecha: a.asamblea.fecha.toISOString(),

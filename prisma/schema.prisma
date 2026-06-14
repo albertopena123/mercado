@@ -345,6 +345,10 @@ model Asamblea {
   quorumMinimo Int?
   toleranciaMin Int     @default(15) // minutos de tolerancia: hasta inicio+tol = presente
 
+  // Código único que viaja en el QR de asistencia: el socio escanea y abre
+  // /portal/asambleas/<codigo> para auto-registrarse. No es secreto.
+  codigoVerificacion String? @unique
+
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
