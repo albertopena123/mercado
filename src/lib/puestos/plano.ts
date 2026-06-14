@@ -62,3 +62,23 @@ export function celdasSerpiente<T>(cells: T[]): T[] {
   }
   return out;
 }
+
+/**
+ * Distribución de la Etapa 2: una grilla 2×N por bloque numerada en "U".
+ * La columna DERECHA va de abajo hacia arriba (#1 abajo → #N/2 arriba) y la
+ * IZQUIERDA de arriba hacia abajo (#N/2+1 arriba → #N abajo). `cells` debe venir
+ * ordenado ascendente por número. Devuelve el orden de pintado fila a fila
+ * ([izq, der] por fila), p. ej. para 36: [19,18, 20,17, …, 36,1].
+ */
+export function celdasColumnaU<T>(cells: T[]): T[] {
+  const n = cells.length;
+  const half = Math.ceil(n / 2);
+  const out: T[] = [];
+  for (let r = 0; r < half; r++) {
+    const izq = cells[half + r]; // izquierda: números altos, arriba→abajo
+    if (izq !== undefined) out.push(izq);
+    const der = cells[half - 1 - r]; // derecha: números bajos, abajo→arriba
+    if (der !== undefined) out.push(der);
+  }
+  return out;
+}

@@ -16,6 +16,7 @@ import {
   bandaPorNumero,
   dimensionPorBanda,
   puestoCodigo,
+  maxNumero,
 } from "@/lib/puestos/giro";
 
 export function CreatePuestoModal({
@@ -38,8 +39,9 @@ export function CreatePuestoModal({
   useEscClose(true, onClose, submitting);
 
   const numN = parseInt(numero, 10);
-  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= 24;
-  const banda = numValid ? bandaPorNumero(numN) : null;
+  const numMax = maxNumero(etapa);
+  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= numMax;
+  const banda = numValid ? bandaPorNumero(numN, etapa) : null;
   const dimension = banda ? dimensionPorBanda(banda) : null;
   const codigoPreview = numValid ? puestoCodigo(etapa, bloque, numN) : "—";
   const valid = numValid;
@@ -145,10 +147,10 @@ export function CreatePuestoModal({
               <input
                 type="number"
                 min="1"
-                max="24"
+                max={numMax}
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
-                placeholder="1–24"
+                placeholder={`1–${numMax}`}
                 aria-invalid={!!fe.numero}
                 autoFocus
                 disabled={submitting}

@@ -16,6 +16,7 @@ import {
   bandaPorNumero,
   dimensionPorBanda,
   puestoCodigo,
+  maxNumero,
 } from "@/lib/puestos/giro";
 import type {
   ActionResult,
@@ -301,8 +302,9 @@ function validate(input: Partial<CreatePuestoInput>, isCreate: boolean): {
   }
   if (isCreate || input.numero !== undefined) {
     const n = Number(input.numero);
-    if (!Number.isInteger(n) || n < 1 || n > 24)
-      fe.numero = "Número inválido (1–24).";
+    const max = maxNumero(Number(input.etapa) === 2 ? 2 : 1);
+    if (!Number.isInteger(n) || n < 1 || n > max)
+      fe.numero = `Número inválido (1–${max}).`;
     else out.numero = n;
   }
   if (input.banda !== undefined) out.banda = input.banda;
@@ -328,7 +330,7 @@ export async function createPuesto(
     const etapa = normalized.etapa!;
     const bloque = normalized.bloque!;
     const numero = normalized.numero!;
-    const banda = normalized.banda ?? bandaPorNumero(numero);
+    const banda = normalized.banda ?? bandaPorNumero(numero, etapa);
     const dimension = normalized.dimension ?? dimensionPorBanda(banda);
     const codigo = puestoCodigo(etapa, bloque, numero);
     const giro = normalized.giro ?? null;
@@ -394,7 +396,7 @@ export async function updatePuesto(
     const numero = normalized.numero ?? existing.numero;
     let banda = existing.banda;
     if (normalized.banda !== undefined) banda = normalized.banda;
-    else if (normalized.numero !== undefined) banda = bandaPorNumero(numero);
+    else if (normalized.numero !== undefined) banda = bandaPorNumero(numero, etapa);
     let dimension = existing.dimension;
     if (normalized.dimension !== undefined) dimension = normalized.dimension;
     else if (banda !== existing.banda) dimension = dimensionPorBanda(banda);
@@ -619,17 +621,23 @@ export async function listPuestosForPlano(
 
 /* ─────────────────────── Generador de grilla ─────────────────────── */
 
-// 3 bandas de 8 puestos = 24 por bloque, numeradas continuo de abajo→arriba.
-const BANDA_RANGES: {
+// Rangos de banda según etapa.
+//   Etapa 1: 3 bandas de 8 = 24 por bloque (abajo→arriba).
+//   Etapa 2: una grilla 2×18 = 36 por bloque, todas 3×3 (numeración en U).
+function bandaRanges(etapa: number): {
   banda: BandaPuesto;
   from: number;
   to: number;
   dimension: DimensionPuesto;
-}[] = [
-  { banda: "baja", from: 1, to: 8, dimension: "d3x5" },
-  { banda: "media", from: 9, to: 16, dimension: "d3x3" },
-  { banda: "alta", from: 17, to: 24, dimension: "d3x5" },
-];
+}[] {
+  if (Number(etapa) === 2)
+    return [{ banda: "media", from: 1, to: 36, dimension: "d3x3" }];
+  return [
+    { banda: "baja", from: 1, to: 8, dimension: "d3x5" },
+    { banda: "media", from: 9, to: 16, dimension: "d3x3" },
+    { banda: "alta", from: 17, to: 24, dimension: "d3x5" },
+  ];
+}
 
 export async function generarGrillaEtapa(
   input: GenerarGrillaInput,
@@ -644,9 +652,10 @@ export async function generarGrillaEtapa(
     if (bloques.length === 0)
       return fail("Selecciona al menos un bloque (A–M).");
 
+    const ranges = bandaRanges(etapa);
     const data: Prisma.PuestoCreateManyInput[] = [];
     for (const bloque of bloques) {
-      for (const r of BANDA_RANGES) {
+      for (const r of ranges) {
         for (let n = r.from; n <= r.to; n++) {
           const codigo = puestoCodigo(etapa, bloque, n);
           data.push({

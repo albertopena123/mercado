@@ -20,6 +20,7 @@ import {
   DIMENSION_LABEL,
   bandaPorNumero,
   puestoCodigo,
+  maxNumero,
 } from "@/lib/puestos/giro";
 
 type Tab = "datos" | "asignacion";
@@ -421,8 +422,9 @@ function DatosForm({
   // en el padre (evita setState-en-effect).
 
   const numN = parseInt(numero, 10);
-  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= 24;
-  const banda = numValid ? bandaPorNumero(numN) : null;
+  const numMax = maxNumero(etapa);
+  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= numMax;
+  const banda = numValid ? bandaPorNumero(numN, etapa) : null;
   const codigoPreview = numValid ? puestoCodigo(etapa, bloque, numN) : "—";
 
   const isDirty =
@@ -437,7 +439,7 @@ function DatosForm({
     e.preventDefault();
     if (!isDirty || pending) return;
     if (!numValid) {
-      setFe({ numero: "Número inválido (1–24)." });
+      setFe({ numero: `Número inválido (1–${numMax}).` });
       return;
     }
     setError(null);
@@ -510,7 +512,7 @@ function DatosForm({
           <input
             type="number"
             min="1"
-            max="24"
+            max={numMax}
             value={numero}
             onChange={(e) => setNumero(e.target.value)}
             disabled={disabled}

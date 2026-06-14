@@ -5,9 +5,7 @@ import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { useToast } from "@/components/admin/toast";
 import { generarGrillaEtapa } from "./actions";
-import { BLOQUES, ETAPAS } from "@/lib/puestos/giro";
-
-const POR_BLOQUE = 24; // 3 bandas de 8: abajo 1-8 + medio 9-16 + arriba 17-24
+import { BLOQUES, ETAPAS, maxNumero } from "@/lib/puestos/giro";
 
 export function GenerarGrillaModal({
   onClose,
@@ -28,7 +26,8 @@ export function GenerarGrillaModal({
       prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b],
     );
   const valid = bloques.length > 0;
-  const totalPuestos = bloques.length * POR_BLOQUE;
+  const porBloque = maxNumero(etapa);
+  const totalPuestos = bloques.length * porBloque;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -67,9 +66,10 @@ export function GenerarGrillaModal({
         </header>
         <div className="modal__body">
           <p className="modal__intro">
-            Crea automáticamente los puestos de los bloques seleccionados con sus
-            3 bandas de 8 (abajo 1–8 de 3×5, medio 9–16 de 3×3, arriba 17–24 de
-            3×5). Los puestos que ya existan se omiten.
+            {etapa === 2
+              ? "Crea los puestos de los bloques seleccionados: 36 por bloque (grilla 2×18, todos 3×3, numeración en U)."
+              : "Crea los puestos de los bloques seleccionados con sus 3 bandas de 8 (abajo 1–8 de 3×5, medio 9–16 de 3×3, arriba 17–24 de 3×5)."}{" "}
+            Los puestos que ya existan se omiten.
           </p>
 
           <label className="field">

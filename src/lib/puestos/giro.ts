@@ -58,12 +58,17 @@ export const TIPO_LABEL: Record<TipoEspacio, string> = {
 export const BLOQUES = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
 export const ETAPAS = [1, 2];
 
-// 3 bandas de 8 puestos = 24 por bloque, continuo de abajo (junto al SS-HH)
-// hacia arriba:
-//   abajo  → banda "baja"  : 1–8   (3×5)
-//   medio  → banda "media" : 9–16  (3×3)
-//   arriba → banda "alta"  : 17–24 (3×5)
-export function bandaPorNumero(n: number): BandaPuesto {
+// Puestos por bloque según la etapa: Etapa 1 = 24 (3 bandas de 8); Etapa 2 = 36
+// (una grilla 2×18 numerada en U).
+export function maxNumero(etapa: number): number {
+  return Number(etapa) === 2 ? 36 : 24;
+}
+
+// Banda del puesto según número y etapa.
+//   Etapa 1: abajo "baja" 1–8 (3×5) · medio "media" 9–16 (3×3) · arriba "alta" 17–24 (3×5)
+//   Etapa 2: una sola grilla → banda "media" (3×3) para todos.
+export function bandaPorNumero(n: number, etapa = 1): BandaPuesto {
+  if (Number(etapa) === 2) return "media";
   if (n <= 8) return "baja";
   if (n <= 16) return "media";
   return "alta";

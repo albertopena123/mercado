@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
-import { armarPlano, celdasSerpiente } from "@/lib/puestos/plano";
+import { armarPlano, celdasSerpiente, celdasColumnaU } from "@/lib/puestos/plano";
 import {
   GIRO_COLOR,
   GIRO_LABEL,
@@ -142,14 +142,18 @@ export function PuestoPlanoView({
         <div className="pst-plano-scroll">
           <div className="pst-plano__calle">Av. Los Próceres</div>
           <div className="pst-plano">
-            <span className="pst-plano__puerta">P1</span>
+            <span className="pst-plano__puerta">{etapa === 2 ? "P4" : "P1"}</span>
             <div className="pst-plano__bloques">
               {plano.bloques.map((b) => (
                 <div className="pst-plano__bloque" key={b.bloque}>
                   {b.bandas.map((band) => {
-                    // El SS-HH ocupa varias celdas contiguas abajo → se dibuja
-                    // como un solo recuadro unido. Almacenes: celdas marcadas.
-                    const ordered = celdasSerpiente(band.cells);
+                    // Etapa 2: grilla 2×18 numerada en U. Etapa 1: serpentina
+                    // por banda. El SS-HH ocupa varias celdas contiguas abajo →
+                    // se dibuja como un solo recuadro unido.
+                    const ordered =
+                      etapa === 2
+                        ? celdasColumnaU(band.cells)
+                        : celdasSerpiente(band.cells);
                     const sshh = ordered.filter((c) => c.tipo === "sshh");
                     const visibles = ordered.filter((c) => c.tipo !== "sshh");
                     return (
@@ -209,7 +213,7 @@ export function PuestoPlanoView({
                 </div>
               ))}
             </div>
-            <span className="pst-plano__puerta">P2</span>
+            <span className="pst-plano__puerta">{etapa === 2 ? "P3" : "P2"}</span>
           </div>
         </div>
       )}
