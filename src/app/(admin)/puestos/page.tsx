@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 type SearchParams = {
   q?: string;
   estado?: string;
+  etapa?: string;
+  bloque?: string;
   page?: string;
   size?: string;
   sort?: string;
@@ -22,7 +24,8 @@ const ESTADOS: EstadoPuesto[] = [
   "clausurado",
   "construccion",
 ];
-const SORTS: SortKey[] = ["codigo", "giro", "zona", "estado"];
+const SORTS: SortKey[] = ["codigo", "bloque", "numero", "giro", "estado"];
+const BLOQUES = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
 
 export default async function Page({
   searchParams,
@@ -36,6 +39,11 @@ export default async function Page({
     sp.estado && (ESTADOS as string[]).includes(sp.estado)
       ? (sp.estado as EstadoPuesto)
       : undefined;
+  const etapa = sp.etapa === "1" || sp.etapa === "2" ? Number(sp.etapa) : undefined;
+  const bloque =
+    sp.bloque && BLOQUES.includes(sp.bloque.toUpperCase())
+      ? sp.bloque.toUpperCase()
+      : undefined;
   const page = sp.page ? Math.max(1, parseInt(sp.page, 10) || 1) : 1;
   const pageSize = sp.size ? parseInt(sp.size, 10) || 25 : 25;
   const sort: SortKey =
@@ -45,7 +53,7 @@ export default async function Page({
   const dir: SortDir = sp.dir === "desc" ? "desc" : "asc";
 
   const [res, statsRes] = await Promise.all([
-    listPuestos({ q: sp.q, estado, page, pageSize, sort, dir }),
+    listPuestos({ q: sp.q, estado, etapa, bloque, page, pageSize, sort, dir }),
     getPuestoStats(),
   ]);
   if (!res.ok) throw new Error(res.error);
@@ -66,7 +74,7 @@ export default async function Page({
       initial={res.data!}
       stats={stats}
       perms={perms}
-      filters={{ q: sp.q ?? "", estado }}
+      filters={{ q: sp.q ?? "", estado, etapa, bloque }}
     />
   );
 }

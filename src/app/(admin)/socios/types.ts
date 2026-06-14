@@ -3,6 +3,8 @@ import type {
   TipoDocumento,
   Sexo,
   EstadoPuesto,
+  Giro,
+  DimensionPuesto,
 } from "@/generated/prisma/client";
 
 export type ActionResult<T = undefined> =
@@ -62,9 +64,8 @@ export type SocioDetail = SocioRow & {
     id: string; // id de la asignación
     puestoId: string;
     codigo: string;
-    giro: string | null;
-    zona: string | null;
-    area: number | null;
+    giro: Giro | null;
+    dimension: DimensionPuesto;
     estadoPuesto: EstadoPuesto;
     desde: string;
     hasta: string | null; // null = asignación vigente

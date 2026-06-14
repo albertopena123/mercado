@@ -9,8 +9,18 @@ import { ConfirmDialog } from "../socios/ConfirmDialog";
 import { EstadoPuestoBadge } from "./EstadoPuestoBadge";
 import { AsignarSocioModal } from "./AsignarSocioModal";
 import { getPuesto, updatePuesto, deletePuesto, unassignPuesto } from "./actions";
-import type { EstadoPuesto } from "@/generated/prisma/client";
+import type { EstadoPuesto, Giro } from "@/generated/prisma/client";
 import type { PuestoDetail, PermFlags, UpdatePuestoPatch } from "./types";
+import {
+  GIRO_LABEL,
+  GIROS,
+  BLOQUES,
+  ETAPAS,
+  BANDA_LABEL,
+  DIMENSION_LABEL,
+  bandaPorNumero,
+  puestoCodigo,
+} from "@/lib/puestos/giro";
 
 type Tab = "datos" | "asignacion";
 
@@ -121,21 +131,21 @@ export function PuestoDetailDrawer({
         <div className="drawer__stats">
           <div className="stat">
             <div className="stat__v" style={{ fontSize: 14 }}>
-              {puesto.giro ?? "—"}
+              {puesto.giro ? GIRO_LABEL[puesto.giro] : "—"}
             </div>
             <div className="stat__l">Giro</div>
           </div>
           <div className="stat">
             <div className="stat__v" style={{ fontSize: 14 }}>
-              {puesto.zona ?? "—"}
+              {puesto.bloque}
             </div>
-            <div className="stat__l">Zona</div>
+            <div className="stat__l">Etapa {puesto.etapa} · Bloque</div>
           </div>
           <div className="stat">
             <div className="stat__v" style={{ fontSize: 14 }}>
-              {puesto.area != null ? `${puesto.area} m²` : "—"}
+              {DIMENSION_LABEL[puesto.dimension]}
             </div>
-            <div className="stat__l">Área</div>
+            <div className="stat__l">{BANDA_LABEL[puesto.banda]}</div>
           </div>
         </div>
 
@@ -386,10 +396,10 @@ function DatosForm({
 }) {
   const initial = useMemo(
     () => ({
-      codigo: puesto.codigo,
-      giro: puesto.giro ?? "",
-      zona: puesto.zona ?? "",
-      area: puesto.area != null ? String(puesto.area) : "",
+      etapa: puesto.etapa,
+      bloque: puesto.bloque,
+      numero: String(puesto.numero),
+      giro: (puesto.giro ?? "") as Giro | "",
       estado: puesto.estado,
       observaciones: puesto.observaciones ?? "",
     }),
@@ -397,10 +407,10 @@ function DatosForm({
   );
 
   const toast = useToast();
-  const [codigo, setCodigo] = useState(initial.codigo);
-  const [giro, setGiro] = useState(initial.giro);
-  const [zona, setZona] = useState(initial.zona);
-  const [area, setArea] = useState(initial.area);
+  const [etapa, setEtapa] = useState(initial.etapa);
+  const [bloque, setBloque] = useState(initial.bloque);
+  const [numero, setNumero] = useState(initial.numero);
+  const [giro, setGiro] = useState<Giro | "">(initial.giro);
   const [estado, setEstado] = useState<EstadoPuesto>(initial.estado);
   const [observaciones, setObs] = useState(initial.observaciones);
   const [error, setError] = useState<string | null>(null);
@@ -410,24 +420,33 @@ function DatosForm({
   // El reset al cambiar de puesto/guardar se hace remontando vía `key`
   // en el padre (evita setState-en-effect).
 
+  const numN = parseInt(numero, 10);
+  const numValid = Number.isInteger(numN) && numN >= 1;
+  const banda = numValid ? bandaPorNumero(numN) : null;
+  const codigoPreview = numValid ? puestoCodigo(etapa, bloque, numN) : "—";
+
   const isDirty =
-    codigo !== initial.codigo ||
+    etapa !== initial.etapa ||
+    bloque !== initial.bloque ||
+    numero !== initial.numero ||
     giro !== initial.giro ||
-    zona !== initial.zona ||
-    area !== initial.area ||
     estado !== initial.estado ||
     observaciones !== initial.observaciones;
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!isDirty || pending) return;
+    if (!numValid) {
+      setFe({ numero: "Número inválido." });
+      return;
+    }
     setError(null);
     setFe({});
     const patch: UpdatePuestoPatch = {
-      codigo,
-      giro: giro || undefined,
-      zona: zona || undefined,
-      area: area.trim() ? Number(area) : null,
+      etapa,
+      bloque,
+      numero: numN,
+      giro: giro || null,
       estado,
       observaciones: observaciones || undefined,
     };
@@ -454,35 +473,74 @@ function DatosForm({
           <span>{error}</span>
         </div>
       )}
-      <label className="field">
-        <span className="field__label">
-          Código<span className="field__req">*</span>
-        </span>
-        <input value={codigo} onChange={(e) => setCodigo(e.target.value)} disabled={disabled} />
-        {fe.codigo && <span className="field-error">{fe.codigo}</span>}
-      </label>
-      <div className="soc-formgrid soc-formgrid--2col">
+      <div
+        className="soc-formgrid"
+        style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}
+      >
         <label className="field">
-          <span className="field__label">Giro / rubro</span>
-          <input value={giro} onChange={(e) => setGiro(e.target.value)} disabled={disabled} />
+          <span className="field__label">Etapa</span>
+          <select
+            value={etapa}
+            onChange={(e) => setEtapa(Number(e.target.value))}
+            disabled={disabled}
+          >
+            {ETAPAS.map((n) => (
+              <option key={n} value={n}>
+                Etapa {n}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field">
-          <span className="field__label">Zona / pabellón</span>
-          <input value={zona} onChange={(e) => setZona(e.target.value)} disabled={disabled} />
+          <span className="field__label">Bloque</span>
+          <select
+            value={bloque}
+            onChange={(e) => setBloque(e.target.value)}
+            disabled={disabled}
+          >
+            {BLOQUES.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
         </label>
+        <label className="field">
+          <span className="field__label">Número</span>
+          <input
+            type="number"
+            min="1"
+            value={numero}
+            onChange={(e) => setNumero(e.target.value)}
+            disabled={disabled}
+          />
+          {fe.numero && <span className="field-error">{fe.numero}</span>}
+        </label>
+      </div>
+      <div className="banner" style={{ alignItems: "center" }}>
+        <div className="banner__icon">
+          <Icon name="folder" size={18} />
+        </div>
+        <p>
+          Código: <b>{codigoPreview}</b>
+          {banda && <> · {BANDA_LABEL[banda]}</>}
+        </p>
       </div>
       <div className="soc-formgrid soc-formgrid--2col">
         <label className="field">
-          <span className="field__label">Área (m²)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.1"
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
+          <span className="field__label">Giro / rubro</span>
+          <select
+            value={giro}
+            onChange={(e) => setGiro(e.target.value as Giro | "")}
             disabled={disabled}
-          />
-          {fe.area && <span className="field-error">{fe.area}</span>}
+          >
+            <option value="">— Sin definir —</option>
+            {GIROS.map((g) => (
+              <option key={g} value={g}>
+                {GIRO_LABEL[g]}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field">
           <span className="field__label">Estado</span>

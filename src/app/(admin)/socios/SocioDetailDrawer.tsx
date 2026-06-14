@@ -14,6 +14,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { SocioCuotasTab } from "./SocioCuotasTab";
 import type { SocioDetail, PermFlags, UpdateSocioPatch } from "./types";
 import type { TipoDocumento, Sexo, EstadoPuesto } from "@/generated/prisma/client";
+import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 
 type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial";
 
@@ -268,13 +269,10 @@ export function SocioDetailDrawer({
                               {PUESTO_ESTADO_LBL[p.estadoPuesto]}
                             </span>
                           </div>
-                          {(p.giro || p.zona || p.area != null) && (
-                            <div className="soc-puesto__meta">
-                              {p.giro && <span>{p.giro}</span>}
-                              {p.zona && <span>Zona {p.zona}</span>}
-                              {p.area != null && <span>{p.area} m²</span>}
-                            </div>
-                          )}
+                          <div className="soc-puesto__meta">
+                            {p.giro && <span>{GIRO_LABEL[p.giro]}</span>}
+                            <span>{DIMENSION_LABEL[p.dimension]}</span>
+                          </div>
                           <div className="soc-puesto__dates">
                             Asignado desde {fechaCorta(p.desde)}
                           </div>

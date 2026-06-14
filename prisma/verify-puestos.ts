@@ -33,7 +33,15 @@ async function main() {
 
   console.log("→ Crear puesto");
   const p = await prisma.puesto.create({
-    data: { codigo: `PT-${stamp}`, estado: "vacio" },
+    data: {
+      codigo: `PT-${stamp}`,
+      etapa: 2,
+      bloque: "M",
+      numero: Number(stamp),
+      banda: "alta",
+      dimension: "d3x5",
+      estado: "vacio",
+    },
   });
 
   console.log("→ Asignar a socio 1");

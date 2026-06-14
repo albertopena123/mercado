@@ -1,11 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma, type EstadoPuesto } from "@/generated/prisma/client";
+import {
+  Prisma,
+  type EstadoPuesto,
+  type BandaPuesto,
+  type DimensionPuesto,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
+import {
+  GIRO_LABEL,
+  bandaPorNumero,
+  dimensionPorBanda,
+  puestoCodigo,
+} from "@/lib/puestos/giro";
 import type {
   ActionResult,
   CreatePuestoInput,
@@ -15,6 +26,8 @@ import type {
   PuestoRow,
   PuestoDetail,
   PuestoStats,
+  PlanoCell,
+  GenerarGrillaInput,
 } from "./types";
 
 const PAGE_SIZE = 25;
@@ -53,16 +66,17 @@ function isP2002(e: unknown): boolean {
 
 function buildSearchKey(p: {
   codigo: string;
-  giro?: string | null;
-  zona?: string | null;
+  bloque: string;
+  giro?: CreatePuestoInput["giro"];
 }): string {
-  return [p.codigo, p.giro, p.zona]
+  const giroLabel = p.giro ? GIRO_LABEL[p.giro] : null;
+  return [p.codigo, p.bloque, giroLabel]
     .filter((x): x is string => Boolean(x))
     .map(normalizeToken)
     .join(" ");
 }
 
-const SORT_KEYS = ["codigo", "giro", "zona", "estado"] as const;
+const SORT_KEYS = ["codigo", "bloque", "numero", "giro", "estado"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
 function buildOrderBy(
@@ -71,23 +85,29 @@ function buildOrderBy(
 ): Prisma.PuestoOrderByWithRelationInput[] {
   switch (sort) {
     case "giro":
-      return [{ giro: dir }, { codigo: "asc" }];
-    case "zona":
-      return [{ zona: dir }, { codigo: "asc" }];
+      return [{ giro: dir }, { etapa: "asc" }, { bloque: "asc" }, { numero: "asc" }];
     case "estado":
-      return [{ estado: dir }, { codigo: "asc" }];
+      return [{ estado: dir }, { etapa: "asc" }, { bloque: "asc" }, { numero: "asc" }];
+    case "bloque":
+      return [{ etapa: dir }, { bloque: dir }, { numero: "asc" }];
+    case "numero":
+      return [{ etapa: "asc" }, { bloque: "asc" }, { numero: dir }];
     case "codigo":
     default:
-      return [{ codigo: dir }];
+      return [{ etapa: dir }, { bloque: dir }, { numero: dir }];
   }
 }
 
 function buildWhere(params: {
   q?: string;
   estado?: EstadoPuesto;
+  etapa?: number;
+  bloque?: string;
 }): Prisma.PuestoWhereInput {
   const where: Prisma.PuestoWhereInput = {};
   if (params.estado) where.estado = params.estado;
+  if (params.etapa) where.etapa = params.etapa;
+  if (params.bloque) where.bloque = params.bloque.toUpperCase();
   const q = params.q?.trim() ?? "";
   if (q) {
     const tokens = q
@@ -135,9 +155,12 @@ export async function listPuestos(
         select: {
           id: true,
           codigo: true,
+          etapa: true,
+          bloque: true,
+          numero: true,
+          banda: true,
+          dimension: true,
           giro: true,
-          zona: true,
-          area: true,
           estado: true,
           fotoUrl: true,
           asignaciones: {
@@ -163,14 +186,15 @@ export async function listPuestos(
       return {
         id: p.id,
         codigo: p.codigo,
+        etapa: p.etapa,
+        bloque: p.bloque,
+        numero: p.numero,
+        banda: p.banda,
+        dimension: p.dimension,
         giro: p.giro,
-        zona: p.zona,
-        area: p.area,
         estado: p.estado,
         fotoUrl: p.fotoUrl,
-        socioActual: vig
-          ? { id: vig.id, nombre: socioNombre(vig) }
-          : null,
+        socioActual: vig ? { id: vig.id, nombre: socioNombre(vig) } : null,
       };
     });
 
@@ -212,9 +236,12 @@ export async function getPuesto(
     return ok({
       id: p.id,
       codigo: p.codigo,
+      etapa: p.etapa,
+      bloque: p.bloque,
+      numero: p.numero,
+      banda: p.banda,
+      dimension: p.dimension,
       giro: p.giro,
-      zona: p.zona,
-      area: p.area,
       estado: p.estado,
       fotoUrl: p.fotoUrl,
       observaciones: p.observaciones,
@@ -238,32 +265,36 @@ export async function getPuesto(
   }
 }
 
-function validate(
-  input: Partial<CreatePuestoInput>,
-  isCreate: boolean,
-): { fieldErrors: Record<string, string>; normalized: Partial<CreatePuestoInput> } {
+function validate(input: Partial<CreatePuestoInput>, isCreate: boolean): {
+  fieldErrors: Record<string, string>;
+  normalized: Partial<CreatePuestoInput>;
+} {
   const fe: Record<string, string> = {};
   const out: Partial<CreatePuestoInput> = {};
 
-  if (isCreate || input.codigo !== undefined) {
-    const c = (input.codigo ?? "").trim();
-    if (!c) fe.codigo = "El código del puesto es obligatorio.";
-    else out.codigo = c;
+  if (isCreate || input.etapa !== undefined) {
+    const e = Number(input.etapa);
+    if (e !== 1 && e !== 2) fe.etapa = "Etapa inválida (1 o 2).";
+    else out.etapa = e;
   }
-  if (input.area !== undefined && input.area !== null) {
-    const n = Number(input.area);
-    if (isNaN(n) || n < 0) fe.area = "Área inválida.";
-    else out.area = n;
-  } else if (input.area === null) {
-    out.area = null;
+  if (isCreate || input.bloque !== undefined) {
+    const b = String(input.bloque ?? "").trim().toUpperCase();
+    if (!/^[A-M]$/.test(b)) fe.bloque = "Bloque inválido (A–M).";
+    else out.bloque = b;
   }
-  for (const k of ["giro", "zona", "observaciones"] as const) {
-    if (input[k] !== undefined) {
-      const t = String(input[k]).trim();
-      (out as Record<string, string | undefined>)[k] = t || undefined;
-    }
+  if (isCreate || input.numero !== undefined) {
+    const n = Number(input.numero);
+    if (!Number.isInteger(n) || n < 1) fe.numero = "Número inválido.";
+    else out.numero = n;
   }
+  if (input.banda !== undefined) out.banda = input.banda;
+  if (input.dimension !== undefined) out.dimension = input.dimension;
+  if (input.giro !== undefined) out.giro = input.giro ?? null;
   if (input.estado !== undefined) out.estado = input.estado;
+  if (input.observaciones !== undefined) {
+    const t = String(input.observaciones).trim();
+    out.observaciones = t || undefined;
+  }
   return { fieldErrors: fe, normalized: out };
 }
 
@@ -276,20 +307,27 @@ export async function createPuesto(
     if (Object.keys(fieldErrors).length > 0)
       return fail("Revisa los campos marcados.", fieldErrors);
 
+    const etapa = normalized.etapa!;
+    const bloque = normalized.bloque!;
+    const numero = normalized.numero!;
+    const banda = normalized.banda ?? bandaPorNumero(numero);
+    const dimension = normalized.dimension ?? dimensionPorBanda(banda);
+    const codigo = puestoCodigo(etapa, bloque, numero);
+    const giro = normalized.giro ?? null;
+
     try {
       const created = await prisma.puesto.create({
         data: {
-          codigo: normalized.codigo!,
-          giro: normalized.giro ?? null,
-          zona: normalized.zona ?? null,
-          area: normalized.area ?? null,
+          etapa,
+          bloque,
+          numero,
+          banda,
+          dimension,
+          giro,
+          codigo,
           estado: normalized.estado ?? "vacio",
           observaciones: normalized.observaciones ?? null,
-          searchKey: buildSearchKey({
-            codigo: normalized.codigo!,
-            giro: normalized.giro,
-            zona: normalized.zona,
-          }),
+          searchKey: buildSearchKey({ codigo, bloque, giro }),
           createdById: me.id,
           updatedById: me.id,
         },
@@ -298,8 +336,8 @@ export async function createPuesto(
       return ok({ id: created.id });
     } catch (e) {
       if (isP2002(e))
-        return fail("Ya existe un puesto con ese código.", {
-          codigo: "Código en uso.",
+        return fail(`Ya existe el puesto ${codigo}.`, {
+          numero: "Ese número ya existe en el bloque.",
         });
       throw e;
     }
@@ -318,7 +356,14 @@ export async function updatePuesto(
     const me = await authorize("puestos.write");
     const existing = await prisma.puesto.findUnique({
       where: { id },
-      select: { codigo: true, giro: true, zona: true },
+      select: {
+        etapa: true,
+        bloque: true,
+        numero: true,
+        banda: true,
+        dimension: true,
+        giro: true,
+      },
     });
     if (!existing) return fail("Puesto no encontrado.");
 
@@ -326,29 +371,39 @@ export async function updatePuesto(
     if (Object.keys(fieldErrors).length > 0)
       return fail("Revisa los campos marcados.", fieldErrors);
 
+    const etapa = normalized.etapa ?? existing.etapa;
+    const bloque = normalized.bloque ?? existing.bloque;
+    const numero = normalized.numero ?? existing.numero;
+    let banda = existing.banda;
+    if (normalized.banda !== undefined) banda = normalized.banda;
+    else if (normalized.numero !== undefined) banda = bandaPorNumero(numero);
+    let dimension = existing.dimension;
+    if (normalized.dimension !== undefined) dimension = normalized.dimension;
+    else if (banda !== existing.banda) dimension = dimensionPorBanda(banda);
+    const giro = "giro" in normalized ? normalized.giro ?? null : existing.giro;
+    const codigo = puestoCodigo(etapa, bloque, numero);
+
     const data: Prisma.PuestoUpdateInput = {
+      etapa,
+      bloque,
+      numero,
+      banda,
+      dimension,
+      giro,
+      codigo,
+      searchKey: buildSearchKey({ codigo, bloque, giro }),
       updatedBy: { connect: { id: me.id } },
     };
-    if (normalized.codigo) data.codigo = normalized.codigo;
-    if ("giro" in normalized) data.giro = normalized.giro ?? null;
-    if ("zona" in normalized) data.zona = normalized.zona ?? null;
-    if ("area" in normalized) data.area = normalized.area ?? null;
     if (normalized.estado) data.estado = normalized.estado;
     if ("observaciones" in normalized)
       data.observaciones = normalized.observaciones ?? null;
-
-    data.searchKey = buildSearchKey({
-      codigo: normalized.codigo ?? existing.codigo,
-      giro: "giro" in normalized ? normalized.giro : existing.giro,
-      zona: "zona" in normalized ? normalized.zona : existing.zona,
-    });
 
     try {
       await prisma.puesto.update({ where: { id }, data });
     } catch (e) {
       if (isP2002(e))
-        return fail("Ya existe un puesto con ese código.", {
-          codigo: "Código en uso.",
+        return fail(`Ya existe el puesto ${codigo}.`, {
+          numero: "Ese número ya existe en el bloque.",
         });
       throw e;
     }
@@ -387,9 +442,7 @@ export async function assignPuesto(
   try {
     const me = await authorize("puestos.assign");
     await prisma.$transaction(async (tx) => {
-      // Bloquea la fila del puesto para serializar asignaciones concurrentes:
-      // sin esto, dos asignaciones simultáneas del mismo puesto pueden dejar
-      // dos asignaciones abiertas (hasta = null) a la vez (dos socios dueños).
+      // Bloquea la fila del puesto para serializar asignaciones concurrentes.
       await tx.$queryRaw`SELECT id FROM "Puesto" WHERE id = ${puestoId} FOR UPDATE`;
       const puesto = await tx.puesto.findUnique({
         where: { id: puestoId },
@@ -402,7 +455,6 @@ export async function assignPuesto(
       });
       if (!socio) throw new Denied("Socio no encontrado.");
 
-      // Cerrar la asignación vigente (si la hay).
       await tx.puestoAsignacion.updateMany({
         where: { puestoId, hasta: null },
         data: { hasta: new Date(), motivo: "Reasignación" },
@@ -483,5 +535,120 @@ export async function getPuestoStats(): Promise<ActionResult<PuestoStats>> {
     if (e instanceof Denied) return fail(e.message);
     console.error("getPuestoStats", e);
     return fail("No se pudieron cargar las estadísticas.");
+  }
+}
+
+/* ─────────────────────── Plano ─────────────────────── */
+
+export async function listPuestosForPlano(
+  etapa: number,
+): Promise<ActionResult<PlanoCell[]>> {
+  try {
+    await authorize("puestos.read");
+    const et = Number(etapa) === 2 ? 2 : 1;
+    const rows = await prisma.puesto.findMany({
+      where: { etapa: et },
+      orderBy: [{ bloque: "asc" }, { numero: "asc" }],
+      select: {
+        id: true,
+        bloque: true,
+        numero: true,
+        banda: true,
+        dimension: true,
+        estado: true,
+        giro: true,
+        codigo: true,
+        asignaciones: {
+          where: { hasta: null },
+          take: 1,
+          select: {
+            socio: {
+              select: {
+                id: true,
+                apellidoPaterno: true,
+                apellidoMaterno: true,
+                nombres: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const cells: PlanoCell[] = rows.map((p) => {
+      const vig = p.asignaciones[0]?.socio;
+      return {
+        id: p.id,
+        bloque: p.bloque,
+        numero: p.numero,
+        banda: p.banda,
+        dimension: p.dimension,
+        estado: p.estado,
+        giro: p.giro,
+        codigo: p.codigo,
+        socioActual: vig ? { id: vig.id, nombre: socioNombre(vig) } : null,
+      };
+    });
+    return ok(cells);
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("listPuestosForPlano", e);
+    return fail("No se pudo cargar el plano.");
+  }
+}
+
+/* ─────────────────────── Generador de grilla ─────────────────────── */
+
+const BANDA_RANGES: {
+  banda: BandaPuesto;
+  from: number;
+  to: number;
+  dimension: DimensionPuesto;
+}[] = [
+  { banda: "alta", from: 1, to: 24, dimension: "d3x5" },
+  { banda: "media", from: 25, to: 40, dimension: "d3x3" },
+  { banda: "baja", from: 41, to: 48, dimension: "d3x5" },
+];
+
+export async function generarGrillaEtapa(
+  input: GenerarGrillaInput,
+): Promise<ActionResult<{ creados: number; omitidos: number }>> {
+  try {
+    const me = await authorize("puestos.write");
+    const etapa = Number(input.etapa);
+    if (etapa !== 1 && etapa !== 2) return fail("Etapa inválida (1 o 2).");
+    const bloques = (input.bloques ?? [])
+      .map((b) => String(b).toUpperCase())
+      .filter((b) => /^[A-M]$/.test(b));
+    if (bloques.length === 0)
+      return fail("Selecciona al menos un bloque (A–M).");
+
+    const data: Prisma.PuestoCreateManyInput[] = [];
+    for (const bloque of bloques) {
+      for (const r of BANDA_RANGES) {
+        for (let n = r.from; n <= r.to; n++) {
+          const codigo = puestoCodigo(etapa, bloque, n);
+          data.push({
+            etapa,
+            bloque,
+            numero: n,
+            banda: r.banda,
+            dimension: r.dimension,
+            codigo,
+            estado: "vacio",
+            searchKey: buildSearchKey({ codigo, bloque, giro: null }),
+            createdById: me.id,
+            updatedById: me.id,
+          });
+        }
+      }
+    }
+
+    const res = await prisma.puesto.createMany({ data, skipDuplicates: true });
+    refresh();
+    return ok({ creados: res.count, omitidos: data.length - res.count });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("generarGrillaEtapa", e);
+    return fail("No se pudo generar la grilla.");
   }
 }

@@ -1,4 +1,9 @@
-import type { EstadoPuesto } from "@/generated/prisma/client";
+import type {
+  EstadoPuesto,
+  BandaPuesto,
+  DimensionPuesto,
+  Giro,
+} from "@/generated/prisma/client";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -11,9 +16,12 @@ export type ActionResult<T = undefined> =
 export type PuestoRow = {
   id: string;
   codigo: string;
-  giro: string | null;
-  zona: string | null;
-  area: number | null;
+  etapa: number;
+  bloque: string;
+  numero: number;
+  banda: BandaPuesto;
+  dimension: DimensionPuesto;
+  giro: Giro | null;
   estado: EstadoPuesto;
   fotoUrl: string | null;
   socioActual: { id: string; nombre: string } | null;
@@ -22,9 +30,12 @@ export type PuestoRow = {
 export type PuestoDetail = {
   id: string;
   codigo: string;
-  giro: string | null;
-  zona: string | null;
-  area: number | null;
+  etapa: number;
+  bloque: string;
+  numero: number;
+  banda: BandaPuesto;
+  dimension: DimensionPuesto;
+  giro: Giro | null;
   estado: EstadoPuesto;
   fotoUrl: string | null;
   observaciones: string | null;
@@ -43,22 +54,26 @@ export type PuestoDetail = {
 };
 
 export type CreatePuestoInput = {
-  codigo: string;
-  giro?: string;
-  zona?: string;
-  area?: number | null;
+  etapa: number;
+  bloque: string;
+  numero: number;
+  banda?: BandaPuesto;
+  dimension?: DimensionPuesto;
+  giro?: Giro | null;
   estado?: EstadoPuesto;
   observaciones?: string;
 };
 
 export type UpdatePuestoPatch = Partial<CreatePuestoInput>;
 
-export type SortKey = "codigo" | "giro" | "zona" | "estado";
+export type SortKey = "codigo" | "bloque" | "numero" | "giro" | "estado";
 export type SortDir = "asc" | "desc";
 
 export type ListPuestosParams = {
   q?: string;
   estado?: EstadoPuesto;
+  etapa?: number;
+  bloque?: string;
   page?: number;
   pageSize?: number;
   sort?: SortKey;
@@ -80,6 +95,24 @@ export type PuestoStats = {
   vacio: number;
   clausurado: number;
   construccion: number;
+};
+
+// Celda para la vista de plano (sin paginación).
+export type PlanoCell = {
+  id: string;
+  bloque: string;
+  numero: number;
+  banda: BandaPuesto;
+  dimension: DimensionPuesto;
+  estado: EstadoPuesto;
+  giro: Giro | null;
+  codigo: string;
+  socioActual: { id: string; nombre: string } | null;
+};
+
+export type GenerarGrillaInput = {
+  etapa: number;
+  bloques: string[];
 };
 
 export type PermFlags = {

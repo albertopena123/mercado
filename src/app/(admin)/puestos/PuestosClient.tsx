@@ -8,8 +8,10 @@ import { Icon } from "@/components/admin/Icon";
 import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast";
 import type { EstadoPuesto } from "@/generated/prisma/client";
+import { GIRO_LABEL, BLOQUES } from "@/lib/puestos/giro";
 import { EstadoPuestoBadge } from "./EstadoPuestoBadge";
 import { CreatePuestoModal } from "./CreatePuestoModal";
+import { GenerarGrillaModal } from "./GenerarGrillaModal";
 import { PuestoDetailDrawer } from "./PuestoDetailDrawer";
 import type {
   ListPuestosResult,
@@ -20,8 +22,8 @@ import type {
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "codigo", label: "Puesto" },
+  { key: "bloque", label: "Bloque" },
   { key: "giro", label: "Giro" },
-  { key: "zona", label: "Zona" },
   { key: "estado", label: "Estado" },
 ];
 
@@ -46,13 +48,14 @@ export function PuestosClient({
   initial: ListPuestosResult;
   stats: PuestoStats;
   perms: PermFlags;
-  filters: { q: string; estado?: EstadoPuesto };
+  filters: { q: string; estado?: EstadoPuesto; etapa?: number; bloque?: string };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
+  const [generarOpen, setGenerarOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const updateParam = (
@@ -74,7 +77,12 @@ export function PuestosClient({
     updateParam({ sort: key, dir: nextDir }, false);
   };
 
-  const hasFilters = !!(filters.q || filters.estado);
+  const hasFilters = !!(
+    filters.q ||
+    filters.estado ||
+    filters.etapa ||
+    filters.bloque
+  );
 
   return (
     <div className="socios-page">
@@ -92,10 +100,19 @@ export function PuestosClient({
           </span>
         </div>
         {perms.canWrite && (
-          <button className="btn--cta" onClick={() => setCreateOpen(true)}>
-            <Icon name="plus" size={16} />
-            <span>Nuevo puesto</span>
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn btn--ghost"
+              onClick={() => setGenerarOpen(true)}
+            >
+              <Icon name="apps" size={16} />
+              <span>Generar grilla</span>
+            </button>
+            <button className="btn--cta" onClick={() => setCreateOpen(true)}>
+              <Icon name="plus" size={16} />
+              <span>Nuevo puesto</span>
+            </button>
+          </div>
         )}
       </header>
 
@@ -132,13 +149,34 @@ export function PuestosClient({
         <input
           key={`q-${filters.q ?? ""}`}
           className="socios-toolbar__search"
-          placeholder="Buscar por código, giro, zona…"
+          placeholder="Buscar por código, bloque, giro…"
           defaultValue={filters.q}
           onKeyDown={(e) => {
             if (e.key === "Enter")
               updateParam({ q: (e.target as HTMLInputElement).value });
           }}
         />
+        <select
+          className="socios-toolbar__select"
+          value={filters.etapa ? String(filters.etapa) : ""}
+          onChange={(e) => updateParam({ etapa: e.target.value || undefined })}
+        >
+          <option value="">Todas las etapas</option>
+          <option value="1">Etapa 1</option>
+          <option value="2">Etapa 2</option>
+        </select>
+        <select
+          className="socios-toolbar__select"
+          value={filters.bloque ?? ""}
+          onChange={(e) => updateParam({ bloque: e.target.value || undefined })}
+        >
+          <option value="">Todos los bloques</option>
+          {BLOQUES.map((b) => (
+            <option key={b} value={b}>
+              Bloque {b}
+            </option>
+          ))}
+        </select>
         <select
           className="socios-toolbar__select"
           value={filters.estado ?? ""}
@@ -161,7 +199,14 @@ export function PuestosClient({
               <p>No se encontraron puestos con esos criterios.</p>
               <button
                 className="btn btn--ghost"
-                onClick={() => updateParam({ q: undefined, estado: undefined })}
+                onClick={() =>
+                  updateParam({
+                    q: undefined,
+                    estado: undefined,
+                    etapa: undefined,
+                    bloque: undefined,
+                  })
+                }
               >
                 Limpiar filtros
               </button>
@@ -233,8 +278,8 @@ export function PuestosClient({
                       <span className="soc-codigo">{p.codigo}</span>
                     </div>
                   </td>
-                  <td data-label="Giro">{p.giro ?? "—"}</td>
-                  <td data-label="Zona">{p.zona ?? "—"}</td>
+                  <td data-label="Bloque">{p.bloque}</td>
+                  <td data-label="Giro">{p.giro ? GIRO_LABEL[p.giro] : "—"}</td>
                   <td data-label="Estado">
                     <EstadoPuestoBadge estado={p.estado} />
                   </td>
@@ -273,6 +318,16 @@ export function PuestosClient({
         />
       )}
 
+      {generarOpen && (
+        <GenerarGrillaModal
+          onClose={() => setGenerarOpen(false)}
+          onDone={() => {
+            setGenerarOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+
       {openId && (
         <PuestoDetailDrawer
           puestoId={openId}
@@ -292,7 +347,7 @@ function SkeletonTable() {
     <table className="socios-table socios-table--skeleton">
       <thead>
         <tr>
-          {["Puesto", "Giro", "Zona", "Estado", "Socio actual"].map((c) => (
+          {["Puesto", "Bloque", "Giro", "Estado", "Socio actual"].map((c) => (
             <th key={c}>{c}</th>
           ))}
         </tr>

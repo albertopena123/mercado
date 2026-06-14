@@ -135,3 +135,31 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ─────────── Selector de bloques (generar grilla) ─────────── */
+.pst-bloque-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pst-bloque-chip {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pst-bloque-chip:hover {
+  background: var(--bg-soft);
+}
+.pst-bloque-chip.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
