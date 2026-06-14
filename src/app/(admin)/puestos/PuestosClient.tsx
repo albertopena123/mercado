@@ -12,6 +12,7 @@ import { GIRO_LABEL, BLOQUES } from "@/lib/puestos/giro";
 import { EstadoPuestoBadge } from "./EstadoPuestoBadge";
 import { CreatePuestoModal } from "./CreatePuestoModal";
 import { GenerarGrillaModal } from "./GenerarGrillaModal";
+import { PuestoPlanoView } from "./PuestoPlanoView";
 import { PuestoDetailDrawer } from "./PuestoDetailDrawer";
 import type {
   ListPuestosResult,
@@ -57,6 +58,8 @@ export function PuestosClient({
   const [createOpen, setCreateOpen] = useState(false);
   const [generarOpen, setGenerarOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [view, setView] = useState<"tabla" | "plano">("tabla");
+  const [planoEtapa, setPlanoEtapa] = useState<number>(filters.etapa ?? 1);
 
   const updateParam = (
     entries: Record<string, string | undefined>,
@@ -116,6 +119,35 @@ export function PuestosClient({
         )}
       </header>
 
+      <div className="pst-viewtoggle">
+        <button
+          type="button"
+          className={`pst-viewtoggle__btn ${view === "tabla" ? "is-on" : ""}`}
+          onClick={() => setView("tabla")}
+        >
+          <Icon name="rules" size={15} /> Tabla
+        </button>
+        <button
+          type="button"
+          className={`pst-viewtoggle__btn ${view === "plano" ? "is-on" : ""}`}
+          onClick={() => setView("plano")}
+        >
+          <Icon name="apps" size={15} /> Plano
+        </button>
+      </div>
+
+      {view === "plano" && (
+        <PuestoPlanoView
+          etapa={planoEtapa}
+          onEtapa={setPlanoEtapa}
+          onSelect={setOpenId}
+          canWrite={perms.canWrite}
+          onGenerar={() => setGenerarOpen(true)}
+        />
+      )}
+
+      {view === "tabla" && (
+      <>
       <div className="soc-stats">
         {STAT_CARDS.map((c) => {
           const value = stats[c.key];
@@ -304,6 +336,8 @@ export function PuestosClient({
             onPageSize={(s) => updateParam({ size: String(s) })}
           />
         </>
+      )}
+      </>
       )}
 
       {createOpen && (
