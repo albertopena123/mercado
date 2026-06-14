@@ -162,7 +162,8 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
       out = out.filter(
         (u) =>
           u.name.toLowerCase().includes(search) ||
-          u.email.toLowerCase().includes(search) ||
+          (u.email ?? "").toLowerCase().includes(search) ||
+          (u.numeroDocumento ?? "").includes(search) ||
           u.roles.some((r) => r.name.toLowerCase().includes(search)),
       );
     }
@@ -547,8 +548,11 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
                             <span className="badge badge--accent">Tú</span>
                           )}
                         </button>
-                        <span className="usr-row-name__sub" title={u.email}>
-                          {u.email}
+                        <span
+                          className="usr-row-name__sub"
+                          title={u.email ?? u.numeroDocumento ?? ""}
+                        >
+                          {u.email ?? u.numeroDocumento ?? "—"}
                         </span>
                       </div>
                     </div>
@@ -730,7 +734,7 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
           onSubmit={async (input) => {
             const res = await runAction(() => createUser(input));
             if (res.ok) {
-              pushToast("success", `Usuario ${input.email} creado.`);
+              pushToast("success", "Usuario creado.");
               afterMutation();
             }
             return res;

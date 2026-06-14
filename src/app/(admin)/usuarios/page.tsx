@@ -14,6 +14,7 @@ export default async function Page() {
       include: {
         roles: { include: { role: true } },
         _count: { select: { sessions: true } },
+        socioAccount: { select: { id: true, codigo: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -26,6 +27,11 @@ export default async function Page() {
     id: u.id,
     name: u.name,
     email: u.email,
+    tipoDocumento: u.tipoDocumento,
+    numeroDocumento: u.numeroDocumento,
+    socio: u.socioAccount
+      ? { id: u.socioAccount.id, codigo: u.socioAccount.codigo }
+      : null,
     active: u.active,
     lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
     createdAt: u.createdAt.toISOString(),

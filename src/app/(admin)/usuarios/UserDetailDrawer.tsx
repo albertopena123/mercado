@@ -193,8 +193,15 @@ export function UserDetailDrawer({
               <h2 style={{ margin: "0 0 4px" }}>{user.name}</h2>
               <div className="drawer__email">
                 <Icon name="mail" size={14} />
-                {user.email}
+                {user.email ?? "Sin correo"}
               </div>
+              {user.numeroDocumento && (
+                <div className="drawer__email" style={{ marginTop: 2 }}>
+                  <Icon name="card" size={14} />
+                  {user.tipoDocumento} {user.numeroDocumento}
+                  {user.socio ? ` · Socio ${user.socio.codigo}` : ""}
+                </div>
+              )}
               <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
                 <span
                   className={`badge ${
@@ -287,7 +294,8 @@ export function UserDetailDrawer({
                 <span className="field__label">Correo</span>
                 <input
                   type="text"
-                  value={user.email}
+                  value={user.email ?? ""}
+                  placeholder="Sin correo"
                   disabled
                   style={{ background: "var(--bg-soft)" }}
                 />

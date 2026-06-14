@@ -1,7 +1,12 @@
+import type { TipoDocumento } from "@/generated/prisma/client";
+
 export type UserRow = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  tipoDocumento: TipoDocumento | null;
+  numeroDocumento: string | null;
+  socio: { id: string; codigo: string } | null;
   active: boolean;
   lastLoginAt: string | null;
   createdAt: string;

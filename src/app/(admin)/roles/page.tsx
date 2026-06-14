@@ -51,7 +51,7 @@ export default async function Page() {
     users: r.users.map((ur) => ({
       id: ur.user.id,
       name: ur.user.name,
-      email: ur.user.email,
+      email: ur.user.email ?? "",
       active: ur.user.active,
     })),
   }));

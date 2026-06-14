@@ -139,7 +139,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   return {
     id: session.user.id,
-    email: session.user.email,
+    email: session.user.email ?? "",
     name: session.user.name,
     active: session.user.active,
     sessionId: session.id,
