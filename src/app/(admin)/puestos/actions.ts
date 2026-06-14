@@ -284,7 +284,8 @@ function validate(input: Partial<CreatePuestoInput>, isCreate: boolean): {
   }
   if (isCreate || input.numero !== undefined) {
     const n = Number(input.numero);
-    if (!Number.isInteger(n) || n < 1) fe.numero = "Número inválido.";
+    if (!Number.isInteger(n) || n < 1 || n > 24)
+      fe.numero = "Número inválido (1–24).";
     else out.numero = n;
   }
   if (input.banda !== undefined) out.banda = input.banda;
@@ -598,7 +599,7 @@ export async function listPuestosForPlano(
 
 /* ─────────────────────── Generador de grilla ─────────────────────── */
 
-// Numeración anclada abajo: #1 en la banda de abajo (junto al SS-HH) → arriba.
+// 3 bandas de 8 puestos = 24 por bloque, numeradas continuo de abajo→arriba.
 const BANDA_RANGES: {
   banda: BandaPuesto;
   from: number;
@@ -606,8 +607,8 @@ const BANDA_RANGES: {
   dimension: DimensionPuesto;
 }[] = [
   { banda: "baja", from: 1, to: 8, dimension: "d3x5" },
-  { banda: "media", from: 9, to: 24, dimension: "d3x3" },
-  { banda: "alta", from: 25, to: 48, dimension: "d3x5" },
+  { banda: "media", from: 9, to: 16, dimension: "d3x3" },
+  { banda: "alta", from: 17, to: 24, dimension: "d3x5" },
 ];
 
 export async function generarGrillaEtapa(

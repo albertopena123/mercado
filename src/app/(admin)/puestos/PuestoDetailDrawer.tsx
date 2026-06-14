@@ -421,7 +421,7 @@ function DatosForm({
   // en el padre (evita setState-en-effect).
 
   const numN = parseInt(numero, 10);
-  const numValid = Number.isInteger(numN) && numN >= 1;
+  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= 24;
   const banda = numValid ? bandaPorNumero(numN) : null;
   const codigoPreview = numValid ? puestoCodigo(etapa, bloque, numN) : "—";
 
@@ -437,7 +437,7 @@ function DatosForm({
     e.preventDefault();
     if (!isDirty || pending) return;
     if (!numValid) {
-      setFe({ numero: "Número inválido." });
+      setFe({ numero: "Número inválido (1–24)." });
       return;
     }
     setError(null);
@@ -510,6 +510,7 @@ function DatosForm({
           <input
             type="number"
             min="1"
+            max="24"
             value={numero}
             onChange={(e) => setNumero(e.target.value)}
             disabled={disabled}

@@ -7,7 +7,7 @@ import { useToast } from "@/components/admin/toast";
 import { generarGrillaEtapa } from "./actions";
 import { BLOQUES, ETAPAS } from "@/lib/puestos/giro";
 
-const POR_BLOQUE = 48; // alta 1-24 + media 25-40 + baja 41-48
+const POR_BLOQUE = 24; // 3 bandas de 8: abajo 1-8 + medio 9-16 + arriba 17-24
 
 export function GenerarGrillaModal({
   onClose,
@@ -68,8 +68,8 @@ export function GenerarGrillaModal({
         <div className="modal__body">
           <p className="modal__intro">
             Crea automáticamente los puestos de los bloques seleccionados con sus
-            bandas estándar (abajo 1–8 de 3×5, medio 9–24 de 3×3, arriba 25–48
-            de 3×5). Los puestos que ya existan se omiten.
+            3 bandas de 8 (abajo 1–8 de 3×5, medio 9–16 de 3×3, arriba 17–24 de
+            3×5). Los puestos que ya existan se omiten.
           </p>
 
           <label className="field">

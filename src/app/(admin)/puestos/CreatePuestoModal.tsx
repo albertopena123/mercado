@@ -38,7 +38,7 @@ export function CreatePuestoModal({
   useEscClose(true, onClose, submitting);
 
   const numN = parseInt(numero, 10);
-  const numValid = Number.isInteger(numN) && numN >= 1;
+  const numValid = Number.isInteger(numN) && numN >= 1 && numN <= 24;
   const banda = numValid ? bandaPorNumero(numN) : null;
   const dimension = banda ? dimensionPorBanda(banda) : null;
   const codigoPreview = numValid ? puestoCodigo(etapa, bloque, numN) : "—";
@@ -145,9 +145,10 @@ export function CreatePuestoModal({
               <input
                 type="number"
                 min="1"
+                max="24"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
-                placeholder="1–48"
+                placeholder="1–24"
                 aria-invalid={!!fe.numero}
                 autoFocus
                 disabled={submitting}
