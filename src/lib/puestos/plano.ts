@@ -41,3 +41,16 @@ export function armarPlano(
     }),
   };
 }
+
+/**
+ * Reordena las celdas de una banda (ordenadas asc. por número) para que, al
+ * pintarlas fila por fila en una grilla de `cols` columnas, los números queden
+ * de ABAJO hacia ARRIBA (el #1 abajo, los más altos arriba) — como el plano
+ * físico. Mantiene el orden ascendente dentro de cada fila.
+ */
+export function celdasBottomUp<T>(cells: T[], cols = 2): T[] {
+  const filas: T[][] = [];
+  for (let i = 0; i < cells.length; i += cols) filas.push(cells.slice(i, i + cols));
+  filas.reverse();
+  return filas.flat();
+}

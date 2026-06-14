@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
-import { armarPlano } from "@/lib/puestos/plano";
+import { armarPlano, celdasBottomUp } from "@/lib/puestos/plano";
 import {
   GIRO_COLOR,
   GIRO_LABEL,
@@ -50,7 +50,9 @@ export function PuestoPlanoView({
     };
   }, [etapa]);
 
-  const plano = cells ? armarPlano(cells) : null;
+  // El plano físico tiene el bloque A a la DERECHA (orden M…A) y numera de
+  // abajo hacia arriba (ver celdasBottomUp más abajo).
+  const plano = cells ? armarPlano(cells, { orden: "M-A" }) : null;
 
   return (
     <div className="pst-plano-wrap">
@@ -127,7 +129,7 @@ export function PuestoPlanoView({
                 <div className="pst-plano__bloque" key={b.bloque}>
                   {b.bandas.map((band) => (
                     <div className="pst-plano__banda" key={band.banda}>
-                      {band.cells.map((c) => {
+                      {celdasBottomUp(band.cells).map((c) => {
                         const giroBg =
                           colorBy === "giro"
                             ? c.giro
