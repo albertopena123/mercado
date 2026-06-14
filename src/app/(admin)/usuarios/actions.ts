@@ -1,12 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type TipoDocumento } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
+import {
+  validateNumeroDocumento,
+  normalizeNumeroDocumento,
+} from "@/lib/socios/document";
 import type { ActionResult, LinkableSocio } from "./types";
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -88,71 +92,151 @@ function isP2002(e: unknown): boolean {
 
 /* ────────────────────────────────── createUser ────────────────────────────────── */
 
-type CreateInput = {
+type CreateStaffInput = {
+  mode: "staff";
   name: string;
-  email: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  email?: string;
   password: string;
   roleIds: string[];
 };
+type CreateSocioInput = {
+  mode: "socio";
+  socioId: string;
+  password: string;
+  roleIds: string[];
+};
+type CreateInput = CreateStaffInput | CreateSocioInput;
+
+// Asignar roles es una autoridad distinta de crear usuarios; reusamos el mismo
+// permiso que setUserRoles y bloqueamos otorgar superadmin sin serlo.
+async function checkRolePermissions(
+  me: CurrentUser,
+  roleIds: string[],
+): Promise<string | null> {
+  if (roleIds.length === 0) return null;
+  if (!me.permissions.has("users.assign-roles")) {
+    return "No tienes permiso para asignar roles. Crea el usuario sin roles o pide el permiso correspondiente.";
+  }
+  const found = await prisma.role.findMany({
+    where: { id: { in: roleIds } },
+    select: { id: true, key: true },
+  });
+  if (found.length !== roleIds.length) return "Uno de los roles seleccionados no existe.";
+  const grantsSuper = found.some((r) => r.key === SUPERADMIN_KEY);
+  if (grantsSuper && !meIsSuper(me)) {
+    return "Solo un superadministrador puede otorgar el rol Superadministrador.";
+  }
+  return null;
+}
 
 export async function createUser(
   input: CreateInput,
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const me = await authorize("users.write");
-
-    const name = (input.name ?? "").trim();
-    const email = (input.email ?? "").trim().toLowerCase();
     const password = input.password ?? "";
     const roleIds = dedupe(input.roleIds);
 
-    const fieldErrors: Record<string, string> = {};
-    if (name.length < NAME_MIN) fieldErrors.name = "El nombre es obligatorio.";
-    else if (name.length > NAME_MAX)
-      fieldErrors.name = `Máximo ${NAME_MAX} caracteres.`;
-    if (!EMAIL_RE.test(email)) fieldErrors.email = "Correo no válido.";
     if (password.length < PASSWORD_MIN)
-      fieldErrors.password = `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`;
-    else if (password.length > PASSWORD_MAX)
-      fieldErrors.password = "Contraseña demasiado larga.";
-
-    if (Object.keys(fieldErrors).length > 0) {
-      return fail("Revisa los campos marcados.", fieldErrors);
-    }
-
-    if (roleIds.length > 0) {
-      // Asignar roles es una autoridad distinta de crear usuarios. Sin esto un
-      // principal con solo "users.write" podría crear una cuenta y adjuntarle
-      // el rol admin (escalada de privilegios). Exigimos el mismo permiso que
-      // setUserRoles.
-      if (!me.permissions.has("users.assign-roles")) {
-        return fail(
-          "No tienes permiso para asignar roles. Crea el usuario sin roles o pide el permiso correspondiente.",
-        );
-      }
-      const found = await prisma.role.findMany({
-        where: { id: { in: roleIds } },
-        select: { id: true, key: true },
+      return fail("Revisa los campos marcados.", {
+        password: `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`,
       });
-      if (found.length !== roleIds.length) {
-        return fail("Uno de los roles seleccionados no existe.");
-      }
-      // C1: only superadmin may create users with the superadmin role.
-      const grantsSuper = found.some((r) => r.key === SUPERADMIN_KEY);
-      const meIsSuper = me.roles.some((r) => r.key === SUPERADMIN_KEY);
-      if (grantsSuper && !meIsSuper) {
-        return fail(
-          "Solo un superadministrador puede otorgar el rol Superadministrador.",
-        );
-      }
-    }
+    if (password.length > PASSWORD_MAX)
+      return fail("Revisa los campos marcados.", {
+        password: "Contraseña demasiado larga.",
+      });
+
+    const roleErr = await checkRolePermissions(me, roleIds);
+    if (roleErr) return fail(roleErr);
 
     const passwordHash = await hashPassword(password);
+
+    // ───────── Modo comerciante: vincular a un socio del padrón ─────────
+    if (input.mode === "socio") {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          const socio = await tx.socio.findUnique({
+            where: { id: input.socioId },
+            select: {
+              id: true,
+              userId: true,
+              estado: true,
+              tipoDocumento: true,
+              numeroDocumento: true,
+              email: true,
+              apellidoPaterno: true,
+              apellidoMaterno: true,
+              nombres: true,
+            },
+          });
+          if (!socio) return { err: "El socio seleccionado no existe." as const };
+          if (socio.userId)
+            return { err: "Ese socio ya tiene una cuenta de usuario." as const };
+          if (socio.estado !== "activo")
+            return { err: "Solo se puede dar acceso a socios activos." as const };
+
+          const name = [socio.apellidoPaterno, socio.apellidoMaterno, socio.nombres]
+            .filter(Boolean)
+            .join(" ");
+
+          const created = await tx.user.create({
+            data: {
+              name,
+              email: socio.email ?? null,
+              tipoDocumento: socio.tipoDocumento,
+              numeroDocumento: socio.numeroDocumento,
+              passwordHash,
+              roles: { create: roleIds.map((roleId) => ({ roleId })) },
+            },
+          });
+          await tx.socio.update({
+            where: { id: socio.id },
+            data: { userId: created.id, portalEnabled: true },
+          });
+          return { id: created.id };
+        });
+
+        if ("err" in result && result.err) return fail(result.err);
+        if (!("id" in result)) return fail("No se pudo crear el usuario.");
+        refresh();
+        return ok({ id: result.id });
+      } catch (e) {
+        if (isP2002(e)) {
+          return fail("Ese documento o correo ya pertenece a otro usuario.", {
+            numeroDocumento: "Documento o correo en uso.",
+          });
+        }
+        throw e;
+      }
+    }
+
+    // ───────── Modo staff: documento manual, correo opcional ─────────
+    const name = (input.name ?? "").trim();
+    const numero = (input.numeroDocumento ?? "").trim();
+    const email =
+      input.email && input.email.trim() !== ""
+        ? input.email.trim().toLowerCase()
+        : null;
+
+    const fieldErrors: Record<string, string> = {};
+    if (name.length < NAME_MIN) fieldErrors.name = "El nombre es obligatorio.";
+    else if (name.length > NAME_MAX) fieldErrors.name = `Máximo ${NAME_MAX} caracteres.`;
+    if (!numero) fieldErrors.numeroDocumento = "Número de documento requerido.";
+    else if (!validateNumeroDocumento(input.tipoDocumento, numero))
+      fieldErrors.numeroDocumento = "Formato inválido para el tipo de documento.";
+    if (email && !EMAIL_RE.test(email)) fieldErrors.email = "Correo no válido.";
+    if (Object.keys(fieldErrors).length > 0)
+      return fail("Revisa los campos marcados.", fieldErrors);
+
     try {
       const created = await prisma.user.create({
         data: {
           name,
           email,
+          tipoDocumento: input.tipoDocumento,
+          numeroDocumento: normalizeNumeroDocumento(input.tipoDocumento, numero),
           passwordHash,
           roles: { create: roleIds.map((roleId) => ({ roleId })) },
         },
@@ -161,8 +245,12 @@ export async function createUser(
       return ok({ id: created.id });
     } catch (e) {
       if (isP2002(e)) {
-        return fail("Ya existe un usuario con ese correo.", {
-          email: "Correo en uso.",
+        const target = (e as Prisma.PrismaClientKnownRequestError).meta
+          ?.target as string[] | undefined;
+        if (target?.includes("email"))
+          return fail("Ya existe un usuario con ese correo.", { email: "Correo en uso." });
+        return fail("Ya existe un usuario con ese documento.", {
+          numeroDocumento: "Documento en uso.",
         });
       }
       throw e;
