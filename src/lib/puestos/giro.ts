@@ -51,11 +51,15 @@ export const DIMENSION_LABEL: Record<DimensionPuesto, string> = {
 export const BLOQUES = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
 export const ETAPAS = [1, 2];
 
-// Bandas por número continuo del bloque: 1-24 alta, 25-40 media, 41-48 baja.
+// Numeración continua anclada ABAJO (como el plano físico): el #1 está en la
+// banda de abajo, junto al SS-HH, y sube hasta arriba.
+//   abajo  → banda "baja"  : 1–8   (3×5)
+//   medio  → banda "media" : 9–24  (3×3)
+//   arriba → banda "alta"  : 25–48 (3×5)
 export function bandaPorNumero(n: number): BandaPuesto {
-  if (n <= 24) return "alta";
-  if (n <= 40) return "media";
-  return "baja";
+  if (n <= 8) return "baja";
+  if (n <= 24) return "media";
+  return "alta";
 }
 
 export function dimensionPorBanda(b: BandaPuesto): DimensionPuesto {

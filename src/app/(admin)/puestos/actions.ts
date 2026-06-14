@@ -598,15 +598,16 @@ export async function listPuestosForPlano(
 
 /* ─────────────────────── Generador de grilla ─────────────────────── */
 
+// Numeración anclada abajo: #1 en la banda de abajo (junto al SS-HH) → arriba.
 const BANDA_RANGES: {
   banda: BandaPuesto;
   from: number;
   to: number;
   dimension: DimensionPuesto;
 }[] = [
-  { banda: "alta", from: 1, to: 24, dimension: "d3x5" },
-  { banda: "media", from: 25, to: 40, dimension: "d3x3" },
-  { banda: "baja", from: 41, to: 48, dimension: "d3x5" },
+  { banda: "baja", from: 1, to: 8, dimension: "d3x5" },
+  { banda: "media", from: 9, to: 24, dimension: "d3x3" },
+  { banda: "alta", from: 25, to: 48, dimension: "d3x5" },
 ];
 
 export async function generarGrillaEtapa(
