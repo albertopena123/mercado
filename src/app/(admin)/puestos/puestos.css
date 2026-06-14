@@ -302,6 +302,7 @@
 .pst-plano__banda {
   display: grid;
   grid-template-columns: repeat(2, 30px);
+  grid-auto-rows: 30px;
   gap: 3px;
   padding: 3px;
   border: 1px dashed var(--border);
@@ -354,4 +355,31 @@
   background: #fef3c7;
   border-color: #fcd34d;
   color: #92400e;
+}
+/* Espacios que no son puesto (solo se ven en el plano) */
+.pst-cell--almacen {
+  background: var(--bg-sunken);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  cursor: default;
+}
+.pst-cell--sshh {
+  grid-column: 1 / span 2;
+  grid-row: span 2;
+  width: auto;
+  height: auto;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #075985;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: default;
+}
+.pst-cell--almacen:hover,
+.pst-cell--sshh:hover {
+  transform: none;
+  box-shadow: none;
 }

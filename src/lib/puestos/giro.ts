@@ -2,6 +2,7 @@ import type {
   Giro,
   BandaPuesto,
   DimensionPuesto,
+  TipoEspacio,
 } from "@/generated/prisma/client";
 
 // Catálogo de giros (rubros) con etiqueta y color para la leyenda del plano.
@@ -46,6 +47,12 @@ export const BANDA_LABEL: Record<BandaPuesto, string> = {
 export const DIMENSION_LABEL: Record<DimensionPuesto, string> = {
   d3x5: "3×5 m",
   d3x3: "3×3 m",
+};
+
+export const TIPO_LABEL: Record<TipoEspacio, string> = {
+  puesto: "Puesto",
+  sshh: "SS-HH",
+  almacen: "Almacén",
 };
 
 export const BLOQUES = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];

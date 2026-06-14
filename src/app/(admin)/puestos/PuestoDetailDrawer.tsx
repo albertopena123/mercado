@@ -116,7 +116,7 @@ export function PuestoDetailDrawer({
               )}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="drawer__eyebrow">Puesto</div>
+              <div className="drawer__eyebrow">Puesto {puesto.puestoNro}</div>
               <h2>{puesto.codigo}</h2>
               <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
                 <EstadoPuestoBadge estado={puesto.estado} />

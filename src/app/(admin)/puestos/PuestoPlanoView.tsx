@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
 import { armarPlano, celdasSerpiente } from "@/lib/puestos/plano";
@@ -53,6 +53,25 @@ export function PuestoPlanoView({
   // El plano físico tiene el bloque A a la DERECHA (orden M…A) y numera en
   // serpentina: izquierda sube (1 abajo) y derecha baja (ver celdasSerpiente).
   const plano = cells ? armarPlano(cells, { orden: "M-A" }) : null;
+
+  // Número visible del puesto = su posición entre los puestos reales del bloque
+  // (excluye SS-HH/almacenes). Para bloques completos coincide con el número.
+  const puestoNroById = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!cells) return m;
+    const byBloque = new Map<string, PlanoCell[]>();
+    for (const c of cells) {
+      if (c.tipo !== "puesto") continue;
+      const arr = byBloque.get(c.bloque) ?? [];
+      arr.push(c);
+      byBloque.set(c.bloque, arr);
+    }
+    for (const arr of byBloque.values()) {
+      arr.sort((a, b) => a.numero - b.numero);
+      arr.forEach((c, i) => m.set(c.id, i + 1));
+    }
+    return m;
+  }, [cells]);
 
   return (
     <div className="pst-plano-wrap">
@@ -127,38 +146,65 @@ export function PuestoPlanoView({
             <div className="pst-plano__bloques">
               {plano.bloques.map((b) => (
                 <div className="pst-plano__bloque" key={b.bloque}>
-                  {b.bandas.map((band) => (
-                    <div className="pst-plano__banda" key={band.banda}>
-                      {celdasSerpiente(band.cells).map((c) => {
-                        const giroBg =
-                          colorBy === "giro"
-                            ? c.giro
-                              ? GIRO_COLOR[c.giro]
-                              : "#e5e7eb"
-                            : undefined;
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            className={`pst-cell ${
-                              colorBy === "estado" ? `pst-cell--${c.estado}` : ""
-                            }`}
-                            style={
-                              giroBg
-                                ? { background: giroBg, color: "#fff", borderColor: giroBg }
-                                : undefined
-                            }
-                            title={`${c.codigo}${
-                              c.giro ? " · " + GIRO_LABEL[c.giro] : ""
-                            } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`}
-                            onClick={() => onSelect(c.id)}
+                  {b.bandas.map((band) => {
+                    // El SS-HH ocupa varias celdas contiguas abajo → se dibuja
+                    // como un solo recuadro unido. Almacenes: celdas marcadas.
+                    const ordered = celdasSerpiente(band.cells);
+                    const sshh = ordered.filter((c) => c.tipo === "sshh");
+                    const visibles = ordered.filter((c) => c.tipo !== "sshh");
+                    return (
+                      <div className="pst-plano__banda" key={band.banda}>
+                        {visibles.map((c) => {
+                          if (c.tipo === "almacen") {
+                            return (
+                              <div
+                                key={c.id}
+                                className="pst-cell pst-cell--almacen"
+                                title={`${c.codigo} · Almacén`}
+                              >
+                                Alm
+                              </div>
+                            );
+                          }
+                          const nro = puestoNroById.get(c.id) ?? c.numero;
+                          const giroBg =
+                            colorBy === "giro"
+                              ? c.giro
+                                ? GIRO_COLOR[c.giro]
+                                : "#e5e7eb"
+                              : undefined;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={`pst-cell ${
+                                colorBy === "estado" ? `pst-cell--${c.estado}` : ""
+                              }`}
+                              style={
+                                giroBg
+                                  ? { background: giroBg, color: "#fff", borderColor: giroBg }
+                                  : undefined
+                              }
+                              title={`${c.codigo} · Puesto ${nro}${
+                                c.giro ? " · " + GIRO_LABEL[c.giro] : ""
+                              } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`}
+                              onClick={() => onSelect(c.id)}
+                            >
+                              {nro}
+                            </button>
+                          );
+                        })}
+                        {sshh.length > 0 && (
+                          <div
+                            className="pst-cell pst-cell--sshh"
+                            title="Servicios higiénicos"
                           >
-                            {c.numero}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
+                            SS-HH
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   <div className="pst-plano__bloque-label">{b.bloque}</div>
                 </div>
               ))}

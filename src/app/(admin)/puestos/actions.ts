@@ -143,7 +143,8 @@ export async function listPuestos(
       : "codigo";
     const dir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
     const pageSize = clampSize(params.pageSize);
-    const where = buildWhere(params);
+    // La tabla lista solo puestos reales (SS-HH/almacenes solo viven en el plano).
+    const where: Prisma.PuestoWhereInput = { ...buildWhere(params), tipo: "puesto" };
 
     const [total, rows] = await Promise.all([
       prisma.puesto.count({ where }),
@@ -233,12 +234,28 @@ export async function getPuesto(
     });
     if (!p) return fail("Puesto no encontrado.");
 
+    // Número visible del puesto = su posición entre los puestos reales del
+    // bloque (excluye SS-HH/almacenes), ordenado por número físico.
+    const puestoNro =
+      p.tipo === "puesto"
+        ? await prisma.puesto.count({
+            where: {
+              etapa: p.etapa,
+              bloque: p.bloque,
+              tipo: "puesto",
+              numero: { lte: p.numero },
+            },
+          })
+        : 0;
+
     return ok({
       id: p.id,
       codigo: p.codigo,
       etapa: p.etapa,
       bloque: p.bloque,
       numero: p.numero,
+      puestoNro,
+      tipo: p.tipo,
       banda: p.banda,
       dimension: p.dimension,
       giro: p.giro,
@@ -518,6 +535,7 @@ export async function getPuestoStats(): Promise<ActionResult<PuestoStats>> {
     await authorize("puestos.read");
     const grouped = await prisma.puesto.groupBy({
       by: ["estado"],
+      where: { tipo: "puesto" },
       _count: { _all: true },
     });
     const stats: PuestoStats = {
@@ -556,6 +574,7 @@ export async function listPuestosForPlano(
         numero: true,
         banda: true,
         dimension: true,
+        tipo: true,
         estado: true,
         giro: true,
         codigo: true,
@@ -583,6 +602,7 @@ export async function listPuestosForPlano(
         numero: p.numero,
         banda: p.banda,
         dimension: p.dimension,
+        tipo: p.tipo,
         estado: p.estado,
         giro: p.giro,
         codigo: p.codigo,

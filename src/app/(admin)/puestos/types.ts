@@ -2,6 +2,7 @@ import type {
   EstadoPuesto,
   BandaPuesto,
   DimensionPuesto,
+  TipoEspacio,
   Giro,
 } from "@/generated/prisma/client";
 
@@ -33,6 +34,8 @@ export type PuestoDetail = {
   etapa: number;
   bloque: string;
   numero: number;
+  puestoNro: number;
+  tipo: TipoEspacio;
   banda: BandaPuesto;
   dimension: DimensionPuesto;
   giro: Giro | null;
@@ -104,6 +107,7 @@ export type PlanoCell = {
   numero: number;
   banda: BandaPuesto;
   dimension: DimensionPuesto;
+  tipo: TipoEspacio;
   estado: EstadoPuesto;
   giro: Giro | null;
   codigo: string;

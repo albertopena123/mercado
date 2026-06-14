@@ -243,6 +243,12 @@ enum DimensionPuesto {
   d3x3
 }
 
+enum TipoEspacio {
+  puesto
+  sshh
+  almacen
+}
+
 enum Giro {
   verduras
   abarrotes
@@ -265,6 +271,7 @@ model Puesto {
   numero        Int // continuo por bloque
   banda         BandaPuesto
   dimension     DimensionPuesto
+  tipo          TipoEspacio     @default(puesto) // puesto | sshh | almacen
   giro          Giro?
   codigo        String          @unique // derivado 'E1-A-12'
   estado        EstadoPuesto    @default(vacio)
