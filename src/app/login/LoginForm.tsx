@@ -35,7 +35,7 @@ export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/usuarios";
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as
@@ -85,20 +85,19 @@ export function LoginForm() {
       </div>
 
       <div className="login__field">
-        <label className="login__label" htmlFor="login-email">
-          Correo
+        <label className="login__label" htmlFor="login-id">
+          Correo o número de documento
         </label>
         <div className="login__input">
-          <Icon name="mail" size={18} className="login__input-icon" />
+          <Icon name="user" size={18} className="login__input-icon" />
           <input
-            id="login-email"
-            type="email"
-            inputMode="email"
+            id="login-id"
+            type="text"
             autoComplete="username"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="correo@ejemplo.com"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="correo@ejemplo.com o 12345678"
             autoFocus
           />
         </div>
@@ -138,7 +137,7 @@ export function LoginForm() {
       <button
         type="submit"
         className="login__submit"
-        disabled={loading || !email || !password}
+        disabled={loading || !identifier || !password}
       >
         {loading ? (
           <>
