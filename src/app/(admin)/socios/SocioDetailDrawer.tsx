@@ -13,9 +13,22 @@ import { ChangeEstadoModal } from "./ChangeEstadoModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SocioCuotasTab } from "./SocioCuotasTab";
 import type { SocioDetail, PermFlags, UpdateSocioPatch } from "./types";
-import type { TipoDocumento, Sexo } from "@/generated/prisma/client";
+import type { TipoDocumento, Sexo, EstadoPuesto } from "@/generated/prisma/client";
 
-type Tab = "datos" | "adjuntos" | "cuotas" | "historial";
+type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial";
+
+const PUESTO_ESTADO_LBL: Record<EstadoPuesto, string> = {
+  activo: "Activo",
+  vacio: "Vacío",
+  clausurado: "Clausurado",
+  construccion: "En construcción",
+};
+const PUESTO_ESTADO_CLS: Record<EstadoPuesto, string> = {
+  activo: "badge--green",
+  vacio: "badge--neutral",
+  clausurado: "badge--red",
+  construccion: "badge--amber",
+};
 
 export function SocioDetailDrawer({
   socioId,
@@ -101,6 +114,8 @@ export function SocioDetailDrawer({
   const adjuntosCount = socio.adjuntos.filter((a) => a.tipo !== "foto").length;
   const fechaIngresoFmt = fechaCorta(socio.fechaIngreso);
   const updatedFmt = fechaTS(socio.updatedAt);
+  const puestosVigentes = socio.puestos.filter((p) => p.hasta === null);
+  const puestosHistoricos = socio.puestos.filter((p) => p.hasta !== null);
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -129,11 +144,29 @@ export function SocioDetailDrawer({
                 <Icon name="card" size={14} />
                 {socio.tipoDocumento} {socio.numeroDocumento}
               </div>
-              <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+              >
                 <EstadoBadge estado={socio.estado} />
                 {socio.portalEnabled && (
                   <span className="badge badge--accent">Portal</span>
                 )}
+                {puestosVigentes.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="badge badge--green soc-puesto-chip"
+                    onClick={() => setTab("puestos")}
+                    title="Ver puestos del socio"
+                  >
+                    <Icon name="home" size={12} /> {p.codigo}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -169,6 +202,15 @@ export function SocioDetailDrawer({
             Datos
           </button>
           <button
+            className={`soc-tab ${tab === "puestos" ? "is-active" : ""}`}
+            onClick={() => setTab("puestos")}
+          >
+            Puestos
+            {puestosVigentes.length > 0 && (
+              <span className="soc-tab__count">{puestosVigentes.length}</span>
+            )}
+          </button>
+          <button
             className={`soc-tab ${tab === "adjuntos" ? "is-active" : ""}`}
             onClick={() => setTab("adjuntos")}
           >
@@ -198,6 +240,71 @@ export function SocioDetailDrawer({
               onReload={reload}
               onOpenChangeEstado={() => setChangeOpen(true)}
             />
+          )}
+          {tab === "puestos" && (
+            <div className="soc-puestos">
+              {socio.puestos.length === 0 ? (
+                <div className="soc-puestos__empty">
+                  <Icon name="home" size={28} />
+                  <p>Este socio no tiene puestos asignados.</p>
+                </div>
+              ) : (
+                <>
+                  {puestosVigentes.length > 0 && (
+                    <section>
+                      <h4>Puestos vigentes</h4>
+                      {puestosVigentes.map((p) => (
+                        <article
+                          key={p.id}
+                          className="soc-puesto soc-puesto--vigente"
+                        >
+                          <div className="soc-puesto__head">
+                            <span className="soc-puesto__code">
+                              <Icon name="home" size={15} /> {p.codigo}
+                            </span>
+                            <span
+                              className={`badge ${PUESTO_ESTADO_CLS[p.estadoPuesto]}`}
+                            >
+                              {PUESTO_ESTADO_LBL[p.estadoPuesto]}
+                            </span>
+                          </div>
+                          {(p.giro || p.zona || p.area != null) && (
+                            <div className="soc-puesto__meta">
+                              {p.giro && <span>{p.giro}</span>}
+                              {p.zona && <span>Zona {p.zona}</span>}
+                              {p.area != null && <span>{p.area} m²</span>}
+                            </div>
+                          )}
+                          <div className="soc-puesto__dates">
+                            Asignado desde {fechaCorta(p.desde)}
+                          </div>
+                        </article>
+                      ))}
+                    </section>
+                  )}
+                  {puestosHistoricos.length > 0 && (
+                    <section>
+                      <h4>Historial de asignaciones</h4>
+                      {puestosHistoricos.map((p) => (
+                        <article key={p.id} className="soc-puesto">
+                          <div className="soc-puesto__head">
+                            <span className="soc-puesto__code">{p.codigo}</span>
+                            <span className="soc-puesto__period">
+                              {fechaCorta(p.desde)} – {fechaCorta(p.hasta!)}
+                            </span>
+                          </div>
+                          {p.motivo && (
+                            <div className="soc-puesto__dates">
+                              Motivo: {p.motivo}
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
           )}
           {tab === "adjuntos" && (
             <AdjuntosPanel

@@ -459,6 +459,21 @@ export async function getSocio(
           orderBy: { createdAt: "desc" },
           include: { byUser: { select: { id: true, name: true } } },
         },
+        asignacionesPuesto: {
+          orderBy: { desde: "desc" },
+          include: {
+            puesto: {
+              select: {
+                id: true,
+                codigo: true,
+                giro: true,
+                zona: true,
+                area: true,
+                estado: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!s) return fail("Socio no encontrado.");
@@ -501,6 +516,18 @@ export async function getSocio(
         motivo: l.motivo,
         createdAt: l.createdAt.toISOString(),
         byUser: l.byUser,
+      })),
+      puestos: s.asignacionesPuesto.map((a) => ({
+        id: a.id,
+        puestoId: a.puestoId,
+        codigo: a.puesto.codigo,
+        giro: a.puesto.giro,
+        zona: a.puesto.zona,
+        area: a.puesto.area,
+        estadoPuesto: a.puesto.estado,
+        desde: a.desde.toISOString(),
+        hasta: a.hasta ? a.hasta.toISOString() : null,
+        motivo: a.motivo,
       })),
     });
   } catch (e) {
