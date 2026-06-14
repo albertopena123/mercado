@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/cookie";
 
-const PUBLIC_PATHS = new Set<string>(["/login", "/403"]);
+const PUBLIC_PATHS = new Set<string>(["/", "/login", "/403"]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -16,19 +16,18 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico";
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = await verifySession(token);
-
+  // Las rutas públicas pasan directo. NO redirigimos /login → /usuarios aquí:
+  // el proxy solo valida la firma del token (stateless), pero la sesión podría
+  // estar revocada/borrada en la BD. La página /login ya redirige a quien esté
+  // realmente autenticado usando getCurrentUser (que sí consulta la BD), así
+  // que duplicarlo aquí provocaba un bucle de redirección cuando el token
+  // seguía firmado pero su sesión ya no existía. (Ver getCurrentUser.)
   if (isPublic) {
-    // If logged in and visiting /login, send them home.
-    if (pathname === "/login" && session) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/usuarios";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
     return NextResponse.next();
   }
+
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = await verifySession(token);
 
   if (!session) {
     const url = request.nextUrl.clone();
