@@ -73,6 +73,30 @@ export function PuestoPlanoView({
     return m;
   }, [cells]);
 
+  const renderPuesto = (c: PlanoCell) => {
+    const nro = puestoNroById.get(c.id) ?? c.numero;
+    const giroBg =
+      colorBy === "giro" ? (c.giro ? GIRO_COLOR[c.giro] : "#e5e7eb") : undefined;
+    return (
+      <button
+        key={c.id}
+        type="button"
+        className={`pst-cell ${colorBy === "estado" ? `pst-cell--${c.estado}` : ""}`}
+        style={
+          giroBg
+            ? { background: giroBg, color: "#fff", borderColor: giroBg }
+            : undefined
+        }
+        title={`${c.codigo} · Puesto ${nro}${
+          c.giro ? " · " + GIRO_LABEL[c.giro] : ""
+        } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`}
+        onClick={() => onSelect(c.id)}
+      >
+        {nro}
+      </button>
+    );
+  };
+
   return (
     <div className="pst-plano-wrap">
       <div className="pst-plano-controls">
@@ -147,57 +171,39 @@ export function PuestoPlanoView({
               {plano.bloques.map((b) => (
                 <div className="pst-plano__bloque" key={b.bloque}>
                   {b.bandas.map((band) => {
-                    // Etapa 2: grilla 2×18 numerada en U. Etapa 1: serpentina
-                    // por banda. El SS-HH ocupa varias celdas contiguas abajo →
-                    // se dibuja como un solo recuadro unido.
-                    const ordered =
-                      etapa === 2
-                        ? celdasColumnaU(band.cells)
-                        : celdasSerpiente(band.cells);
+                    // Etapa 2: la grilla 2×18 se muestra en 3 sub-bloques de
+                    // 2×6, manteniendo la numeración en U continua.
+                    if (etapa === 2) {
+                      const ordered = celdasColumnaU(band.cells);
+                      const subs: PlanoCell[][] = [];
+                      for (let i = 0; i < ordered.length; i += 12)
+                        subs.push(ordered.slice(i, i + 12));
+                      return subs.map((sub, si) => (
+                        <div className="pst-plano__banda" key={`${band.banda}-${si}`}>
+                          {sub.map(renderPuesto)}
+                        </div>
+                      ));
+                    }
+                    // Etapa 1: serpentina por banda; el SS-HH se dibuja como un
+                    // solo recuadro unido y los almacenes como celdas marcadas.
+                    const ordered = celdasSerpiente(band.cells);
                     const sshh = ordered.filter((c) => c.tipo === "sshh");
                     const visibles = ordered.filter((c) => c.tipo !== "sshh");
                     return (
                       <div className="pst-plano__banda" key={band.banda}>
-                        {visibles.map((c) => {
-                          if (c.tipo === "almacen") {
-                            return (
-                              <div
-                                key={c.id}
-                                className="pst-cell pst-cell--almacen"
-                                title={`${c.codigo} · Almacén`}
-                              >
-                                Alm
-                              </div>
-                            );
-                          }
-                          const nro = puestoNroById.get(c.id) ?? c.numero;
-                          const giroBg =
-                            colorBy === "giro"
-                              ? c.giro
-                                ? GIRO_COLOR[c.giro]
-                                : "#e5e7eb"
-                              : undefined;
-                          return (
-                            <button
+                        {visibles.map((c) =>
+                          c.tipo === "almacen" ? (
+                            <div
                               key={c.id}
-                              type="button"
-                              className={`pst-cell ${
-                                colorBy === "estado" ? `pst-cell--${c.estado}` : ""
-                              }`}
-                              style={
-                                giroBg
-                                  ? { background: giroBg, color: "#fff", borderColor: giroBg }
-                                  : undefined
-                              }
-                              title={`${c.codigo} · Puesto ${nro}${
-                                c.giro ? " · " + GIRO_LABEL[c.giro] : ""
-                              } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`}
-                              onClick={() => onSelect(c.id)}
+                              className="pst-cell pst-cell--almacen"
+                              title={`${c.codigo} · Almacén`}
                             >
-                              {nro}
-                            </button>
-                          );
-                        })}
+                              Alm
+                            </div>
+                          ) : (
+                            renderPuesto(c)
+                          ),
+                        )}
                         {sshh.length > 0 && (
                           <div
                             className="pst-cell pst-cell--sshh"
