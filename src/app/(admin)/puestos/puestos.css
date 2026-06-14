@@ -308,6 +308,10 @@
   border: 1px dashed var(--border);
   border-radius: 6px;
 }
+/* Columna M (Etapa 2): sub-bloques de una sola columna (1×6) */
+.pst-plano__banda--uno {
+  grid-template-columns: repeat(1, 30px);
+}
 .pst-plano__bloque-label {
   text-align: center;
   font-family: "Google Sans", sans-serif;

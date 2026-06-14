@@ -174,6 +174,22 @@ export function PuestoPlanoView({
                     // Etapa 2: la grilla 2×18 se muestra en 3 sub-bloques de
                     // 2×6, manteniendo la numeración en U continua.
                     if (etapa === 2) {
+                      // Columna M: sub-bloques de 1×6 (una sola columna), #1
+                      // abajo. Solo 18 puestos (no tiene la columna izquierda).
+                      if (b.bloque === "M") {
+                        const col = [...band.cells].reverse(); // 18→1 (arriba→abajo)
+                        const subs: PlanoCell[][] = [];
+                        for (let i = 0; i < col.length; i += 6)
+                          subs.push(col.slice(i, i + 6));
+                        return subs.map((sub, si) => (
+                          <div
+                            className="pst-plano__banda pst-plano__banda--uno"
+                            key={`${band.banda}-${si}`}
+                          >
+                            {sub.map(renderPuesto)}
+                          </div>
+                        ));
+                      }
                       const ordered = celdasColumnaU(band.cells);
                       const subs: PlanoCell[][] = [];
                       for (let i = 0; i < ordered.length; i += 12)
