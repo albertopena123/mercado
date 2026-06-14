@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth/server";
+import { prisma } from "@/lib/prisma";
 import { LoginForm } from "./LoginForm";
 import "./login.css";
 
@@ -10,7 +11,15 @@ export const metadata = {
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
-  if (user) redirect("/usuarios");
+  if (user) {
+    // Socio (portal habilitado y sin acceso al panel) → /portal; staff → /usuarios.
+    const socio = await prisma.socio.findUnique({
+      where: { userId: user.id },
+      select: { portalEnabled: true },
+    });
+    const esSocio = !!socio?.portalEnabled && user.permissions.size === 0;
+    redirect(esSocio ? "/portal" : "/usuarios");
+  }
 
   return (
     <main className="login">

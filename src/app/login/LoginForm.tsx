@@ -33,7 +33,7 @@ function EyeIcon({ off }: { off: boolean }) {
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/usuarios";
+  const nextParam = params.get("next");
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -61,7 +61,12 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
-      router.replace(next);
+      // Honra ?next si vino del proxy; si no, usa el destino sugerido por el
+      // servidor (socio → /portal, staff → /usuarios).
+      const data = (await res.json().catch(() => null)) as
+        | { redirect?: string }
+        | null;
+      router.replace(nextParam || data?.redirect || "/usuarios");
       router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor.");

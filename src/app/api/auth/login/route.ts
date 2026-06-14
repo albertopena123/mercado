@@ -129,6 +129,20 @@ export async function POST(request: Request) {
     data: { lastLoginAt: new Date() },
   });
 
+  // Destino sugerido: los socios (con portal habilitado y sin acceso al panel)
+  // van a /portal; el staff va a /usuarios. La UI honra el ?next si existe.
+  const [socio, adminRoles] = await Promise.all([
+    prisma.socio.findUnique({
+      where: { userId: user.id },
+      select: { portalEnabled: true },
+    }),
+    prisma.userRole.count({
+      where: { userId: user.id, role: { permissions: { some: {} } } },
+    }),
+  ]);
+  const redirectTo =
+    socio?.portalEnabled && adminRoles === 0 ? "/portal" : "/usuarios";
+
   if (isMobile && session) {
     return NextResponse.json({
       ok: true,
@@ -139,7 +153,8 @@ export async function POST(request: Request) {
         email: user.email,
         name: user.name,
       },
+      redirect: redirectTo,
     });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, redirect: redirectTo });
 }
