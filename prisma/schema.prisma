@@ -232,16 +232,45 @@ enum EstadoPuesto {
   construccion
 }
 
+enum BandaPuesto {
+  alta
+  media
+  baja
+}
+
+enum DimensionPuesto {
+  d3x5
+  d3x3
+}
+
+enum Giro {
+  verduras
+  abarrotes
+  carnes
+  pescados
+  comidas
+  ropa
+  calzado
+  ferreteria
+  productos_region
+  juguetes
+  flores_plantas
+  otros
+}
+
 model Puesto {
-  id            String       @id @default(cuid())
-  codigo        String       @unique
-  giro          String?
-  area          Float?
-  zona          String?
-  estado        EstadoPuesto @default(vacio)
+  id            String          @id @default(cuid())
+  etapa         Int // 1 | 2
+  bloque        String // 'A'..'M'
+  numero        Int // continuo por bloque
+  banda         BandaPuesto
+  dimension     DimensionPuesto
+  giro          Giro?
+  codigo        String          @unique // derivado 'E1-A-12'
+  estado        EstadoPuesto    @default(vacio)
   fotoUrl       String?
   observaciones String?
-  searchKey     String       @default("")
+  searchKey     String          @default("")
 
   createdById String?
   updatedById String?
@@ -252,7 +281,9 @@ model Puesto {
   updatedBy    User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   asignaciones PuestoAsignacion[]
 
+  @@unique([etapa, bloque, numero])
   @@index([estado])
+  @@index([etapa, bloque])
   @@index([giro])
 }
 
