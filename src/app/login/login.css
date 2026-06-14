@@ -1,7 +1,9 @@
 /* ===========================================================================
    Mercado Milagros — Login
-   Estilo profesional tipo Google (claro), color morado, con un fondo
-   ilustrado del mercado (puestos, toldos y luces) detrás de la tarjeta.
+   Diseño profesional de pantalla dividida (split-screen):
+     · Izquierda  → panel de marca inmersivo (morado + escena del mercado)
+     · Derecha    → formulario limpio y enfocado, estilo Google/empresa
+   En móvil colapsa a una sola columna (solo el formulario, con cabecera).
    Todo está scopeado bajo .login para no afectar al resto del admin.
    =========================================================================== */
 
@@ -13,7 +15,7 @@
   --pry-100: #efeafe;
   --pry-50: #f7f4ff;
 
-  /* Neutros estilo Google (interior de la tarjeta) */
+  /* Neutros estilo Google (panel del formulario) */
   --ink: #202124;
   --muted: #5f6368;
   --faint: #80868b;
@@ -24,42 +26,110 @@
   --danger-bd: #f3b7ae;
   --danger-fg: #9b2c1f;
 
-  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-  place-items: center;
-  padding: 24px 16px;
-  background:
-    radial-gradient(70% 40% at 50% 114%, rgba(255, 201, 125, 0.24), transparent 62%),
-    radial-gradient(135% 120% at 50% -18%, #9173ff 0%, #6d3fe0 36%, #4d23a8 74%, #3a1888 100%);
+  grid-template-columns: 1.05fr 1fr;
+  background: #ffffff;
   font-family: "Google Sans Text", "Roboto", system-ui, sans-serif;
   color: var(--ink);
   overflow: hidden;
 }
 
-/* ---- Escena del mercado (fondo) --------------------------------------- */
+/* ===========================================================================
+   PANEL DE MARCA (izquierda)
+   =========================================================================== */
+.login__aside {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 48px 52px;
+  overflow: hidden;
+  color: #fff;
+  isolation: isolate;
+  background:
+    radial-gradient(78% 46% at 50% 116%, rgba(255, 201, 125, 0.26), transparent 60%),
+    radial-gradient(130% 116% at 18% -12%, #9173ff 0%, #6d3fe0 34%, #4d23a8 72%, #321575 100%);
+}
+/* Textura de ruido sutil para dar profundidad (sin imágenes externas) */
+.login__aside::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+/* Resplandor suave que acompaña a la marca */
+.login__aside-glow {
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 420px;
+  height: 420px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 70%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.login__aside-brand {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.login__aside-copy {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  margin-bottom: clamp(150px, 26vh, 250px);
+  max-width: 30ch;
+  animation: login-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.08s;
+}
+.login__aside-copy h2 {
+  margin: 0 0 14px;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 500;
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+.login__aside-copy p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* ---- Escena del mercado (al pie del panel) ----------------------------- */
 .login__scene {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  width: 100%;
-  height: clamp(190px, 30vh, 320px);
-  pointer-events: none;
   z-index: 0;
+  width: 100%;
+  height: clamp(210px, 32vh, 330px);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent);
+  mask-image: linear-gradient(to top, #000 62%, transparent);
 }
 .login__row {
   color: #ffffff;
 }
 .login__row--back {
-  opacity: 0.2;
+  opacity: 0.18;
 }
 .login__row--front {
-  opacity: 0.5;
+  opacity: 0.42;
 }
 .login__lights {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.42);
 }
 .login__bulbs line {
   stroke: rgba(255, 255, 255, 0.5);
@@ -74,40 +144,40 @@
   animation-delay: -2s;
 }
 
-/* ---- Tarjeta (estilo Google) ------------------------------------------ */
-.login__card {
-  position: relative;
-  z-index: 1;
-  width: min(416px, calc(100% - 32px));
-  padding: 40px 40px 30px;
+/* ===========================================================================
+   PANEL DEL FORMULARIO (derecha)
+   =========================================================================== */
+.login__panel {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: #ffffff;
+}
+.login__panel-inner {
+  width: min(384px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
-  box-shadow:
-    0 24px 60px rgba(34, 12, 84, 0.34),
-    0 4px 14px rgba(34, 12, 84, 0.18);
+  gap: 26px;
   animation: login-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.login__card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 28px;
-  right: 28px;
-  height: 4px;
-  border-radius: 0 0 4px 4px;
-  background: linear-gradient(90deg, #8260ff, #6d3fe0, #b9a3f2);
-}
 
-/* ---- Marca ------------------------------------------------------------- */
-.login__brand {
+/* ---- Sellos institucionales (sobre "Inicia sesión") -------------------- */
+.login__seals {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
 }
+.login__seals img {
+  height: 52px;
+  width: auto;
+}
+.login__seals-divider {
+  width: 1px;
+  height: 38px;
+  background: var(--line);
+}
+
+/* ---- Marca compartida (cuadro "M" + texto) ----------------------------- */
 .login__mark {
   width: 46px;
   height: 46px;
@@ -119,36 +189,52 @@
   font-weight: 700;
   font-size: 22px;
   color: #fff;
-  background: linear-gradient(150deg, #8260ff, var(--pry-700));
+  background: linear-gradient(150deg, #a487ff, var(--pry-700));
   box-shadow:
-    0 8px 20px rgba(81, 40, 180, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 10px 24px rgba(20, 8, 60, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.login__brand-name {
+.login__wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.login__wordmark-name {
   font-family: "Google Sans", sans-serif;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+.login__wordmark-sub {
+  font-size: 12px;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+/* En el panel claro el "M" mantiene contraste y el texto va en tinta */
+.login__brand-mobile {
+  display: none;
+  align-items: center;
+  gap: 12px;
   color: var(--ink);
 }
-.login__brand-sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
+.login__brand-mobile .login__mark {
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
 }
 
 /* ---- Encabezado -------------------------------------------------------- */
 .login__head h1 {
   font-family: "Google Sans", sans-serif;
   font-weight: 400;
-  font-size: 26px;
-  letter-spacing: -0.01em;
+  font-size: 28px;
+  letter-spacing: -0.015em;
   margin: 0 0 6px;
   color: var(--ink);
 }
 .login__head p {
   margin: 0;
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -200,6 +286,9 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.login__input:hover {
+  border-color: #b9bdc4;
 }
 .login__input:focus-within {
   border-color: var(--pry);
@@ -255,12 +344,12 @@
 
 /* ---- Botón ------------------------------------------------------------- */
 .login__submit {
-  margin-top: 4px;
+  margin-top: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
-  height: 46px;
+  height: 48px;
   border: 0;
   border-radius: 10px;
   font-family: "Google Sans", sans-serif;
@@ -268,14 +357,14 @@
   font-weight: 600;
   color: #fff;
   cursor: pointer;
-  background: var(--pry);
-  box-shadow: 0 8px 20px rgba(81, 40, 180, 0.28);
+  background: linear-gradient(180deg, #7a4ce6, var(--pry));
+  box-shadow: 0 10px 22px rgba(81, 40, 180, 0.3);
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease,
     opacity 0.15s ease;
 }
 .login__submit:hover:not(:disabled) {
-  background: var(--pry-600);
-  box-shadow: 0 12px 26px rgba(81, 40, 180, 0.36);
+  background: linear-gradient(180deg, #6d3fe0, var(--pry-600));
+  box-shadow: 0 14px 28px rgba(81, 40, 180, 0.38);
 }
 .login__submit:active:not(:disabled) {
   transform: translateY(1px);
@@ -297,10 +386,12 @@
 
 /* ---- Pie --------------------------------------------------------------- */
 .login__foot {
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--muted);
   text-align: center;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
 }
 
 /* ---- Foco visible ------------------------------------------------------ */
@@ -310,7 +401,9 @@
   outline-offset: 2px;
 }
 
-/* ---- Animaciones ------------------------------------------------------- */
+/* ===========================================================================
+   ANIMACIONES
+   =========================================================================== */
 @keyframes login-rise {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
@@ -323,23 +416,59 @@
   50% { opacity: 1; }
 }
 
-/* ---- Responsive -------------------------------------------------------- */
-@media (max-width: 460px) {
+/* ===========================================================================
+   RESPONSIVE
+   =========================================================================== */
+/* Tablet: estrechamos el panel de marca */
+@media (max-width: 1080px) {
   .login {
-    padding: 16px;
+    grid-template-columns: 0.9fr 1fr;
   }
-  .login__card {
-    padding: 30px 22px 24px;
-    border-radius: 18px;
-  }
-  .login__head h1 {
-    font-size: 23px;
+  .login__aside {
+    padding: 40px 38px;
   }
 }
 
-/* ---- Movimiento reducido ----------------------------------------------- */
+/* Móvil: una sola columna, solo el formulario con cabecera de marca */
+@media (max-width: 860px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+  .login__aside {
+    display: none;
+  }
+  .login__panel {
+    align-items: stretch;
+    padding: 0;
+    /* Fondo morado sutil arriba para no perder la identidad */
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(109, 63, 224, 0.1), transparent 60%),
+      #ffffff;
+  }
+  .login__panel-inner {
+    margin: auto;
+    padding: 40px 24px 32px;
+  }
+  .login__brand-mobile {
+    display: flex;
+  }
+}
+
+@media (max-width: 420px) {
+  .login__panel-inner {
+    padding: 32px 20px 28px;
+  }
+  .login__head h1 {
+    font-size: 25px;
+  }
+}
+
+/* ===========================================================================
+   MOVIMIENTO REDUCIDO
+   =========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .login__card,
+  .login__panel-inner,
+  .login__aside-copy,
   .login__spinner,
   .login__lights circle {
     animation: none !important;
