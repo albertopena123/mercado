@@ -135,6 +135,24 @@ export const PERMISSIONS: PermissionDef[] = [
     description: "Registrar el pago de una cuota",
     category: "Cuotas",
   },
+  {
+    key: "anuncios.read",
+    name: "Ver anuncios",
+    description: "Listar y consultar anuncios y comunicados",
+    category: "Anuncios",
+  },
+  {
+    key: "anuncios.write",
+    name: "Gestionar anuncios",
+    description: "Crear, editar y publicar anuncios y comunicados",
+    category: "Anuncios",
+  },
+  {
+    key: "anuncios.delete",
+    name: "Eliminar anuncios",
+    description: "Eliminar anuncios y comunicados",
+    category: "Anuncios",
+  },
 ];
 
 export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
@@ -170,6 +188,9 @@ export const ROLE_DEFS = [
       "cuotas.read",
       "cuotas.write",
       "cuotas.pay",
+      "anuncios.read",
+      "anuncios.write",
+      "anuncios.delete",
     ],
   },
   {

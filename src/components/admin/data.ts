@@ -18,4 +18,5 @@ export const SIDEBAR_NAV: SidebarItem[] = [
   { id: "puestos", label: "Puestos", icon: "folder", href: "/puestos" },
   { id: "cuotas", label: "Cuotas y deuda", icon: "chart", href: "/cuotas" },
   { id: "asambleas", label: "Asambleas", icon: "calendar", href: "/asambleas" },
+  { id: "anuncios", label: "Anuncios", icon: "bell", href: "/anuncios" },
 ];

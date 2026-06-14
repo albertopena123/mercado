@@ -142,6 +142,12 @@
 .lp a.lp-btn--ghost { color: var(--pry-700); }
 .lp a.lp-btn--amber { color: #3a2a05; }
 .lp a.lp-btn--white { color: var(--pry-700); }
+/* Mismos overrides para los enlaces flotantes y la pastilla del mapa: su
+   color define el `currentColor` de los iconos, así que debe ganar a
+   `.lp a { color: inherit }`. */
+.lp a.lp-fab__btn--wa { color: #fff; }
+.lp a.lp-fab__btn--map { color: var(--pry-700); }
+.lp a.lp-loc__chip { color: var(--pry-700); }
 
 /* ---- Eyebrow / chips --------------------------------------------------- */
 .lp-eyebrow {
@@ -973,8 +979,229 @@
 }
 
 /* ===========================================================================
+   UBICACIÓN / CÓMO LLEGAR
+   =========================================================================== */
+.lp-loc {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 40px;
+  align-items: stretch;
+}
+.lp-loc__info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.lp-loc__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.lp-loc__rows li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.lp-loc__ic {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+}
+.lp-loc__ic--pry { background: var(--pry-50); color: var(--pry-700); }
+.lp-loc__ic--amber { background: var(--amber-50); color: var(--amber-600); }
+.lp-loc__ic--green { background: var(--green-50); color: var(--green); }
+.lp-loc__t {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+.lp-loc__d {
+  margin-top: 2px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.lp-loc__cta {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* Marco del mapa embebido */
+.lp-loc__map {
+  position: relative;
+  min-height: 380px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  background: var(--soft);
+}
+.lp-loc__map iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  border: 0;
+  display: block;
+}
+/* Pastilla flotante sobre el mapa que también traza la ruta.
+   Anclada arriba-derecha: la esquina libre del embed (abajo-izq = logo de
+   Google, arriba-izq = "Ver mapa más grande", abajo-der = términos/zoom). */
+.lp-loc__chip {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-md);
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--pry-700);
+  transition: transform 0.15s ease, box-shadow 0.18s ease;
+}
+.lp-loc__chip:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ===========================================================================
+   ACCIONES FLOTANTES (FAB): WhatsApp · Cómo llegar · Volver arriba
+   =========================================================================== */
+.lp-fab {
+  position: fixed;
+  right: 22px;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  animation: lp-fab-in 0.6s 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lp-fab__btn {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.16s ease, box-shadow 0.2s ease;
+}
+.lp-fab__btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.lp-fab__btn:active { transform: translateY(-1px) scale(0.97); }
+.lp-fab__btn:focus-visible {
+  outline: 3px solid var(--pry-100);
+  outline-offset: 3px;
+}
+
+/* WhatsApp (verde de marca, oscurecido para que el glifo blanco cumpla el
+   contraste mínimo 3:1 de WCAG 1.4.11 en toda la superficie). */
+.lp-fab__btn--wa {
+  background: linear-gradient(145deg, #0f9b5f, #0c7d54);
+  box-shadow: 0 12px 28px rgba(15, 125, 84, 0.42);
+}
+.lp-fab__btn--wa:hover { box-shadow: 0 18px 36px rgba(18, 140, 126, 0.5); }
+.lp-fab__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.55);
+  animation: lp-fab-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Cómo llegar */
+.lp-fab__btn--map {
+  background: #fff;
+  color: var(--pry-700);
+  border: 1px solid var(--line-strong);
+}
+
+/* Volver arriba — aparece al hacer scroll */
+.lp-fab__btn--top {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  width: 50px;
+  height: 0;
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, height 0.2s ease;
+}
+.lp-fab__btn--top.is-on {
+  height: 50px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Etiqueta emergente al pasar el cursor */
+.lp-fab__label {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(8px);
+  white-space: nowrap;
+  padding: 9px 13px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: #fff;
+  font-family: "Google Sans", sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.lp-fab__label::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: var(--ink);
+}
+.lp-fab__btn:hover .lp-fab__label,
+.lp-fab__btn:focus-visible .lp-fab__label {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ===========================================================================
    ANIMACIONES
    =========================================================================== */
+@keyframes lp-fab-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+  70% { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+@keyframes lp-fab-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
 @keyframes lp-twinkle {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
@@ -1160,9 +1387,135 @@
   }
 }
 
-/* Movimiento reducido */
+/* Ubicación: una sola columna en tablets y móviles.
+   En una columna el mapa ya no se estira por el track del grid, así que le
+   damos una altura explícita para que el iframe (height:100%) tenga referencia
+   y no dependa solo de su min-height. */
+@media (max-width: 900px) {
+  .lp-loc {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .lp-loc__map {
+    height: 360px;
+    min-height: 360px;
+  }
+  .lp-loc__map iframe {
+    min-height: 360px;
+  }
+}
+
+/* FAB compacto en móvil: sin etiquetas hover (no hay puntero) */
+@media (max-width: 560px) {
+  .lp-fab {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .lp-fab__btn {
+    width: 54px;
+    height: 54px;
+  }
+  .lp-fab__label {
+    display: none;
+  }
+  /* Deja sitio en la esquina inferior para que el FAB no tape el copyright */
+  .lp-footer {
+    padding-bottom: 96px;
+  }
+  .lp-footer__bottom {
+    justify-content: flex-start;
+  }
+}
+
+/* Alto contraste de Windows: garantiza un borde visible en los FAB (el de
+   WhatsApp pierde su fondo de degradado en forced-colors). */
+@media (forced-colors: active) {
+  .lp-fab__btn {
+    border: 1px solid ButtonText;
+  }
+}
+
+/* Movimiento reducido: silencia tanto las animaciones (@keyframes) como las
+   transiciones (hover/aparición del FAB), para que los cambios sean instantáneos. */
 @media (prefers-reduced-motion: reduce) {
   .lp * {
     animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ===================== Novedades / Anuncios ===================== */
+.lp-anuncios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 40px;
+}
+.lp-anuncio {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.18s ease,
+    border-color 0.16s ease;
+}
+.lp-anuncio:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--pry-100);
+}
+.lp-anuncio__img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+}
+.lp-anuncio__body {
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.lp-anuncio__tag {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pry-700);
+  background: var(--pry-50);
+  border: 1px solid var(--pry-100);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.lp-anuncio h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.lp-anuncio__body p {
+  font-size: 14.5px;
+  color: var(--muted);
+  line-height: 1.55;
+  flex: 1;
+}
+.lp-anuncio time {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+@media (max-width: 900px) {
+  .lp-anuncios {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .lp-anuncios {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,5 +1,8 @@
 import "./landing.css";
 import { LandingHeader } from "./LandingHeader";
+import { FloatingActions } from "./FloatingActions";
+import { AnunciosSection } from "./AnunciosSection";
+import { ADDRESS, directionsUrl, mapsPlaceUrl, mapEmbedUrl, whatsappUrl } from "./contact";
 
 export const metadata = {
   title: "Mercado Milagros — El corazón comercial de Madre de Dios",
@@ -95,6 +98,36 @@ function IconFlower() {
       <circle cx="12" cy="9" r="2.2" />
       <path d="M12 6.8c0-2.4 3-2.6 3 .2M12 6.8c0-2.4-3-2.6-3 .2M14 9.8c2.2-1 3.6 1.6 1 2.7M10 9.8c-2.2-1-3.6 1.6-1 2.7M12 11.2c-1.4 2 1 3.6 2.2 1M12 11.2c1.4 2-1 3.6-2.2 1" />
       <path d="M12 13v8M12 18c-2 0-3-1-4-2M12 16c1.6 0 2.6-.8 3.4-1.8" />
+    </svg>
+  );
+}
+function IconPin() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}>
+      <path d="M12 21c4.6-4.3 7-7.8 7-11a7 7 0 1 0-14 0c0 3.2 2.4 6.7 7 11Z" />
+      <circle cx="12" cy="10" r="2.6" />
+    </svg>
+  );
+}
+function IconClock() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3.2 2" />
+    </svg>
+  );
+}
+function IconChat() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}>
+      <path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-5.2A8 8 0 1 1 21 11.5Z" />
+    </svg>
+  );
+}
+function IconNav() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...stroke} strokeWidth={2}>
+      <path d="M4 11.5 20.5 4 13 20.5l-2.2-6.4-6.3-2.6Z" />
     </svg>
   );
 }
@@ -302,6 +335,9 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ===================== NOVEDADES (anuncios públicos) ===================== */}
+        <AnunciosSection />
+
         {/* ===================== FEATURES ===================== */}
         <section className="lp-section" id="mercado">
           <div className="lp__container">
@@ -493,11 +529,76 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ===================== UBICACIÓN / FAQ ===================== */}
+        {/* ===================== UBICACIÓN / CÓMO LLEGAR ===================== */}
         <section className="lp-section" id="ubicacion">
           <div className="lp__container">
             <div className="lp-section__head lp-reveal">
-              <span className="lp-eyebrow">Visítanos</span>
+              <span className="lp-eyebrow">
+                <span className="lp-eyebrow__dot" /> Cómo llegar
+              </span>
+              <h2>Te esperamos en el corazón de Puerto Maldonado</h2>
+              <p>
+                Estamos en una zona céntrica y de fácil acceso. Traza tu ruta en
+                un solo toque y ven a comprar fresco.
+              </p>
+            </div>
+
+            <div className="lp-loc lp-reveal">
+              <div className="lp-loc__info">
+                <ul className="lp-loc__rows">
+                  <li>
+                    <span className="lp-loc__ic lp-loc__ic--pry"><IconPin /></span>
+                    <div>
+                      <div className="lp-loc__t">Ubicación</div>
+                      <div className="lp-loc__d">{ADDRESS}</div>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="lp-loc__ic lp-loc__ic--amber"><IconClock /></span>
+                    <div>
+                      <div className="lp-loc__t">Horario de atención</div>
+                      <div className="lp-loc__d">Todos los días · 6:00 a. m. – 6:00 p. m.</div>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="lp-loc__ic lp-loc__ic--green"><IconChat /></span>
+                    <div>
+                      <div className="lp-loc__t">¿Tienes dudas?</div>
+                      <div className="lp-loc__d">Escríbenos por WhatsApp para informes y consultas.</div>
+                    </div>
+                  </li>
+                </ul>
+                <div className="lp-loc__cta">
+                  <a className="lp-btn lp-btn--primary lp-btn--lg" href={directionsUrl} target="_blank" rel="noopener noreferrer">
+                    <IconNav /> Cómo llegar
+                  </a>
+                  <a className="lp-btn lp-btn--ghost lp-btn--lg" href={mapsPlaceUrl} target="_blank" rel="noopener noreferrer">
+                    Ver en Google Maps
+                  </a>
+                </div>
+              </div>
+
+              <div className="lp-loc__map">
+                <iframe
+                  src={mapEmbedUrl}
+                  title="Mapa de ubicación del Mercado Milagros en Puerto Maldonado"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+                <a className="lp-loc__chip" href={directionsUrl} target="_blank" rel="noopener noreferrer">
+                  <IconNav /> Trazar ruta
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===================== FAQ ===================== */}
+        <section className="lp-section lp-section--soft" id="preguntas">
+          <div className="lp__container">
+            <div className="lp-section__head lp-reveal">
+              <span className="lp-eyebrow">Resuelve tus dudas</span>
               <h2>Preguntas frecuentes</h2>
               <p>Todo lo que necesitas saber antes de visitar el Mercado Milagros en Puerto Maldonado.</p>
             </div>
@@ -559,8 +660,8 @@ export default function LandingPage() {
               <ul>
                 <li><a href="#mercado">Sobre nosotros</a></li>
                 <li><a href="#categorias">Categorías</a></li>
-                <li><a href="#ubicacion">Horarios</a></li>
-                <li><a href="#ubicacion">Ubicación</a></li>
+                <li><a href="#ubicacion">Ubicación y horarios</a></li>
+                <li><a href="#preguntas">Preguntas frecuentes</a></li>
               </ul>
             </div>
             <div className="lp-footer__col">
@@ -574,6 +675,8 @@ export default function LandingPage() {
             <div className="lp-footer__col">
               <h4>Contacto</h4>
               <ul>
+                <li><a href={whatsappUrl} target="_blank" rel="noopener noreferrer">WhatsApp</a></li>
+                <li><a href={directionsUrl} target="_blank" rel="noopener noreferrer">Cómo llegar</a></li>
                 <li><a href="#ubicacion">Puerto Maldonado</a></li>
                 <li><a href="#ubicacion">Lun a Dom · 6am–6pm</a></li>
                 <li><a href="/login">Administración</a></li>
@@ -587,6 +690,9 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ===================== ACCIONES FLOTANTES (WhatsApp / ruta) ======= */}
+      <FloatingActions />
     </div>
   );
 }

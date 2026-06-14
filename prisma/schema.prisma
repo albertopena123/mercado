@@ -39,6 +39,8 @@ model User {
   asistenciasReg     Asistencia[]       @relation("AsistenciaBy")
   cuotasPago         Cuota[]            @relation("CuotaPagoBy")
   constanciasEmitidas Constancia[]      @relation("ConstanciaEmitidoPor")
+  anunciosCreados    Anuncio[]          @relation("AnuncioCreatedBy")
+  anunciosUpdated    Anuncio[]          @relation("AnuncioUpdatedBy")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -442,4 +444,52 @@ model Constancia {
 
   @@index([socioId])
   @@index([emitidoEn])
+}
+
+// ─────────────────────────── Anuncios / Comunicados ───────────────────────────
+//
+// Publicaciones para mantener informados a los socios. Un mismo modelo cubre
+// anuncios y comunicados (campo `tipo`). `visibilidad` decide dónde se ven:
+// `publico` aparece en el landing; `socios` solo en el portal del socio.
+enum TipoAnuncio {
+  anuncio
+  comunicado
+}
+
+enum VisibilidadAnuncio {
+  publico
+  socios
+}
+
+enum EstadoAnuncio {
+  borrador
+  publicado
+  archivado
+}
+
+model Anuncio {
+  id          String             @id @default(cuid())
+  titulo      String
+  resumen     String? // texto corto para tarjetas
+  contenido   String // cuerpo completo
+  tipo        TipoAnuncio        @default(anuncio)
+  visibilidad VisibilidadAnuncio @default(publico)
+  estado      EstadoAnuncio      @default(borrador)
+  fijado      Boolean            @default(false) // destacar arriba
+  imagenUrl   String?
+  publicadoEn DateTime?
+  validoHasta DateTime?
+  searchKey   String             @default("")
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User? @relation("AnuncioCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("AnuncioUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([estado])
+  @@index([visibilidad, estado])
+  @@index([publicadoEn])
 }
