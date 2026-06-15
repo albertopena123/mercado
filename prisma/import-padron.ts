@@ -12,8 +12,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../src/generated/prisma/client";
-import { buildSocioSearchKey } from "../src/lib/socios/normalize";
+import { buildSocioSearchKey, normalizeToken } from "../src/lib/socios/normalize";
 import { nextCodigo } from "../src/lib/socios/codigo";
+import { puestoCodigo, bandaPorNumero } from "../src/lib/puestos/giro";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -52,6 +53,125 @@ function parseNombre(raw: string): {
   return { apellidoPaterno: t[0], apellidoMaterno: t[1], nombres: t.slice(2).join(" ") };
 }
 
+function etapaDe(parcela: string): 1 | 2 | 0 {
+  if (parcela.includes("3*5")) return 1;
+  if (parcela.includes("3*3")) return 2;
+  return 0;
+}
+function filaDe(parcela: string): number {
+  const m = parcela.trim().match(/^(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// Importa los PUESTOS del padrón (canónico): limpia la grilla generada y crea
+// cada puesto real (etapa por dimensión, fila por sub-fila) + su asignación al
+// socio dueño. Los 34 puestos con doble propietario se crean SIN dueño (vacíos)
+// y se marcan en observaciones para que la directiva resuelva.
+async function importPuestos(rows: Row[], apply: boolean) {
+  const socios = await prisma.socio.findMany({
+    select: { id: true, numeroDocumento: true, tipoDocumento: true },
+  });
+  const dniToId = new Map<string, string>();
+  for (const s of socios)
+    if (s.tipoDocumento === "DNI") dniToId.set(s.numeroDocumento, s.id);
+
+  type Cell = {
+    etapa: number;
+    bloque: string;
+    fila: number;
+    numero: number;
+    dim: "d3x5" | "d3x3";
+    owners: Set<string>;
+  };
+  const cells = new Map<string, Cell>();
+  let sinEtapa = 0;
+  let invalido = 0;
+  for (const r of rows) {
+    const etapa = etapaDe(r.parcela || "");
+    if (!etapa) { sinEtapa++; continue; }
+    const fila = filaDe(r.parcela || "");
+    const numero = parseInt(String(r.numero), 10);
+    if (!Number.isInteger(numero) || fila === 0) { invalido++; continue; }
+    const key = `${etapa}|${r.bloque}|${fila}|${numero}`;
+    let c = cells.get(key);
+    if (!c) {
+      c = { etapa, bloque: r.bloque, fila, numero, dim: etapa === 1 ? "d3x5" : "d3x3", owners: new Set() };
+      cells.set(key, c);
+    }
+    const dni = normDni(r.dni);
+    if (dni && dniToId.has(dni)) c.owners.add(dni);
+  }
+
+  let conflictos = 0, conUno = 0, sinDueno = 0;
+  const confSample: string[] = [];
+  for (const c of cells.values()) {
+    if (c.owners.size > 1) {
+      conflictos++;
+      if (confSample.length < 8)
+        confSample.push(`E${c.etapa}-${c.bloque}-${c.fila}-${c.numero}: ${[...c.owners].join(" vs ")}`);
+    } else if (c.owners.size === 1) conUno++;
+    else sinDueno++;
+  }
+
+  console.log("═══════════ IMPORTACIÓN PUESTOS (padrón 2026) ═══════════");
+  console.log(`Puestos únicos (etapa,bloque,fila,número): ${cells.size}`);
+  console.log(`  · con 1 dueño (se asignan):  ${conUno}`);
+  console.log(`  · sin dueño (vacíos):        ${sinDueno}`);
+  console.log(`  · CONFLICTO 2+ dueños:       ${conflictos} (vacíos, marcados para resolver)`);
+  console.log(`Filas sin etapa: ${sinEtapa} | inválidas: ${invalido}`);
+  console.log("─── Muestra de conflictos ───");
+  confSample.forEach((s) => console.log("  " + s));
+
+  if (!apply) {
+    console.log("\n(DRY-RUN puestos — usa --puestos --apply para crear.)");
+    return;
+  }
+
+  const puestoData: Prisma.PuestoCreateManyInput[] = [];
+  const asignByCodigo = new Map<string, string>();
+  for (const c of cells.values()) {
+    const codigo = puestoCodigo(c.etapa, c.bloque, c.numero, c.fila);
+    const ownerDni = c.owners.size === 1 ? [...c.owners][0] : null;
+    const socioId = ownerDni ? dniToId.get(ownerDni)! : null;
+    puestoData.push({
+      etapa: c.etapa,
+      bloque: c.bloque,
+      fila: c.fila,
+      numero: c.numero,
+      banda: bandaPorNumero(c.numero, c.etapa),
+      dimension: c.dim,
+      tipo: "puesto",
+      codigo,
+      estado: socioId ? "activo" : "vacio",
+      observaciones:
+        c.owners.size > 1
+          ? `${MARCA} CONFLICTO doble propietario: ${[...c.owners].join(", ")}`
+          : MARCA,
+      searchKey: [codigo, c.bloque].map(normalizeToken).join(" "),
+    });
+    if (socioId) asignByCodigo.set(codigo, socioId);
+  }
+
+  const delA = await prisma.puestoAsignacion.deleteMany({});
+  const delP = await prisma.puesto.deleteMany({});
+  console.log(`\nGrilla anterior eliminada: ${delP.count} puestos, ${delA.count} asignaciones.`);
+
+  const cr = await prisma.puesto.createMany({ data: puestoData });
+  const created = await prisma.puesto.findMany({
+    where: { observaciones: { startsWith: MARCA } },
+    select: { id: true, codigo: true },
+  });
+  const codeToId = new Map(created.map((p) => [p.codigo, p.id]));
+  const asignData: Prisma.PuestoAsignacionCreateManyInput[] = [];
+  for (const [codigo, socioId] of asignByCodigo) {
+    const pid = codeToId.get(codigo);
+    if (pid) asignData.push({ puestoId: pid, socioId, desde: FECHA_BASE, motivo: "Padrón 2026" });
+  }
+  const crA = await prisma.puestoAsignacion.createMany({ data: asignData });
+  console.log(`✅ Puestos creados: ${cr.count} | asignaciones: ${crA.count}`);
+  console.log(`   Para revertir: npx tsx prisma/import-padron.ts --rollback`);
+}
+
 async function main() {
   const mode = process.argv.includes("--apply")
     ? "apply"
@@ -60,10 +180,19 @@ async function main() {
       : "dry";
 
   if (mode === "rollback") {
+    // Orden: asignaciones → puestos → socios (la FK puesto es Restrict).
+    const asg = await prisma.puestoAsignacion.deleteMany({
+      where: { motivo: "Padrón 2026" },
+    });
+    const pst = await prisma.puesto.deleteMany({
+      where: { observaciones: { startsWith: MARCA } },
+    });
     const del = await prisma.socio.deleteMany({
       where: { observaciones: { startsWith: MARCA } },
     });
-    console.log(`🗑  rollback: ${del.count} socios importados eliminados.`);
+    console.log(
+      `🗑  rollback: ${del.count} socios, ${pst.count} puestos, ${asg.count} asignaciones eliminados.`,
+    );
     await prisma.$disconnect();
     return;
   }
@@ -73,6 +202,12 @@ async function main() {
     "utf8",
   ).replace(/^﻿/, ""); // PowerShell Out-File utf8 antepone un BOM
   const rows: Row[] = JSON.parse(json);
+
+  if (process.argv.includes("--puestos")) {
+    await importPuestos(rows, mode === "apply");
+    await prisma.$disconnect();
+    return;
+  }
 
   // Agrupar por DNI (un socio = un DNI). Conserva primer nombre/celular/padrón.
   const porDni = new Map<string, { rep: Row; puestos: number }>();

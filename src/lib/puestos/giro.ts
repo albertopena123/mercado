@@ -82,6 +82,7 @@ export function puestoCodigo(
   etapa: number,
   bloque: string,
   numero: number,
+  fila = 1,
 ): string {
-  return `E${etapa}-${bloque.toUpperCase()}-${numero}`;
+  return `E${etapa}-${bloque.toUpperCase()}-${fila}-${numero}`;
 }

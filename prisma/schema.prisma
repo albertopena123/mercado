@@ -273,9 +273,10 @@ enum Giro {
 
 model Puesto {
   id            String          @id @default(cuid())
-  etapa         Int // 1 | 2
+  etapa         Int // 1 | 2  (Etapa 1 = puestos 3×5 grandes; Etapa 2 = 3×3 pequeños)
   bloque        String // 'A'..'M'
-  numero        Int // continuo por bloque
+  fila          Int             @default(1) // sub-fila dentro del bloque (1,2,3)
+  numero        Int // número del puesto dentro de su (etapa,bloque,fila)
   banda         BandaPuesto
   dimension     DimensionPuesto
   tipo          TipoEspacio     @default(puesto) // puesto | sshh | almacen
@@ -295,7 +296,7 @@ model Puesto {
   updatedBy    User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   asignaciones PuestoAsignacion[]
 
-  @@unique([etapa, bloque, numero])
+  @@unique([etapa, bloque, fila, numero])
   @@index([estado])
   @@index([etapa, bloque])
   @@index([giro])
