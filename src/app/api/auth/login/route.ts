@@ -137,7 +137,12 @@ export async function POST(request: Request) {
       select: { portalEnabled: true },
     }),
     prisma.userRole.count({
-      where: { userId: user.id, role: { permissions: { some: {} } } },
+      where: {
+        userId: user.id,
+        role: {
+          permissions: { some: { permission: { key: { not: "portal.read" } } } },
+        },
+      },
     }),
   ]);
   const redirectTo =

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
-import type { PermissionKey } from "@/lib/auth/permissions";
+import { hasAdminAccess, type PermissionKey } from "@/lib/auth/permissions";
 import { LogoutButton } from "./LogoutButton";
 
 export const metadata = { title: "Acceso denegado" };
@@ -31,7 +31,7 @@ export default async function ForbiddenPage() {
     where: { userId: user.id },
     select: { portalEnabled: true },
   });
-  if (socio?.portalEnabled && user.permissions.size === 0) {
+  if (socio?.portalEnabled && !hasAdminAccess(user.permissions)) {
     redirect("/portal");
   }
 

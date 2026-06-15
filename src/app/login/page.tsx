@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth/server";
+import { hasAdminAccess } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import { LoginForm } from "./LoginForm";
 import "./login.css";
@@ -17,7 +18,7 @@ export default async function LoginPage() {
       where: { userId: user.id },
       select: { portalEnabled: true },
     });
-    const esSocio = !!socio?.portalEnabled && user.permissions.size === 0;
+    const esSocio = !!socio?.portalEnabled && !hasAdminAccess(user.permissions);
     redirect(esSocio ? "/portal" : "/usuarios");
   }
 

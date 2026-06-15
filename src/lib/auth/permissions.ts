@@ -153,9 +153,24 @@ export const PERMISSIONS: PermissionDef[] = [
     description: "Eliminar anuncios y comunicados",
     category: "Anuncios",
   },
+  {
+    key: "portal.read",
+    name: "Portal del socio",
+    description:
+      "Acceder al portal del socio y sus autoservicios (reuniones, deudas, comunicados, perfil). El acceso real lo da además el vínculo con el padrón.",
+    category: "Portal",
+  },
 ];
 
 export type PermissionKey = (typeof PERMISSIONS)[number]["key"];
+
+// Acceso al PANEL admin = tener cualquier permiso que NO sea del portal del
+// socio. Se usa para decidir el destino tras login y en /403 (socio → /portal,
+// staff → panel) sin que "portal.read" cuente como acceso administrativo.
+export function hasAdminAccess(perms: Set<string>): boolean {
+  for (const p of perms) if (p !== "portal.read") return true;
+  return false;
+}
 
 export const ROLE_DEFS = [
   {
@@ -222,6 +237,6 @@ export const ROLE_DEFS = [
       "Comerciante con acceso al portal del socio (/portal). El acceso real lo " +
       "da el vínculo con el padrón; este rol lo identifica como socio.",
     system: true,
-    permissions: [],
+    permissions: ["portal.read"],
   },
 ] as const;
