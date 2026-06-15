@@ -1,0 +1,275 @@
+/* ───────── Caja ───────── */
+
+/* Tarjetas de resumen */
+.caja-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.caja-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.caja-card__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.caja-card__value {
+  font-size: 22px;
+  font-weight: 800;
+}
+.caja-card--in {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.caja-card--in .caja-card__value {
+  color: #166534;
+}
+.caja-card--out {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.caja-card--out .caja-card__value {
+  color: #991b1b;
+}
+.caja-card--bal {
+  background: var(--pry-50, #f5f2ff);
+  border-color: var(--pry-100, #e7e0ff);
+}
+.caja-card--bal .caja-card__value {
+  color: var(--pry-700, #5128b4);
+}
+
+/* Layout tabla + reporte */
+.caja-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .caja-grid {
+    grid-template-columns: 1fr;
+  }
+  .caja-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Celda categoría/concepto */
+.caja-cat {
+  display: flex;
+  flex-direction: column;
+}
+.caja-cat__name {
+  font-weight: 600;
+}
+.caja-cat__concepto {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Badge tipo */
+.caja-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.caja-badge--ingreso {
+  background: #dcfce7;
+  color: #166534;
+}
+.caja-badge--egreso {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Monto */
+.caja-monto {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.caja-monto--ingreso {
+  color: #166534;
+}
+.caja-monto--egreso {
+  color: #b91c1c;
+}
+
+/* Reporte por categoría */
+.caja-report {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.caja-report h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.caja-report ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.caja-report li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.caja-report__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+}
+.caja-report__val {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.caja-report__empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.caja-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.caja-dot--ingreso {
+  background: #16a34a;
+}
+.caja-dot--egreso {
+  background: #dc2626;
+}
+
+/* Segmento ingreso/egreso */
+.caja-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.caja-seg__btn {
+  padding: 9px;
+  border: 1px solid var(--border-strong, #d8d4e6);
+  border-radius: 9px;
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.caja-seg__btn.is-on {
+  border-width: 2px;
+}
+.caja-seg__btn--in.is-on {
+  border-color: #16a34a;
+  color: #166534;
+  background: #f0fdf4;
+}
+.caja-seg__btn--out.is-on {
+  border-color: #dc2626;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.caja-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Resultados de búsqueda de socio (en el modal) */
+.caja-socio-results {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.caja-socio-results button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: none;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.caja-socio-results li:first-child button {
+  border-top: none;
+}
+.caja-socio-results button:hover {
+  background: var(--bg-sunken);
+}
+.caja-socio-results__name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.caja-socio-results__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.caja-socio-picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-sunken);
+  font-size: 13.5px;
+}
+
+/* Barra de comprobante en el drawer */
+.caja-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.caja-bar__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.caja-meta {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.caja-danger {
+  color: #b91c1c;
+}
+.caja-danger:hover {
+  background: #fef2f2;
+}
+
+@media (max-width: 560px) {
+  .caja-form-row {
+    grid-template-columns: 1fr;
+  }
+}

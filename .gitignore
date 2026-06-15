@@ -50,6 +50,10 @@ next-env.d.ts
 /private-uploads/anuncios/*
 !/private-uploads/anuncios/.gitkeep
 
+# Local file storage for comprobantes de caja (served via auth API route)
+/private-uploads/caja/*
+!/private-uploads/caja/.gitkeep
+
 # Playwright MCP scratch (browser snapshots + console logs from agent sessions)
 /.playwright-mcp/
 

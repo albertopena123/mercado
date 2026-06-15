@@ -41,6 +41,7 @@ model User {
   constanciasEmitidas Constancia[]      @relation("ConstanciaEmitidoPor")
   anunciosCreados    Anuncio[]          @relation("AnuncioCreatedBy")
   anunciosUpdated    Anuncio[]          @relation("AnuncioUpdatedBy")
+  movimientosCaja    MovimientoCaja[]   @relation("MovimientoRegistradoPor")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -188,6 +189,7 @@ model Socio {
   asistencias        Asistencia[]
   cuotas             Cuota[]
   constancias        Constancia[]
+  movimientosCaja    MovimientoCaja[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -496,4 +498,71 @@ model Anuncio {
   @@index([estado])
   @@index([visibilidad, estado])
   @@index([publicadoEn])
+}
+
+// ─────────────────────────── Caja / Contabilidad ───────────────────────────
+//
+// Libro de caja de la asociación: cada ingreso o egreso es un MovimientoCaja.
+// Cubre cuotas, inscripciones, SS-HH, multas (ingresos) y personal, compras,
+// servicios, etc. (egresos), con comprobante (boleta/factura) opcional adjunto.
+enum TipoMovimiento {
+  ingreso
+  egreso
+}
+
+enum CategoriaMovimiento {
+  // Ingresos
+  cuota
+  inscripcion
+  bano
+  multa
+  alquiler
+  otro_ingreso
+  // Egresos
+  personal
+  compra
+  servicio
+  mantenimiento
+  evento
+  servicios_basicos
+  otro_egreso
+}
+
+enum TipoComprobante {
+  ninguno
+  boleta
+  factura
+  recibo
+}
+
+model MovimientoCaja {
+  id        String              @id @default(cuid())
+  tipo      TipoMovimiento
+  categoria CategoriaMovimiento
+  monto     Decimal             @db.Decimal(10, 2)
+  fecha     DateTime            @default(now())
+  concepto  String
+  metodoPago String? // efectivo | transferencia | yape/plin | otro
+
+  // Comprobante (boleta/factura/recibo) opcional, con archivo adjunto.
+  comprobanteTipo   TipoComprobante @default(ninguno)
+  comprobanteNumero String?
+  comprobanteUrl    String?
+
+  // Vínculo opcional con un socio (multa, inscripción, cuota…).
+  socioId String?
+  origen  String  @default("manual") // manual | cuota (Fase 2)
+
+  registradoPorId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  searchKey       String   @default("")
+
+  socio         Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  registradoPor User?  @relation("MovimientoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: SetNull)
+
+  @@index([tipo])
+  @@index([categoria])
+  @@index([fecha])
+  @@index([socioId])
 }

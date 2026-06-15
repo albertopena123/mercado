@@ -154,6 +154,24 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Anuncios",
   },
   {
+    key: "caja.read",
+    name: "Ver caja",
+    description: "Ver movimientos de caja (ingresos/egresos) y reportes",
+    category: "Caja",
+  },
+  {
+    key: "caja.write",
+    name: "Gestionar caja",
+    description: "Registrar y editar movimientos de caja (ingresos/egresos)",
+    category: "Caja",
+  },
+  {
+    key: "caja.delete",
+    name: "Eliminar movimientos",
+    description: "Eliminar movimientos de caja",
+    category: "Caja",
+  },
+  {
     key: "portal.read",
     name: "Portal del socio",
     description:
@@ -206,6 +224,9 @@ export const ROLE_DEFS = [
       "anuncios.read",
       "anuncios.write",
       "anuncios.delete",
+      "caja.read",
+      "caja.write",
+      "caja.delete",
     ],
   },
   {
