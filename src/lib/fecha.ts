@@ -4,12 +4,12 @@
 // Hay DOS tipos de fecha y se tratan distinto:
 //
 // 1) Fechas de CALENDARIO (sin hora): fechaIngreso, fechaNacimiento,
-//    vencimiento. Se guardan como UTC-medianoche del día elegido. Para
-//    mostrarlas se formatean en UTC, así NO se corren un día por la zona
-//    horaria del usuario.
+//    vencimiento, pagadoEn, fecha de movimiento de caja. Se guardan como
+//    UTC-medianoche del día elegido. Para mostrarlas se formatean en UTC
+//    (fechaCorta/fechaLarga), así NO se corren un día por la zona horaria.
 //
-// 2) INSTANTES (con hora real): createdAt, updatedAt, pagadoEn, fecha/hora de
-//    asamblea, asignaciones. Se muestran en hora de Perú (America/Lima).
+// 2) INSTANTES (con hora real): createdAt, updatedAt, fecha/hora de asamblea,
+//    asignaciones de puesto. Se muestran en hora de Perú (America/Lima).
 
 const TZ = "America/Lima";
 const PERU_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC-5

@@ -259,8 +259,12 @@ export async function pagarPorMonto(
       for (const c of pendientes) {
         const m = toNumber(c.monto);
         if (pozo + 1e-9 >= m) {
-          await tx.cuota.update({
-            where: { id: c.id },
+          // Transición condicional pendiente → pagada: si una operación
+          // concurrente (p. ej. registrarPago, que no bloquea la fila del socio
+          // cuando no hay excedente) ya pagó/anuló esta cuota, NO la re-contamos
+          // ni gastamos el pozo en ella — evita un ingreso duplicado en caja.
+          const upd = await tx.cuota.updateMany({
+            where: { id: c.id, estado: "pendiente" },
             data: {
               estado: "pagada",
               pagadoEn: fecha,
@@ -269,6 +273,7 @@ export async function pagarPorMonto(
               byUserId: me.id,
             },
           });
+          if (upd.count === 0) continue; // ya no estaba pendiente
           pozo = Math.round((pozo - m) * 100) / 100;
           recaudado = Math.round((recaudado + m) * 100) / 100;
           pagadas++;

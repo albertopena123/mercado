@@ -8,7 +8,7 @@ import { Icon } from "@/components/admin/Icon";
 import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast";
 import { formatSoles } from "@/lib/money";
-import { fechaTS } from "@/lib/fecha";
+import { fechaCorta } from "@/lib/fecha";
 import { GenerarCuotasModal } from "./GenerarCuotasModal";
 import { RegistrarPagoModal } from "./RegistrarPagoModal";
 import { ConfirmDialog } from "../socios/ConfirmDialog";
@@ -254,7 +254,7 @@ export function CuotasClient({
                           style={{ fontSize: 12, color: "var(--text-muted)" }}
                         >
                           {c.pagadoEn
-                            ? fechaTS(c.pagadoEn)
+                            ? fechaCorta(c.pagadoEn)
                             : ""}
                           {c.metodoPago ? ` · ${c.metodoPago}` : ""}
                         </span>

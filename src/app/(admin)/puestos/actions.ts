@@ -38,6 +38,9 @@ function clampSize(n?: number): number {
   return n && PAGE_SIZES.includes(n) ? n : PAGE_SIZE;
 }
 
+const MSG_PUESTO_CON_HISTORIAL =
+  "No se puede eliminar: el puesto tiene historial de asignaciones. Cámbialo a estado “clausurado” para conservar la trazabilidad.";
+
 class Denied extends Error {
   constructor(message: string) {
     super(message);
@@ -455,15 +458,14 @@ export async function deletePuesto(id: string): Promise<ActionResult> {
     if (!existing) return fail("Puesto no encontrado.");
 
     // El borrado es físico. No destruir la trazabilidad de ocupación: si el
-    // puesto tuvo (o tiene) asignaciones, eliminarlo borraría en cascada todo
-    // el historial de quién lo ocupó y cuándo. Se debe clausurar, no eliminar.
+    // puesto tuvo (o tiene) asignaciones, la FK Restrict bloquea el borrado a
+    // nivel de BD. Aquí lo comprobamos antes para devolver un mensaje claro
+    // (clausurar en vez de eliminar) en el caso normal.
     const asignaciones = await prisma.puestoAsignacion.count({
       where: { puestoId: id },
     });
     if (asignaciones > 0) {
-      return fail(
-        "No se puede eliminar: el puesto tiene historial de asignaciones. Cámbialo a estado “clausurado” para conservar la trazabilidad.",
-      );
+      return fail(MSG_PUESTO_CON_HISTORIAL);
     }
 
     await prisma.puesto.delete({ where: { id } });
@@ -471,6 +473,14 @@ export async function deletePuesto(id: string): Promise<ActionResult> {
     return ok();
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
+    // Carrera TOCTOU: si se asignó el puesto entre el conteo y el delete, la FK
+    // Restrict lanza P2003. Devolvemos el mismo mensaje claro, no el genérico.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2003"
+    ) {
+      return fail(MSG_PUESTO_CON_HISTORIAL);
+    }
     console.error("deletePuesto", e);
     return fail("No se pudo eliminar el puesto.");
   }
