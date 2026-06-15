@@ -26,9 +26,11 @@ function initialsFor(first: string, last: string): string {
 export function CreateSocioModal({
   onClose,
   onCreated,
+  canCreateUser,
 }: {
   onClose: () => void;
   onCreated: (id: string) => void;
+  canCreateUser: boolean;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [tipo, setTipo] = useState<TipoDocumento>("DNI");
@@ -47,6 +49,10 @@ export function CreateSocioModal({
   const [departamento, setDept] = useState("");
   const [fechaIngreso, setFI] = useState(today);
   const [observaciones, setObs] = useState("");
+  // Acceso al portal (opcional)
+  const [darAcceso, setDarAcceso] = useState(false);
+  const [portalPassword, setPortalPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [topError, setTopError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -110,7 +116,8 @@ export function CreateSocioModal({
     nombres.trim().length >= 2 &&
     numero.trim().length > 0 &&
     validateNumeroDocumento(tipo, numero) &&
-    !!fechaIngreso;
+    !!fechaIngreso &&
+    (!darAcceso || portalPassword.length >= 6);
 
   const initials = useMemo(
     () => initialsFor(nombres, apellidoPaterno),
@@ -150,6 +157,8 @@ export function CreateSocioModal({
       departamento: departamento.trim() || undefined,
       fechaIngreso,
       observaciones: observaciones.trim() || undefined,
+      portalPassword:
+        canCreateUser && darAcceso && portalPassword ? portalPassword : undefined,
     };
     const res = await createSocio(input);
     if (!res.ok) {
@@ -437,6 +446,73 @@ export function CreateSocioModal({
               disabled={submitting}
             />
           </label>
+
+          {canCreateUser && (
+            <>
+              <h4 className="modal__section">Acceso al portal</h4>
+              <label
+                className="field"
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={darAcceso}
+                  onChange={(e) => setDarAcceso(e.target.checked)}
+                  disabled={submitting}
+                  style={{ width: 16, height: 16 }}
+                />
+                <span className="field__label" style={{ margin: 0 }}>
+                  Crear acceso al portal del socio
+                </span>
+              </label>
+              {darAcceso && (
+                <label className="field">
+                  <span className="field__label">
+                    Contraseña inicial<span className="field__req">*</span>
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={portalPassword}
+                    onChange={(e) => setPortalPassword(e.target.value)}
+                    placeholder="mínimo 6 caracteres"
+                    autoComplete="new-password"
+                    aria-invalid={!!fe.portalPassword}
+                    disabled={submitting}
+                  />
+                  {fe.portalPassword && (
+                    <span className="field-error">{fe.portalPassword}</span>
+                  )}
+                  <label
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                      fontSize: 12,
+                      marginTop: 6,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={showPassword}
+                      onChange={(e) => setShowPassword(e.target.checked)}
+                    />
+                    Mostrar contraseña
+                  </label>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      marginTop: 4,
+                    }}
+                  >
+                    Ingresará con su documento{email.trim() ? " o correo" : ""} y
+                    esta contraseña.
+                  </span>
+                </label>
+              )}
+            </>
+          )}
         </div>
 
         <footer className="modal__foot">

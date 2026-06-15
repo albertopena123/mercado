@@ -310,6 +310,7 @@ export function SociosClient({
 
       {createOpen && (
         <CreateSocioModal
+          canCreateUser={perms.canCreateUser}
           onClose={() => setCreateOpen(false)}
           onCreated={(id) => {
             setCreateOpen(false);

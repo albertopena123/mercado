@@ -90,6 +90,9 @@ export type CreateSocioInput = {
   departamento?: string;
   fechaIngreso: string;
   observaciones?: string;
+  // Opcional: si se envía, además del socio se crea su usuario del portal
+  // (rol Socio + acceso al portal). Requiere permiso users.write.
+  portalPassword?: string;
 };
 
 export type UpdateSocioPatch = Partial<CreateSocioInput>;
@@ -129,4 +132,5 @@ export type PermFlags = {
   canWrite: boolean;
   canDelete: boolean;
   canChangeState: boolean;
+  canCreateUser: boolean; // users.write → puede crear el acceso al portal
 };

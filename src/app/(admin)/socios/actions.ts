@@ -5,6 +5,7 @@ import { Prisma, type EstadoSocio } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
+import { hashPassword } from "@/lib/auth/password";
 import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
@@ -545,6 +546,44 @@ export async function createSocio(
       return fail("Revisa los campos marcados.", fieldErrors);
     }
 
+    // Acceso al portal opcional: si viene contraseña, además del socio se crea
+    // su usuario (rol Socio + portalEnabled) en la misma transacción.
+    const wantsPortal =
+      typeof input.portalPassword === "string" && input.portalPassword.length > 0;
+    let portalHash: string | null = null;
+    if (wantsPortal) {
+      if (!me.permissions.has("users.write"))
+        return fail("No tienes permiso para crear el acceso de usuario.");
+      const pwd = input.portalPassword!;
+      if (pwd.length < 6 || pwd.length > 200)
+        return fail("Revisa los campos marcados.", {
+          portalPassword: "La contraseña debe tener entre 6 y 200 caracteres.",
+        });
+      // No duplicar: el documento (o correo) no debe tener ya una cuenta.
+      const docDup = await prisma.user.findFirst({
+        where: {
+          tipoDocumento: normalized.tipoDocumento!,
+          numeroDocumento: normalized.numeroDocumento!,
+        },
+        select: { id: true },
+      });
+      if (docDup)
+        return fail("Ya existe un usuario con ese documento.", {
+          portalPassword: "Ese documento ya tiene una cuenta de usuario.",
+        });
+      if (normalized.email) {
+        const emailDup = await prisma.user.findUnique({
+          where: { email: normalized.email },
+          select: { id: true },
+        });
+        if (emailDup)
+          return fail("Ya existe un usuario con ese correo.", {
+            portalPassword: "Ese correo ya tiene una cuenta de usuario.",
+          });
+      }
+      portalHash = await hashPassword(pwd);
+    }
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const result = await prisma.$transaction(async (tx) => {
@@ -604,6 +643,38 @@ export async function createSocio(
               byUserId: me.id,
             },
           });
+
+          // Acceso al portal: crea el usuario comerciante y lo vincula.
+          if (portalHash) {
+            const socioRole = await tx.role.findUnique({
+              where: { key: "socio" },
+              select: { id: true },
+            });
+            const fullName = [
+              created.apellidoPaterno,
+              created.apellidoMaterno,
+              created.nombres,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const u = await tx.user.create({
+              data: {
+                name: fullName,
+                email: created.email ?? null,
+                tipoDocumento: created.tipoDocumento,
+                numeroDocumento: created.numeroDocumento,
+                passwordHash: portalHash,
+                roles: socioRole
+                  ? { create: [{ roleId: socioRole.id }] }
+                  : undefined,
+              },
+            });
+            await tx.socio.update({
+              where: { id: created.id },
+              data: { userId: u.id, portalEnabled: true },
+            });
+          }
+
           return { id: created.id };
         });
 

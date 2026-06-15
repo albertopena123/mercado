@@ -60,6 +60,7 @@ export default async function Page({
     canWrite: me.permissions.has("socios.write"),
     canDelete: me.permissions.has("socios.delete"),
     canChangeState: me.permissions.has("socios.change-state"),
+    canCreateUser: me.permissions.has("users.write"),
   };
 
   return (
