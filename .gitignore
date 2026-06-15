@@ -54,6 +54,10 @@ next-env.d.ts
 /private-uploads/caja/*
 !/private-uploads/caja/.gitkeep
 
+# Local file storage for documentos del personal (served via auth API route)
+/private-uploads/empleados/*
+!/private-uploads/empleados/.gitkeep
+
 # Playwright MCP scratch (browser snapshots + console logs from agent sessions)
 /.playwright-mcp/
 

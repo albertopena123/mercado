@@ -172,6 +172,24 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Caja",
   },
   {
+    key: "personal.read",
+    name: "Ver personal",
+    description: "Ver el personal que labora en el mercado y sus documentos",
+    category: "Personal",
+  },
+  {
+    key: "personal.write",
+    name: "Gestionar personal",
+    description: "Registrar y editar al personal, subir CV/contratos y cesar",
+    category: "Personal",
+  },
+  {
+    key: "personal.delete",
+    name: "Eliminar personal",
+    description: "Eliminar registros de personal",
+    category: "Personal",
+  },
+  {
     key: "portal.read",
     name: "Portal del socio",
     description:
@@ -227,6 +245,9 @@ export const ROLE_DEFS = [
       "caja.read",
       "caja.write",
       "caja.delete",
+      "personal.read",
+      "personal.write",
+      "personal.delete",
     ],
   },
   {

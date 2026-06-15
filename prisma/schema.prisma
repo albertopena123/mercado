@@ -42,6 +42,9 @@ model User {
   anunciosCreados    Anuncio[]          @relation("AnuncioCreatedBy")
   anunciosUpdated    Anuncio[]          @relation("AnuncioUpdatedBy")
   movimientosCaja    MovimientoCaja[]   @relation("MovimientoRegistradoPor")
+  empleadosCreados   Empleado[]         @relation("EmpleadoCreatedBy")
+  empleadosUpdated   Empleado[]         @relation("EmpleadoUpdatedBy")
+  empleadoAdjuntos   EmpleadoAdjunto[]  @relation("EmpleadoAdjuntoUploader")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -568,4 +571,85 @@ model MovimientoCaja {
   @@index([categoria])
   @@index([fecha])
   @@index([socioId])
+}
+
+// ─────────────────────────── Personal / Empleados ───────────────────────────
+//
+// Personas contratadas que laboran en el mercado (seguridad, secretaría,
+// limpieza, atención de SS-HH, etc.). Se registra desde cuándo laboran
+// (fechaIngreso) y se adjunta su CV/contrato. El cese se modela con estado
+// "inactivo" + fechaCese (no se borra, para conservar el historial laboral).
+enum EstadoEmpleado {
+  activo
+  suspendido
+  inactivo // cesado / ya no labora
+}
+
+enum CargoEmpleado {
+  seguridad
+  secretaria
+  limpieza
+  bano // atención de servicios higiénicos
+  administracion
+  mantenimiento
+  cobranza
+  otro
+}
+
+model Empleado {
+  id              String         @id @default(cuid())
+  codigo          String         @unique // EMP-000001
+  tipoDocumento   TipoDocumento
+  numeroDocumento String
+  apellidoPaterno String
+  apellidoMaterno String?
+  nombres         String
+  cargo           CargoEmpleado  @default(otro)
+  cargoDetalle    String? // descripción libre, útil cuando cargo = otro
+
+  telefono String?
+  email    String?
+  direccion String?
+
+  // Fechas de CALENDARIO (medianoche UTC): desde cuándo labora y, si cesó, cuándo.
+  fechaIngreso DateTime
+  fechaCese    DateTime?
+
+  estado        EstadoEmpleado @default(activo)
+  salario       Decimal?       @db.Decimal(10, 2) // sueldo mensual referencial
+  observaciones String?
+
+  // Concatenación normalizada (lowercase, sin tildes) para búsqueda.
+  searchKey String  @default("")
+  fotoUrl   String?
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?             @relation("EmpleadoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?             @relation("EmpleadoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  adjuntos  EmpleadoAdjunto[]
+
+  @@unique([tipoDocumento, numeroDocumento])
+  @@index([estado])
+  @@index([cargo])
+  @@index([apellidoPaterno, apellidoMaterno, nombres])
+}
+
+model EmpleadoAdjunto {
+  id           String   @id @default(cuid())
+  empleadoId   String
+  tipo         String // cv | contrato | dni | foto | otro
+  url          String
+  mimeType     String
+  sizeBytes    Int?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  empleado   Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  uploadedBy User?     @relation("EmpleadoAdjuntoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([empleadoId])
 }
