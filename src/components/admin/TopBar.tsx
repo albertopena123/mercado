@@ -9,6 +9,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { Icon, type IconName } from "./Icon";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 
 type Props = {
   onMenuClick: () => void;
@@ -42,12 +43,14 @@ export function TopBar({ onMenuClick, user }: Props) {
   const [focused, setFocused] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [perfilOpen, setPerfilOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
 
-  // Keep input synced when navigation drops ?q=
+  // Keep input synced when navigation drops ?q= (sync intencional desde la URL)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearch(params.get("q") ?? "");
   }, [params]);
 
@@ -110,6 +113,7 @@ export function TopBar({ onMenuClick, user }: Props) {
   };
 
   return (
+    <>
     <header className="topbar">
       <div className="topbar__left">
         <button className="iconbtn" onClick={onMenuClick} aria-label="Menú">
@@ -198,6 +202,16 @@ export function TopBar({ onMenuClick, user }: Props) {
               <div className="account__actions">
                 <button
                   className="account__action"
+                  onClick={() => {
+                    setAvatarOpen(false);
+                    setPerfilOpen(true);
+                  }}
+                >
+                  <Icon name="user" size={18} />
+                  <span>Cambiar contraseña</span>
+                </button>
+                <button
+                  className="account__action"
                   onClick={onLogout}
                   disabled={loggingOut}
                 >
@@ -213,5 +227,9 @@ export function TopBar({ onMenuClick, user }: Props) {
         </div>
       </div>
     </header>
+    {perfilOpen && (
+      <ChangePasswordModal onClose={() => setPerfilOpen(false)} />
+    )}
+    </>
   );
 }

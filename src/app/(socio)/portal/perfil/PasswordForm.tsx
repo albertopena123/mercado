@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useToast } from "@/components/admin/toast";
-import { changeMiPassword } from "../actions";
+import { changeOwnPassword } from "@/lib/auth/account";
 
 export function PasswordForm() {
   const toast = useToast();
@@ -21,7 +21,7 @@ export function PasswordForm() {
       return;
     }
     setSaving(true);
-    const res = await changeMiPassword(actual, nueva);
+    const res = await changeOwnPassword(actual, nueva);
     setSaving(false);
     if (!res.ok) {
       toast.error(res.error);
