@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSocio } from "@/lib/portal/socio";
 import { getMisCuotas } from "@/lib/portal/data";
 import { formatSoles } from "@/lib/money";
+import { fechaCorta } from "@/lib/fecha";
 import { Icon } from "@/components/admin/Icon";
 import type { EstadoCuota } from "@/generated/prisma/client";
 
@@ -65,9 +66,9 @@ export default async function DeudasPage() {
                   </div>
                   <div className="pt-row__sub">
                     {c.estado === "pagada" && c.pagadoEn
-                      ? `Pagada el ${new Date(c.pagadoEn).toLocaleDateString("es-PE")}`
+                      ? `Pagada el ${fechaCorta(c.pagadoEn)}`
                       : c.vencimiento
-                        ? `Vence ${new Date(c.vencimiento).toLocaleDateString("es-PE")}`
+                        ? `Vence ${fechaCorta(c.vencimiento)}`
                         : "—"}
                   </div>
                 </div>

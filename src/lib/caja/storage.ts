@@ -38,6 +38,14 @@ export async function removeMovimientoDir(movId: string): Promise<void> {
   );
 }
 
+// Borra un comprobante concreto (p. ej. el anterior al reemplazarlo).
+export async function removeComprobante(
+  movId: string,
+  fileName: string,
+): Promise<void> {
+  await rm(safeFile(movId, fileName), { force: true }).catch(() => undefined);
+}
+
 export function extFromMime(mime: string): string {
   switch (mime) {
     case "image/jpeg":

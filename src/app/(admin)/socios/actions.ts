@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { Prisma, type EstadoSocio } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -20,6 +21,8 @@ import {
   type DniLookupResult,
 } from "@/lib/socios/dni-lookup";
 import { toNumber } from "@/lib/money";
+import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
+import { CATEGORIA_LABEL } from "@/lib/caja/labels";
 import {
   writeAdjunto,
   removeAdjunto,
@@ -124,11 +127,16 @@ function validateSocioInput(
     out.apellidoMaterno = v || undefined;
   }
 
+  // Fechas de calendario: "futuro" se mide contra HOY en Perú (UTC-5), no contra
+  // Date.now() (UTC). Si no, en las noches de Perú (ya día siguiente en UTC) se
+  // colaba como válida una fecha de mañana.
+  const hoyUTC = inicioDiaUTC(hoyISOPeru()).getTime();
+
   if (isCreate || input.fechaIngreso !== undefined) {
     const fi = input.fechaIngreso ?? "";
     const d = fi ? new Date(fi) : null;
     if (!d || isNaN(d.getTime())) fe.fechaIngreso = "Fecha de ingreso inválida.";
-    else if (d.getTime() > Date.now())
+    else if (d.getTime() > hoyUTC)
       fe.fechaIngreso = "La fecha de ingreso no puede ser futura.";
     else out.fechaIngreso = d.toISOString();
   }
@@ -136,7 +144,7 @@ function validateSocioInput(
   if (input.fechaNacimiento !== undefined && input.fechaNacimiento !== "") {
     const d = new Date(input.fechaNacimiento);
     if (isNaN(d.getTime())) fe.fechaNacimiento = "Fecha de nacimiento inválida.";
-    else if (d.getTime() > Date.now())
+    else if (d.getTime() > hoyUTC)
       fe.fechaNacimiento = "Fecha de nacimiento futura.";
     else out.fechaNacimiento = d.toISOString();
   } else if (input.fechaNacimiento === "") {
@@ -584,6 +592,12 @@ export async function createSocio(
       portalHash = await hashPassword(pwd);
     }
 
+    // Cuota de inscripción opcional → ingreso a caja al dar de alta.
+    const inscripcion =
+      input.montoInscripcion != null && Number(input.montoInscripcion) > 0
+        ? Math.round(Number(input.montoInscripcion) * 100) / 100
+        : 0;
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const result = await prisma.$transaction(async (tx) => {
@@ -644,6 +658,27 @@ export async function createSocio(
             },
           });
 
+          // Cuota de inscripción → ingreso a caja (fecha = fecha de ingreso).
+          if (inscripcion > 0) {
+            const concepto = `Inscripción de socio · ${codigo}`;
+            await tx.movimientoCaja.create({
+              data: {
+                tipo: "ingreso",
+                categoria: "inscripcion",
+                monto: new Prisma.Decimal(inscripcion.toFixed(2)),
+                fecha: new Date(normalized.fechaIngreso!),
+                concepto,
+                metodoPago: "efectivo",
+                socioId: created.id,
+                origen: "inscripcion",
+                registradoPorId: me.id,
+                searchKey: [concepto, CATEGORIA_LABEL.inscripcion]
+                  .map(normalizeToken)
+                  .join(" "),
+              },
+            });
+          }
+
           // Acceso al portal: crea el usuario comerciante y lo vincula.
           if (portalHash) {
             const socioRole = await tx.role.findUnique({
@@ -657,18 +692,38 @@ export async function createSocio(
             ]
               .filter(Boolean)
               .join(" ");
-            const u = await tx.user.create({
-              data: {
-                name: fullName,
-                email: created.email ?? null,
-                tipoDocumento: created.tipoDocumento,
-                numeroDocumento: created.numeroDocumento,
-                passwordHash: portalHash,
-                roles: socioRole
-                  ? { create: [{ roleId: socioRole.id }] }
-                  : undefined,
-              },
-            });
+            let u: { id: string };
+            try {
+              u = await tx.user.create({
+                data: {
+                  name: fullName,
+                  email: created.email ?? null,
+                  tipoDocumento: created.tipoDocumento,
+                  numeroDocumento: created.numeroDocumento,
+                  passwordHash: portalHash,
+                  roles: socioRole
+                    ? { create: [{ roleId: socioRole.id }] }
+                    : undefined,
+                },
+                select: { id: true },
+              });
+            } catch (e) {
+              // P2002 aquí es un choque en la tabla User (no en Socio): traducir
+              // a un mensaje específico. Sin esto, el catch externo lo confundía
+              // con un duplicado de socio o devolvía un error genérico opaco.
+              if (isP2002(e)) {
+                const target = (e as Prisma.PrismaClientKnownRequestError).meta
+                  ?.target as string[] | undefined;
+                if (target?.includes("email"))
+                  throw new Denied(
+                    "Ya existe una cuenta de usuario con ese correo.",
+                  );
+                throw new Denied(
+                  "Ya existe una cuenta de usuario con ese documento.",
+                );
+              }
+              throw e;
+            }
             await tx.socio.update({
               where: { id: created.id },
               data: { userId: u.id, portalEnabled: true },
@@ -943,35 +998,39 @@ export async function uploadAdjunto(
     });
     if (!existing) return fail("Socio no encontrado.");
 
-    const row = await prisma.socioAdjunto.create({
-      data: {
-        socioId,
-        tipo: trimmedTipo,
-        url: "",
-        mimeType: effectiveType,
-        sizeBytes: file.size,
-        uploadedById: me.id,
-      },
-    });
-
+    // Escribir el archivo PRIMERO y crear la fila ya con la URL final. El orden
+    // anterior (crear fila con url="" → escribir → update) dejaba un adjunto
+    // roto en la BD si el proceso moría entre la escritura y el update. El
+    // nombre se desacopla del id de la fila con un token aleatorio.
     const ext = extFromMime(effectiveType);
-    const fileName = `${row.id}.${ext}`;
+    const fileName = `${randomBytes(12).toString("hex")}.${ext}`;
 
     let url: string;
     try {
       url = await writeAdjunto(socioId, fileName, buffer);
     } catch (e) {
-      await prisma.socioAdjunto
-        .delete({ where: { id: row.id } })
-        .catch(() => undefined);
       console.error("uploadAdjunto write", e);
       return fail("No se pudo guardar el archivo.");
     }
 
-    await prisma.socioAdjunto.update({
-      where: { id: row.id },
-      data: { url },
-    });
+    let row: { id: string };
+    try {
+      row = await prisma.socioAdjunto.create({
+        data: {
+          socioId,
+          tipo: trimmedTipo,
+          url,
+          mimeType: effectiveType,
+          sizeBytes: file.size,
+          uploadedById: me.id,
+        },
+        select: { id: true },
+      });
+    } catch (e) {
+      // Si falla el insert, limpiar el archivo recién escrito (huérfano).
+      await removeAdjunto(socioId, fileName).catch(() => undefined);
+      throw e;
+    }
 
     if (trimmedTipo === "foto") {
       await prisma.socio.update({

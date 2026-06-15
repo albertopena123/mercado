@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { toNumber } from "@/lib/money";
+import { inicioDiaUTC } from "@/lib/fecha";
+import { normalizeToken } from "@/lib/socios/normalize";
+import { CATEGORIA_LABEL } from "@/lib/caja/labels";
 import type {
   ActionResult,
   CuotaRow,
@@ -60,6 +63,41 @@ function socioNombre(s: {
     /\s+,/,
     ",",
   );
+}
+
+// Fase 2 — integración con Caja: cada pago de cuota registra un INGRESO en el
+// libro de caja (categoría "cuota", origen "cuota") dentro de la MISMA
+// transacción del pago, para que la recaudación quede reflejada atómicamente.
+// El reconocimiento es por monto NOMINAL de cuota saldada (el excedente que va a
+// saldo a favor no es ingreso aún; se reconoce cuando salda una cuota después).
+async function registrarIngresoCuota(
+  tx: Prisma.TransactionClient,
+  args: {
+    monto: number;
+    socioId: string;
+    concepto: string;
+    fecha: Date;
+    metodoPago: string;
+    registradoPorId: string;
+  },
+): Promise<void> {
+  if (!(args.monto > 0)) return;
+  await tx.movimientoCaja.create({
+    data: {
+      tipo: "ingreso",
+      categoria: "cuota",
+      monto: new Prisma.Decimal(args.monto.toFixed(2)),
+      fecha: args.fecha,
+      concepto: args.concepto,
+      metodoPago: args.metodoPago,
+      socioId: args.socioId,
+      origen: "cuota",
+      registradoPorId: args.registradoPorId,
+      searchKey: [args.concepto, CATEGORIA_LABEL.cuota]
+        .map(normalizeToken)
+        .join(" "),
+    },
+  });
 }
 
 function toRow(c: {
@@ -186,7 +224,9 @@ export async function pagarPorMonto(
     const monto = Number(input.monto);
     if (isNaN(monto) || monto < 0) return fail("Monto inválido.");
     const metodoPago = input.metodoPago?.trim() || "efectivo";
-    const fecha = input.fecha ? new Date(input.fecha) : new Date();
+    // pagadoEn es una fecha de calendario (la del comprobante): medianoche UTC,
+    // para mostrarse con fechaCorta sin correrse un día en Perú (UTC-5).
+    const fecha = inicioDiaUTC(input.fecha);
 
     const result = await prisma.$transaction(async (tx) => {
       // Bloquea la fila del socio para serializar pagos concurrentes del mismo
@@ -195,7 +235,12 @@ export async function pagarPorMonto(
       await tx.$queryRaw`SELECT id FROM "Socio" WHERE id = ${socioId} FOR UPDATE`;
       const socio = await tx.socio.findUnique({
         where: { id: socioId },
-        select: { saldoAFavor: true },
+        select: {
+          saldoAFavor: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+          nombres: true,
+        },
       });
       if (!socio) throw new Denied("Socio no encontrado.");
 
@@ -210,6 +255,7 @@ export async function pagarPorMonto(
       });
 
       let pagadas = 0;
+      let recaudado = 0; // suma nominal de cuotas saldadas (ingreso a caja)
       for (const c of pendientes) {
         const m = toNumber(c.monto);
         if (pozo + 1e-9 >= m) {
@@ -224,6 +270,7 @@ export async function pagarPorMonto(
             },
           });
           pozo = Math.round((pozo - m) * 100) / 100;
+          recaudado = Math.round((recaudado + m) * 100) / 100;
           pagadas++;
         } else {
           break; // no alcanza para la siguiente cuota completa
@@ -233,6 +280,16 @@ export async function pagarPorMonto(
       await tx.socio.update({
         where: { id: socioId },
         data: { saldoAFavor: pozo },
+      });
+
+      // Reconoce en caja lo recaudado por cuotas saldadas (si alcanzó alguna).
+      await registrarIngresoCuota(tx, {
+        monto: recaudado,
+        socioId,
+        concepto: `Pago de ${pagadas} cuota(s) · ${socioNombre(socio)}`,
+        fecha,
+        metodoPago,
+        registradoPorId: me.id,
       });
 
       return { pagadas, saldoAFavor: pozo, montoAplicado: monto };
@@ -302,7 +359,19 @@ export async function registrarPago(
     const me = await authorize("cuotas.pay");
     const cuota = await prisma.cuota.findUnique({
       where: { id: cuotaId },
-      select: { socioId: true, estado: true, monto: true },
+      select: {
+        socioId: true,
+        estado: true,
+        monto: true,
+        periodo: true,
+        socio: {
+          select: {
+            apellidoPaterno: true,
+            apellidoMaterno: true,
+            nombres: true,
+          },
+        },
+      },
     });
     if (!cuota) return fail("Cuota no encontrada.");
     if (cuota.estado === "anulada")
@@ -324,7 +393,9 @@ export async function registrarPago(
       excedente = Math.round((m - cuotaMonto) * 100) / 100;
     }
 
-    const fecha = input.fecha ? new Date(input.fecha) : new Date();
+    // pagadoEn es una fecha de calendario (la del comprobante): medianoche UTC,
+    // para mostrarse con fechaCorta sin correrse un día en Perú (UTC-5).
+    const fecha = inicioDiaUTC(input.fecha);
     const metodoPago = input.metodoPago?.trim() || "efectivo";
 
     const aplicado = await prisma.$transaction(async (tx) => {
@@ -347,6 +418,15 @@ export async function registrarPago(
           data: { saldoAFavor: { increment: excedente } },
         });
       }
+      // Ingreso a caja por el monto nominal de la cuota saldada.
+      await registrarIngresoCuota(tx, {
+        monto: cuotaMonto,
+        socioId: cuota.socioId,
+        concepto: `Pago cuota ${cuota.periodo} · ${socioNombre(cuota.socio)}`,
+        fecha,
+        metodoPago,
+        registradoPorId: me.id,
+      });
       return true;
     });
 
@@ -363,17 +443,25 @@ export async function registrarPago(
 export async function anularCuota(cuotaId: string): Promise<ActionResult> {
   try {
     await authorize("cuotas.write");
-    const cuota = await prisma.cuota.findUnique({
-      where: { id: cuotaId },
-      select: { estado: true },
-    });
-    if (!cuota) return fail("Cuota no encontrada.");
-    if (cuota.estado === "pagada")
-      return fail("No se puede anular una cuota ya pagada.");
-    await prisma.cuota.update({
-      where: { id: cuotaId },
+    // Transición condicional pendiente → anulada. Sin el WHERE sobre estado,
+    // una llamada concurrente de registrarPago/pagarPorMonto podría pagar la
+    // cuota entre la lectura y la escritura, y este update pisaría una cuota
+    // legítimamente pagada (corrompiendo el historial contable). El updateMany
+    // condicional elimina esa carrera (mismo patrón que registrarPago).
+    const upd = await prisma.cuota.updateMany({
+      where: { id: cuotaId, estado: "pendiente" },
       data: { estado: "anulada" },
     });
+    if (upd.count === 0) {
+      const cuota = await prisma.cuota.findUnique({
+        where: { id: cuotaId },
+        select: { estado: true },
+      });
+      if (!cuota) return fail("Cuota no encontrada.");
+      if (cuota.estado === "pagada")
+        return fail("No se puede anular una cuota ya pagada.");
+      return fail("La cuota ya estaba anulada.");
+    }
     refresh();
     return ok();
   } catch (e) {

@@ -308,7 +308,10 @@ model PuestoAsignacion {
   byUserId  String?
   createdAt DateTime  @default(now())
 
-  puesto Puesto @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  // Restrict (no Cascade): borrar un puesto NO debe arrasar su historial de
+  // ocupación. deletePuesto bloquea el borrado si hay asignaciones; esta FK es
+  // la última línea de defensa a nivel de BD para preservar la trazabilidad.
+  puesto Puesto @relation(fields: [puestoId], references: [id], onDelete: Restrict)
   socio  Socio  @relation(fields: [socioId], references: [id], onDelete: Cascade)
   byUser User?  @relation("PuestoAsignacionBy", fields: [byUserId], references: [id], onDelete: SetNull)
 

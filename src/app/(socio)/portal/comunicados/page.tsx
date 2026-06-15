@@ -45,6 +45,7 @@ export default async function ComunicadosPage() {
               {a.publicadoEn && (
                 <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
                   {new Date(a.publicadoEn).toLocaleDateString("es-PE", {
+                    timeZone: "America/Lima",
                     day: "2-digit",
                     month: "long",
                     year: "numeric",

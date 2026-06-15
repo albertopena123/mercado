@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSocio } from "@/lib/portal/socio";
 import { prisma } from "@/lib/prisma";
 import { Icon } from "@/components/admin/Icon";
+import { fechaHora } from "@/lib/fecha";
 import { CheckinButton } from "./CheckinButton";
 
 export const metadata = { title: "Asistencia · Mercado Milagros" };
@@ -61,13 +62,7 @@ export default async function CheckinPage({
       <div className="pt-hello">
         <h1>{asamblea.titulo}</h1>
         <p>
-          {new Date(asamblea.fecha).toLocaleString("es-PE", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {fechaHora(asamblea.fecha)}
           {asamblea.lugar ? ` · ${asamblea.lugar}` : ""}
         </p>
       </div>

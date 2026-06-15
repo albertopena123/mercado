@@ -12,7 +12,12 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
 import { validateUpload, sniffMime, SNIFF_BYTES } from "@/lib/socios/limits";
-import { writeImagen, extFromMime, removeAnuncioDir } from "@/lib/anuncios/storage";
+import {
+  writeImagen,
+  extFromMime,
+  removeAnuncioDir,
+  removeImagen,
+} from "@/lib/anuncios/storage";
 import type {
   ActionResult,
   CreateAnuncioInput,
@@ -391,8 +396,12 @@ export async function publishAnuncio(id: string): Promise<ActionResult> {
 export async function deleteAnuncio(id: string): Promise<ActionResult> {
   try {
     await authorize("anuncios.delete");
-    await prisma.anuncio.delete({ where: { id } });
+    // Borrar primero el directorio en disco (idempotente, traga errores) y
+    // luego la fila. Al revés, un fallo al borrar la fila tras quitar archivos
+    // sería recuperable; pero si la fila se borra primero y el rm falla, los
+    // archivos quedan huérfanos sin ninguna ruta que los limpie después.
     await removeAnuncioDir(id);
+    await prisma.anuncio.delete({ where: { id } });
     refresh();
     return ok();
   } catch (e) {
@@ -435,7 +444,7 @@ export async function uploadAnuncioImagen(
     const me = await authorize("anuncios.write");
     const anuncio = await prisma.anuncio.findUnique({
       where: { id: anuncioId },
-      select: { id: true },
+      select: { id: true, imagenUrl: true },
     });
     if (!anuncio) return fail("Anuncio no encontrado.");
 
@@ -453,6 +462,13 @@ export async function uploadAnuncioImagen(
       where: { id: anuncioId },
       data: { imagenUrl: url, updatedById: me.id },
     });
+
+    // Reemplazo: borrar la imagen anterior (el nombre incluye Date.now(), así
+    // que el archivo nuevo no la pisa) para no acumular huérfanos en disco.
+    const prevFile = anuncio.imagenUrl?.split("/").pop();
+    if (prevFile && prevFile !== fileName) {
+      await removeImagen(anuncioId, prevFile);
+    }
     refresh();
     return ok({ url });
   } catch (e) {

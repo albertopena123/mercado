@@ -219,7 +219,9 @@ export function AnuncioDetailDrawer({
                 {anuncio.publicadoEn && (
                   <span>
                     Publicado{" "}
-                    {new Date(anuncio.publicadoEn).toLocaleDateString("es-PE")}
+                    {new Date(anuncio.publicadoEn).toLocaleDateString("es-PE", {
+                      timeZone: "America/Lima",
+                    })}
                   </span>
                 )}
                 {anuncio.createdBy && <span>Creado por {anuncio.createdBy}</span>}

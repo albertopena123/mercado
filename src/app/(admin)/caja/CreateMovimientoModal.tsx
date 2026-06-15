@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
+import { hoyISOPeru } from "@/lib/fecha";
 import { listSocios } from "../socios/actions";
 import type {
   TipoMovimiento,
@@ -26,9 +27,8 @@ export function CreateMovimientoModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
-  // Fecha local (no UTC) para que coincida con el día del usuario en Perú.
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  // Día de hoy en Perú (UTC-5), no en UTC ni en la zona del navegador.
+  const today = hoyISOPeru();
   const [tipo, setTipo] = useState<TipoMovimiento>("egreso");
   const [categoria, setCategoria] = useState<CategoriaMovimiento>("compra");
   const [monto, setMonto] = useState("");

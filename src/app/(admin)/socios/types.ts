@@ -93,6 +93,9 @@ export type CreateSocioInput = {
   // Opcional: si se envía, además del socio se crea su usuario del portal
   // (rol Socio + acceso al portal). Requiere permiso users.write.
   portalPassword?: string;
+  // Opcional: cuota de inscripción cobrada al dar de alta. Si es > 0 se registra
+  // como INGRESO en caja (categoría inscripción), con la fecha de ingreso.
+  montoInscripcion?: number;
 };
 
 export type UpdateSocioPatch = Partial<CreateSocioInput>;

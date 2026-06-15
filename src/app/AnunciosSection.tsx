@@ -1,16 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { TIPO_ANUNCIO_LABEL } from "@/lib/anuncios/labels";
+import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
 
 // Sección pública del landing: muestra los anuncios PUBLICADOS y PÚBLICOS
 // vigentes. Server Component (lee de la BD en el servidor). Se revalida cuando
 // se publica/edita un anuncio (revalidatePath("/") en las acciones).
 export async function AnunciosSection() {
-  const now = new Date();
+  // validoHasta es una fecha de calendario (medianoche UTC): un anuncio sigue
+  // vigente durante TODO su último día en Perú. Comparar contra now() lo
+  // expiraba ~un día antes (a las 19:00 hora de Perú de la víspera).
+  const hoy = inicioDiaUTC(hoyISOPeru());
   const anuncios = await prisma.anuncio.findMany({
     where: {
       estado: "publicado",
       visibilidad: "publico",
-      OR: [{ validoHasta: null }, { validoHasta: { gt: now } }],
+      OR: [{ validoHasta: null }, { validoHasta: { gte: hoy } }],
     },
     orderBy: [{ fijado: "desc" }, { publicadoEn: "desc" }],
     take: 6,
@@ -51,6 +55,7 @@ export async function AnunciosSection() {
                 {a.publicadoEn && (
                   <time dateTime={a.publicadoEn.toISOString()}>
                     {a.publicadoEn.toLocaleDateString("es-PE", {
+                      timeZone: "America/Lima",
                       day: "2-digit",
                       month: "long",
                       year: "numeric",

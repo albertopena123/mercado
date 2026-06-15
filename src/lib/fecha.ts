@@ -88,6 +88,29 @@ export function horaLima(iso?: string | Date | null): string {
   return `${h}:${String(m).padStart(2, "0")} ${sufijo}`;
 }
 
+/**
+ * "yyyy-mm-dd" del día de HOY en Perú (UTC-5), determinista. Para inicializar
+ * inputs <input type="date"> y su atributo max sin que se corran un día por la
+ * zona horaria (toISOString().slice(0,10) daría el día UTC, no el de Perú).
+ */
+export function hoyISOPeru(): string {
+  return new Date(Date.now() - PERU_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Convierte "yyyy-mm-dd" (fecha de CALENDARIO, sin hora) al Date de su
+ * medianoche UTC, que es como se almacenan las fechas de calendario para que al
+ * mostrarse con fechaCorta (timeZone UTC) no se corran un día. Devuelve hoy
+ * (Perú) si la cadena es inválida o vacía.
+ */
+export function inicioDiaUTC(yyyymmdd?: string | null): Date {
+  const s = (yyyymmdd ?? "").trim();
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s)
+    ? new Date(`${s}T00:00:00.000Z`)
+    : new Date(`${hoyISOPeru()}T00:00:00.000Z`);
+  return isNaN(d.getTime()) ? new Date(`${hoyISOPeru()}T00:00:00.000Z`) : d;
+}
+
 /** Hoy en Perú, formato largo (para constancias, etc.). */
 export function hoyLarga(): string {
   return new Date().toLocaleDateString("es-PE", {

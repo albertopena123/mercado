@@ -41,6 +41,16 @@ export async function removeAnuncioDir(anuncioId: string): Promise<void> {
   );
 }
 
+// Borra un archivo concreto (p. ej. la imagen anterior al reemplazarla).
+export async function removeImagen(
+  anuncioId: string,
+  fileName: string,
+): Promise<void> {
+  await rm(safeFile(anuncioId, fileName), { force: true }).catch(
+    () => undefined,
+  );
+}
+
 export function extFromMime(mime: string): string {
   switch (mime) {
     case "image/jpeg":

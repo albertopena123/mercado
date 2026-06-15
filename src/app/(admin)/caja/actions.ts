@@ -12,12 +12,18 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
 import { toNumber } from "@/lib/money";
-import { CATEGORIA_LABEL, tipoDeCategoria } from "@/lib/caja/labels";
+import {
+  CATEGORIA_LABEL,
+  TIPO_LABEL,
+  COMPROBANTE_LABEL,
+  tipoDeCategoria,
+} from "@/lib/caja/labels";
 import { validateUpload, sniffMime, SNIFF_BYTES } from "@/lib/socios/limits";
 import {
   writeComprobante,
   extFromMime,
   removeMovimientoDir,
+  removeComprobante,
 } from "@/lib/caja/storage";
 import type {
   ActionResult,
@@ -81,25 +87,28 @@ function buildSearchKey(p: {
     .join(" ");
 }
 
-// Interpreta "YYYY-MM-DD" como medianoche LOCAL (no UTC), para que la fecha
-// mostrada en es-PE (UTC-5) coincida con la que el usuario eligió.
+// Interpreta "YYYY-MM-DD" como fecha de CALENDARIO → medianoche UTC, siguiendo
+// la convención de src/lib/fecha.ts. Así, al mostrarse con timeZone UTC
+// (fechaCorta / toLocaleDateString con timeZone:"UTC"), la fecha coincide con la
+// que el usuario eligió, sin importar la zona horaria del servidor.
 function parseFecha(s: string): Date {
-  const d = new Date(`${s}T00:00:00`);
+  const d = new Date(`${s}T00:00:00.000Z`);
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
-// Rango de fechas: desde 00:00 del "desde" hasta 23:59:59.999 del "hasta".
+// Rango de fechas (en UTC, consistente con cómo se guarda `fecha`): desde 00:00
+// del "desde" hasta 23:59:59.999 del "hasta".
 function fechaRange(
   desde?: string,
   hasta?: string,
 ): Prisma.DateTimeFilter | undefined {
   const f: Prisma.DateTimeFilter = {};
   if (desde) {
-    const d = new Date(`${desde}T00:00:00`);
+    const d = new Date(`${desde}T00:00:00.000Z`);
     if (!isNaN(d.getTime())) f.gte = d;
   }
   if (hasta) {
-    const h = new Date(`${hasta}T23:59:59.999`);
+    const h = new Date(`${hasta}T23:59:59.999Z`);
     if (!isNaN(h.getTime())) f.lte = h;
   }
   return f.gte || f.lte ? f : undefined;
@@ -454,6 +463,84 @@ export async function getCajaStats(params: {
   }
 }
 
+function csvCell(value: string | null | undefined): string {
+  const s = (value ?? "").replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+// Exporta los movimientos que cumplen los filtros actuales a CSV (separador ";"
+// y BOM UTF-8 para que Excel en español respete tildes y columnas). El monto va
+// firmado (egresos en negativo) para poder sumarlo directamente en una hoja.
+export async function exportMovimientosCsv(
+  params: ListMovimientosParams,
+): Promise<ActionResult<{ csv: string; filename: string; count: number }>> {
+  try {
+    await authorize("caja.read");
+    const where = buildWhere(params);
+    const rows = await prisma.movimientoCaja.findMany({
+      where,
+      orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+      include: {
+        socio: {
+          select: {
+            codigo: true,
+            apellidoPaterno: true,
+            apellidoMaterno: true,
+            nombres: true,
+          },
+        },
+        registradoPor: { select: { name: true } },
+      },
+    });
+
+    const headers = [
+      "Fecha",
+      "Tipo",
+      "Categoría",
+      "Concepto",
+      "Monto (S/)",
+      "Método de pago",
+      "Comprobante",
+      "N° comprobante",
+      "Socio",
+      "Registrado por",
+    ];
+    const lines = [headers.map(csvCell).join(";")];
+    for (const m of rows) {
+      const socioTxt = m.socio
+        ? `${socioNombre(m.socio)} (${m.socio.codigo})`
+        : "";
+      const signed = m.tipo === "egreso" ? -toNumber(m.monto) : toNumber(m.monto);
+      lines.push(
+        [
+          m.fecha.toISOString().slice(0, 10),
+          TIPO_LABEL[m.tipo],
+          CATEGORIA_LABEL[m.categoria],
+          m.concepto,
+          signed.toFixed(2),
+          m.metodoPago ?? "",
+          m.comprobanteTipo === "ninguno"
+            ? ""
+            : COMPROBANTE_LABEL[m.comprobanteTipo],
+          m.comprobanteNumero ?? "",
+          socioTxt,
+          m.registradoPor?.name ?? "",
+        ]
+          .map(csvCell)
+          .join(";"),
+      );
+    }
+
+    const csv = "﻿" + lines.join("\r\n");
+    const stamp = new Date().toISOString().slice(0, 10);
+    return ok({ csv, filename: `caja-${stamp}.csv`, count: rows.length });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("exportMovimientosCsv", e);
+    return fail("No se pudo generar el archivo.");
+  }
+}
+
 export async function uploadComprobante(
   movId: string,
   file: File,
@@ -462,7 +549,7 @@ export async function uploadComprobante(
     await authorize("caja.write");
     const mov = await prisma.movimientoCaja.findUnique({
       where: { id: movId },
-      select: { id: true },
+      select: { id: true, comprobanteUrl: true },
     });
     if (!mov) return fail("Movimiento no encontrado.");
 
@@ -480,6 +567,12 @@ export async function uploadComprobante(
       where: { id: movId },
       data: { comprobanteUrl: url },
     });
+
+    // Reemplazo: borrar el comprobante anterior para no acumular huérfanos.
+    const prevFile = mov.comprobanteUrl?.split("/").pop();
+    if (prevFile && prevFile !== fileName) {
+      await removeComprobante(movId, prevFile);
+    }
     refresh();
     return ok({ url });
   } catch (e) {

@@ -21,9 +21,20 @@ export async function checkInSocio(codigo: string): Promise<CheckinResult> {
 
     const asamblea = await prisma.asamblea.findUnique({
       where: { codigoVerificacion: codigo },
-      select: { id: true, fecha: true, toleranciaMin: true },
+      select: { id: true, fecha: true, toleranciaMin: true, estado: true },
     });
     if (!asamblea) return { ok: false, error: "Reunión no encontrada." };
+
+    // No registrar asistencia en reuniones cerradas (datos finalizados) ni
+    // antes de que inicien (evita auto-marcarse presente en una reunión futura
+    // con un código de QR conocido de antemano).
+    if (asamblea.estado === "cerrada")
+      return {
+        ok: false,
+        error: "La reunión ya está cerrada; no se puede registrar asistencia.",
+      };
+    if (Date.now() < asamblea.fecha.getTime())
+      return { ok: false, error: "La reunión aún no ha iniciado." };
 
     const asis = await prisma.asistencia.findUnique({
       where: {

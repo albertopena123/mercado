@@ -280,7 +280,15 @@ export async function updateUserProfile(
   input: { name?: string },
 ): Promise<ActionResult> {
   try {
-    await authorize("users.write");
+    const me = await authorize("users.write");
+
+    // Guarda de escalada lateral, consistente con setUserActive/setUserPassword:
+    // un no-superadmin no puede editar el perfil de un superadmin.
+    if (userId !== me.id && !meIsSuper(me) && (await isTargetSuper(userId))) {
+      return fail(
+        "Solo un superadministrador puede editar el perfil de otro superadministrador.",
+      );
+    }
 
     const data: { name?: string } = {};
     if (typeof input.name === "string") {

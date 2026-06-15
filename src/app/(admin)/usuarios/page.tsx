@@ -11,9 +11,18 @@ export default async function Page() {
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({
-      include: {
-        roles: { include: { role: true } },
-        _count: { select: { sessions: true } },
+      // select explícito (no include): nunca traer passwordHash a memoria del
+      // servidor sin necesidad, y omitir _count.sessions que no se usa.
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        tipoDocumento: true,
+        numeroDocumento: true,
+        active: true,
+        lastLoginAt: true,
+        createdAt: true,
+        roles: { select: { role: { select: { id: true, key: true, name: true } } } },
         socioAccount: { select: { id: true, codigo: true } },
       },
       orderBy: { createdAt: "desc" },

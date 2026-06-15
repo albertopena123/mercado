@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSocio } from "@/lib/portal/socio";
 import { getMisAsambleas } from "@/lib/portal/data";
 import { Icon } from "@/components/admin/Icon";
+import { fechaHora } from "@/lib/fecha";
 import type { EstadoAsistencia } from "@/generated/prisma/client";
 
 export const metadata = { title: "Reuniones · Mercado Milagros" };
@@ -38,13 +39,9 @@ export default async function AsambleasPage() {
         <section className="pt-panel">
           <div className="pt-list">
             {asambleas.map((a) => {
-              const fecha = new Date(a.fecha).toLocaleString("es-PE", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              });
+              // Instante → fecha+hora de Perú, determinista (sin desfase de TZ
+              // del servidor ni discrepancia de hidratación).
+              const fecha = fechaHora(a.fecha);
               const inner = (
                 <>
                   <div className="pt-row__main">

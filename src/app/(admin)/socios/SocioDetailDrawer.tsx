@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
-import { fechaCorta, fechaTS, fechaHora } from "@/lib/fecha";
+import { fechaCorta, fechaTS, fechaHora, hoyISOPeru } from "@/lib/fecha";
 import { getSocio, updateSocio, deleteSocio } from "./actions";
 import { EstadoBadge } from "./EstadoBadge";
 import { DocumentoInput } from "./DocumentoInput";
@@ -274,7 +274,7 @@ export function SocioDetailDrawer({
                             <span>{DIMENSION_LABEL[p.dimension]}</span>
                           </div>
                           <div className="soc-puesto__dates">
-                            Asignado desde {fechaCorta(p.desde)}
+                            Asignado desde {fechaTS(p.desde)}
                           </div>
                         </article>
                       ))}
@@ -288,7 +288,7 @@ export function SocioDetailDrawer({
                           <div className="soc-puesto__head">
                             <span className="soc-puesto__code">{p.codigo}</span>
                             <span className="soc-puesto__period">
-                              {fechaCorta(p.desde)} – {fechaCorta(p.hasta!)}
+                              {fechaTS(p.desde)} – {fechaTS(p.hasta!)}
                             </span>
                           </div>
                           {p.motivo && (
@@ -569,7 +569,7 @@ function DatosForm({
 
   const fe = fieldErrors;
   const disabled = !canWrite || pending;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyISOPeru(); // hoy en Perú (no UTC) para el max de fechas
 
   return (
     <form onSubmit={submit} className="soc-formgrid">

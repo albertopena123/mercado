@@ -284,7 +284,11 @@ export async function getPuesto(
   }
 }
 
-function validate(input: Partial<CreatePuestoInput>, isCreate: boolean): {
+function validate(
+  input: Partial<CreatePuestoInput>,
+  isCreate: boolean,
+  existingEtapa?: number,
+): {
   fieldErrors: Record<string, string>;
   normalized: Partial<CreatePuestoInput>;
 } {
@@ -303,7 +307,11 @@ function validate(input: Partial<CreatePuestoInput>, isCreate: boolean): {
   }
   if (isCreate || input.numero !== undefined) {
     const n = Number(input.numero);
-    const max = maxNumero(Number(input.etapa) === 2 ? 2 : 1);
+    // El máximo depende de la etapa: en un update parcial sin etapa, usar la
+    // etapa real del puesto (existingEtapa) — antes caía a 24 y rechazaba los
+    // números 25–36 válidos en etapa 2.
+    const etapaForMax = out.etapa ?? existingEtapa ?? 1;
+    const max = maxNumero(Number(etapaForMax) === 2 ? 2 : 1);
     if (!Number.isInteger(n) || n < 1 || n > max)
       fe.numero = `Número inválido (1–${max}).`;
     else out.numero = n;
@@ -388,7 +396,7 @@ export async function updatePuesto(
     });
     if (!existing) return fail("Puesto no encontrado.");
 
-    const { fieldErrors, normalized } = validate(patch, false);
+    const { fieldErrors, normalized } = validate(patch, false, existing.etapa);
     if (Object.keys(fieldErrors).length > 0)
       return fail("Revisa los campos marcados.", fieldErrors);
 
@@ -445,6 +453,19 @@ export async function deletePuesto(id: string): Promise<ActionResult> {
       select: { id: true },
     });
     if (!existing) return fail("Puesto no encontrado.");
+
+    // El borrado es físico. No destruir la trazabilidad de ocupación: si el
+    // puesto tuvo (o tiene) asignaciones, eliminarlo borraría en cascada todo
+    // el historial de quién lo ocupó y cuándo. Se debe clausurar, no eliminar.
+    const asignaciones = await prisma.puestoAsignacion.count({
+      where: { puestoId: id },
+    });
+    if (asignaciones > 0) {
+      return fail(
+        "No se puede eliminar: el puesto tiene historial de asignaciones. Cámbialo a estado “clausurado” para conservar la trazabilidad.",
+      );
+    }
+
     await prisma.puesto.delete({ where: { id } });
     refresh();
     return ok();

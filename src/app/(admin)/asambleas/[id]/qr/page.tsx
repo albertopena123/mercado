@@ -1,10 +1,10 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { generarQrSvg } from "@/lib/constancia/qr";
 import { generarCodigoVerificacion, anioLima } from "@/lib/constancia/codigo";
 import { fechaLargaTS } from "@/lib/fecha";
+import { appBaseUrl } from "@/lib/url";
 import { QrPrintButton } from "./QrPrintButton";
 
 export const metadata = { title: "QR de asistencia · Asamblea" };
@@ -40,12 +40,11 @@ export default async function AsambleaQrPage({
       }
     }
   }
+  // Si tras los reintentos no hay código, no generar un QR que apunte a
+  // "/portal/asambleas/null". 404 explícito en vez de un QR roto silencioso.
+  if (!codigo) notFound();
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  const url = `${proto}://${host}/portal/asambleas/${codigo}`;
+  const url = `${await appBaseUrl()}/portal/asambleas/${codigo}`;
   const svg = await generarQrSvg(url);
 
   return (

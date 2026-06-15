@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/money";
+import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
 import type {
   EstadoCuota,
   EstadoAsamblea,
@@ -115,12 +116,14 @@ export type MiComunicado = {
 };
 
 export async function getMisComunicados(): Promise<MiComunicado[]> {
-  const now = new Date();
+  // Vigente durante todo su último día en Perú (validoHasta es fecha de
+  // calendario en medianoche UTC); comparar con now() lo expiraba un día antes.
+  const hoy = inicioDiaUTC(hoyISOPeru());
   const rows = await prisma.anuncio.findMany({
     where: {
       estado: "publicado",
       visibilidad: { in: ["publico", "socios"] },
-      OR: [{ validoHasta: null }, { validoHasta: { gt: now } }],
+      OR: [{ validoHasta: null }, { validoHasta: { gte: hoy } }],
     },
     orderBy: [{ fijado: "desc" }, { publicadoEn: "desc" }],
     take: 50,
@@ -199,7 +202,7 @@ export type MiResumen = {
 };
 
 export async function getMiResumen(socioId: string): Promise<MiResumen> {
-  const now = new Date();
+  const hoy = inicioDiaUTC(hoyISOPeru());
   const [pendientes, socio, comunicados, puestos, reuniones] = await Promise.all([
     prisma.cuota.findMany({
       where: { socioId, estado: "pendiente" },
@@ -213,7 +216,7 @@ export async function getMiResumen(socioId: string): Promise<MiResumen> {
       where: {
         estado: "publicado",
         visibilidad: { in: ["publico", "socios"] },
-        OR: [{ validoHasta: null }, { validoHasta: { gt: now } }],
+        OR: [{ validoHasta: null }, { validoHasta: { gte: hoy } }],
       },
     }),
     prisma.puestoAsignacion.count({ where: { socioId, hasta: null } }),

@@ -63,3 +63,6 @@ next-env.d.ts
 /historial.png
 /create-modal.png
 /search-*.png
+
+# Audit working notes (not committed)
+/.audit-findings.md

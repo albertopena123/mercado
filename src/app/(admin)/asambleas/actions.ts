@@ -269,7 +269,10 @@ export async function updateAsamblea(
     if (patch.tipo !== undefined) data.tipo = patch.tipo as TipoAsamblea;
     if (patch.estado !== undefined) data.estado = patch.estado as EstadoAsamblea;
     if (patch.fecha !== undefined) {
-      const d = new Date(patch.fecha);
+      // Combinar fecha + hora interpretadas como hora de Perú (igual que
+      // createAsamblea); antes usaba new Date() (UTC/zona del servidor) e
+      // ignoraba la hora, corriendo el instante de inicio.
+      const d = peruDateTime(patch.fecha, patch.hora ?? "00:00");
       if (isNaN(d.getTime())) return fail("Fecha inválida.", { fecha: "Inválida." });
       data.fecha = d;
     }
@@ -320,9 +323,13 @@ export async function checkInByDni(
 
     const asamblea = await prisma.asamblea.findUnique({
       where: { id: asambleaId },
-      select: { fecha: true, toleranciaMin: true },
+      select: { fecha: true, toleranciaMin: true, estado: true },
     });
     if (!asamblea) return fail("Asamblea no encontrada.");
+    // Una asamblea cerrada tiene la asistencia finalizada: no se registra por la
+    // puerta. Las correcciones puntuales se hacen con las pastillas manuales.
+    if (asamblea.estado === "cerrada")
+      return fail("La asamblea está cerrada; no se puede registrar asistencia.");
 
     // Resolver el socio por número de documento. numeroDocumento NO es único por
     // sí solo (la unicidad es por tipoDocumento + numeroDocumento), así que si

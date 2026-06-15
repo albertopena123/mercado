@@ -1,11 +1,11 @@
 "use server";
 
-import { headers } from "next/headers";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/server";
 import { unstable_rethrow } from "next/navigation";
 import { toNumber } from "@/lib/money";
+import { appBaseUrl } from "@/lib/url";
 import {
   anioLima,
   formatFolio,
@@ -26,17 +26,6 @@ function isP2002(e: unknown): boolean {
   return (
     e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"
   );
-}
-
-async function baseUrl(): Promise<string> {
-  const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-  if (env) return env;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ??
-    (process.env.NODE_ENV === "production" ? "https" : "http");
-  return `${proto}://${host}`;
 }
 
 /**
@@ -129,7 +118,7 @@ export async function emitirConstancia(
     }
     if (!row) return fail("No se pudo generar el folio de la constancia.");
 
-    const verifyUrl = `${await baseUrl()}/verificar/${row.codigo}`;
+    const verifyUrl = `${await appBaseUrl()}/verificar/${row.codigo}`;
     const qrSvg = await generarQrSvg(verifyUrl);
 
     return ok({

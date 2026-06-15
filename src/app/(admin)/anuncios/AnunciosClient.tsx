@@ -46,7 +46,10 @@ const STAT_CARDS: { key: "total" | EstadoAnuncio; label: string; tone: string }[
 
 function fmtFecha(iso: string | null): string {
   if (!iso) return "—";
+  // publicadoEn es un instante → hora de Perú (timeZone fijo = determinista,
+  // sin desfase de un día ni discrepancias de hidratación).
   return new Date(iso).toLocaleDateString("es-PE", {
+    timeZone: "America/Lima",
     day: "2-digit",
     month: "short",
     year: "numeric",

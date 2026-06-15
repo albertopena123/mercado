@@ -20,14 +20,30 @@ function getDummyHash(): Promise<string> {
   return dummyHashPromise;
 }
 
-// ────────── C3: simple in-memory sliding-window rate limit ──────────
-// 10 attempts per minute per IP for the login endpoint.
-const RATE_MAX = 10;
-const RATE_WINDOW_MS = 60_000;
+// ────────── C3: in-memory sliding-window rate limit ──────────
+// Dos límites en capas:
+//  1) Por IP (coarse backstop). La IP viene de headers que el cliente puede
+//     falsear (x-forwarded-for); por eso es solo una primera barrera y se le da
+//     un umbral más holgado (también protege NAT compartido de muchos socios).
+//  2) Por IDENTIFICADOR (correo/documento). Esta es la defensa real contra
+//     fuerza bruta dirigida a UNA cuenta: aunque el atacante rote la IP, no
+//     puede superar N intentos por cuenta dentro de la ventana.
+// Nota: el contador es por proceso (en memoria). En despliegues multi-instancia
+// conviene mover esto a un contador compartido (Redis); para una sola instancia
+// es suficiente. El límite por identificador es independiente de la instancia
+// solo si el balanceador es sticky; aun así reduce drásticamente el ataque.
+const IP_MAX = 30;
+const IP_WINDOW_MS = 60_000;
+const ID_MAX = 8;
+const ID_WINDOW_MS = 5 * 60_000;
 type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
-function rateCheck(ip: string): { allowed: boolean; retryAfter: number } {
+function rateCheck(
+  key: string,
+  max: number,
+  windowMs: number,
+): { allowed: boolean; retryAfter: number } {
   const now = Date.now();
 
   // Light GC so the map doesn't grow unbounded under sustained load.
@@ -35,12 +51,12 @@ function rateCheck(ip: string): { allowed: boolean; retryAfter: number } {
     for (const [k, v] of buckets) if (v.resetAt < now) buckets.delete(k);
   }
 
-  const b = buckets.get(ip);
+  const b = buckets.get(key);
   if (!b || b.resetAt < now) {
-    buckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
     return { allowed: true, retryAfter: 0 };
   }
-  if (b.count >= RATE_MAX) {
+  if (b.count >= max) {
     return { allowed: false, retryAfter: Math.ceil((b.resetAt - now) / 1000) };
   }
   b.count++;
@@ -48,26 +64,28 @@ function rateCheck(ip: string): { allowed: boolean; retryAfter: number } {
 }
 
 async function getClientIp(): Promise<string> {
+  // En producción, un proxy de confianza (Nginx/Caddy) debe sobrescribir
+  // x-real-ip con la IP real del peer TCP; lo preferimos por eso. x-forwarded-for
+  // es plenamente falseable y queda solo como último recurso para dev.
   const h = await headers();
+  const real = h.get("x-real-ip");
+  if (real) return real.trim();
   const fwd = h.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0]!.trim();
-  return h.get("x-real-ip") ?? "unknown";
+  return "unknown";
+}
+
+function tooMany(retryAfter: number) {
+  return NextResponse.json(
+    { error: `Demasiados intentos. Vuelve a intentarlo en ${retryAfter}s.` },
+    { status: 429, headers: { "Retry-After": String(retryAfter) } },
+  );
 }
 
 export async function POST(request: Request) {
   const ip = await getClientIp();
-  const rate = rateCheck(ip);
-  if (!rate.allowed) {
-    return NextResponse.json(
-      {
-        error: `Demasiados intentos. Vuelve a intentarlo en ${rate.retryAfter}s.`,
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(rate.retryAfter) },
-      },
-    );
-  }
+  const ipRate = rateCheck(`ip:${ip}`, IP_MAX, IP_WINDOW_MS);
+  if (!ipRate.allowed) return tooMany(ipRate.retryAfter);
 
   let body: unknown;
   try {
@@ -96,6 +114,13 @@ export async function POST(request: Request) {
   if (!id || !password) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
   }
+
+  // Límite por cuenta: frena la fuerza bruta dirigida a un identificador aunque
+  // el atacante rote la IP. Se normaliza (minúsculas, sin espacios) para que
+  // "Correo@x" y "correo@x" compartan el mismo cubo.
+  const idKey = `id:${id.toLowerCase().replace(/\s+/g, "")}`;
+  const idRate = rateCheck(idKey, ID_MAX, ID_WINDOW_MS);
+  if (!idRate.allowed) return tooMany(idRate.retryAfter);
 
   // Si parece correo (tiene "@") buscamos por email; si no, por número de
   // documento. findFirst en documento porque la unicidad es por (tipo+número).

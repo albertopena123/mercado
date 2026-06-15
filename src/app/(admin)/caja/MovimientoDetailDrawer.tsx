@@ -198,11 +198,22 @@ export function MovimientoDetailDrawer({
                 }}
               />
               <div className="caja-meta">
-                <span>Fecha: {new Date(mov.fecha).toLocaleDateString("es-PE")}</span>
+                <span>
+                  Fecha:{" "}
+                  {new Date(mov.fecha).toLocaleDateString("es-PE", {
+                    timeZone: "UTC",
+                  })}
+                </span>
                 {mov.socio && <span>Socio: {mov.socio.nombre}</span>}
                 {mov.metodoPago && <span>Pago: {mov.metodoPago}</span>}
                 {mov.comprobanteNumero && <span>N°: {mov.comprobanteNumero}</span>}
                 {mov.registradoPor && <span>Registró: {mov.registradoPor}</span>}
+                {mov.origen === "cuota" && (
+                  <span>Origen: pago de cuota (automático)</span>
+                )}
+                {mov.origen === "inscripcion" && (
+                  <span>Origen: inscripción de socio (automático)</span>
+                )}
               </div>
             </div>
 

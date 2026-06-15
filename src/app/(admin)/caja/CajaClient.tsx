@@ -18,6 +18,7 @@ import {
   CATEGORIAS_INGRESO,
   CATEGORIAS_EGRESO,
 } from "@/lib/caja/labels";
+import { exportMovimientosCsv } from "./actions";
 import { CreateMovimientoModal } from "./CreateMovimientoModal";
 import { MovimientoDetailDrawer } from "./MovimientoDetailDrawer";
 import type {
@@ -35,7 +36,10 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 ];
 
 function fmtFecha(iso: string): string {
+  // `fecha` es una fecha de calendario (medianoche UTC). timeZone:"UTC" evita
+  // que se corra un día al formatearla en Perú (UTC-5).
   return new Date(iso).toLocaleDateString("es-PE", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -65,6 +69,34 @@ export function CajaClient({
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    const res = await exportMovimientosCsv({
+      q: filters.q || undefined,
+      tipo: filters.tipo,
+      categoria: filters.categoria,
+      desde: filters.desde || undefined,
+      hasta: filters.hasta || undefined,
+    });
+    setExporting(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    const blob = new Blob([res.data!.csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.data!.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Caja exportada (${res.data!.count} movimientos).`);
+  }
 
   const updateParam = (
     entries: Record<string, string | undefined>,
@@ -109,12 +141,23 @@ export function CajaClient({
             )}
           </span>
         </div>
-        {perms.canWrite && (
-          <button className="btn--cta" onClick={() => setCreateOpen(true)}>
-            <Icon name="plus" size={16} />
-            <span>Nuevo movimiento</span>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button
+            className="btn btn--ghost"
+            onClick={handleExport}
+            disabled={exporting || initial.total === 0}
+            title="Exportar los movimientos filtrados a CSV"
+          >
+            <Icon name="download" size={16} />
+            <span>{exporting ? "Exportando…" : "Exportar CSV"}</span>
           </button>
-        )}
+          {perms.canWrite && (
+            <button className="btn--cta" onClick={() => setCreateOpen(true)}>
+              <Icon name="plus" size={16} />
+              <span>Nuevo movimiento</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Resumen del período */}

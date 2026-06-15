@@ -239,19 +239,31 @@ export async function deleteRole(roleId: string): Promise<ActionResult> {
 
     const target = await prisma.role.findUnique({
       where: { id: roleId },
-      include: { _count: { select: { users: true } } },
+      select: { id: true, system: true },
     });
     if (!target) return fail("Rol no encontrado.");
     if (target.system) {
       return fail("Los roles del sistema no se pueden eliminar.");
     }
-    if (target._count.users > 0) {
-      return fail(
-        `Este rol tiene ${target._count.users} usuario(s) asignado(s). Reasigna a otro rol antes de eliminar.`,
-      );
-    }
 
-    await prisma.role.delete({ where: { id: roleId } });
+    // Comprobar la asignación y borrar dentro de la MISMA transacción: contar
+    // fuera y borrar después deja una carrera TOCTOU en la que un usuario podría
+    // recibir el rol entre el conteo y el delete, y el borrado en cascada de
+    // UserRole quitaría silenciosamente esa asignación recién creada.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const enUso = await tx.userRole.count({ where: { roleId } });
+        if (enUso > 0) {
+          throw new Denied(
+            `Este rol tiene ${enUso} usuario(s) asignado(s). Reasigna a otro rol antes de eliminar.`,
+          );
+        }
+        await tx.role.delete({ where: { id: roleId } });
+      });
+    } catch (e) {
+      if (e instanceof Denied) return fail(e.message);
+      throw e;
+    }
     refresh();
     return ok();
   } catch (e) {

@@ -85,18 +85,31 @@ async function main() {
   assert.equal(vig?.socioId, s2.id, "el vigente es el socio 2");
   console.log("  ✓ invariante 1-vigente + historial preservado");
 
-  console.log("→ Delete del puesto cascadea asignaciones");
-  await prisma.puesto.delete({ where: { id: p.id } });
-  const orphan = await prisma.puestoAsignacion.count({
-    where: { puestoId: p.id },
-  });
-  assert.equal(orphan, 0, "asignaciones deben cascadear");
-  console.log("  ✓ cascade OK");
+  console.log("→ Borrar un puesto con historial debe estar BLOQUEADO (Restrict)");
+  let blocked = false;
+  try {
+    await prisma.puesto.delete({ where: { id: p.id } });
+  } catch (e) {
+    blocked = (e as { code?: string }).code === "P2003";
+  }
+  assert.equal(
+    blocked,
+    true,
+    "borrar un puesto con asignaciones debe fallar por la FK Restrict (preserva trazabilidad)",
+  );
+  console.log("  ✓ Restrict protege el historial de asignaciones");
 
-  // limpieza
+  // limpieza: borrar los socios cascadea sus asignaciones (PuestoAsignacion.socio
+  // sigue siendo Cascade); con el puesto ya sin asignaciones, se puede borrar.
   await prisma.socio.deleteMany({
     where: { id: { in: [s1.id, s2.id] } },
   });
+  const orphan = await prisma.puestoAsignacion.count({
+    where: { puestoId: p.id },
+  });
+  assert.equal(orphan, 0, "al borrar los socios, sus asignaciones cascadean");
+  await prisma.puesto.delete({ where: { id: p.id } });
+  console.log("  ✓ limpieza OK");
 
   console.log("\n✅ verify-puestos OK.");
   await prisma.$disconnect();

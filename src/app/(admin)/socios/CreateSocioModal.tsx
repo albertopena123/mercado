@@ -3,12 +3,14 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type FormEvent,
 } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
+import { hoyISOPeru } from "@/lib/fecha";
 import { DocumentoInput } from "./DocumentoInput";
 import { createSocio, lookupDniAction } from "./actions";
 import { validateNumeroDocumento } from "@/lib/socios/document";
@@ -32,7 +34,7 @@ export function CreateSocioModal({
   onCreated: (id: string) => void;
   canCreateUser: boolean;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyISOPeru(); // hoy en Perú (no UTC) para el max de fechas
   const [tipo, setTipo] = useState<TipoDocumento>("DNI");
   const [numero, setNumero] = useState("");
   const [apellidoPaterno, setAP] = useState("");
@@ -52,6 +54,8 @@ export function CreateSocioModal({
   // Acceso al portal (opcional)
   const [darAcceso, setDarAcceso] = useState(false);
   const [portalPassword, setPortalPassword] = useState("");
+  // Cuota de inscripción (opcional) → ingreso a caja
+  const [montoInscripcion, setMontoInscripcion] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [topError, setTopError] = useState<string | null>(null);
@@ -65,6 +69,20 @@ export function CreateSocioModal({
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>("idle");
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
   const [lookedUpDni, setLookedUpDni] = useState<string | null>(null);
+  // Evita que una respuesta lenta y obsoleta pise a una consulta más reciente.
+  const reqIdRef = useRef(0);
+  // Snapshot de lo último que autocompletó RENIEC. Sirve para distinguir un
+  // campo auto-rellenado (que SÍ se reemplaza al cambiar de DNI) de uno que el
+  // usuario editó a mano (que se conserva).
+  const autoRef = useRef({
+    ap: "",
+    am: "",
+    nombres: "",
+    fn: "",
+    sexo: "",
+    ec: "",
+    dir: "",
+  });
 
   useEscClose(true, onClose, submitting || lookupStatus === "loading");
 
@@ -85,25 +103,58 @@ export function CreateSocioModal({
     if (lookedUpDni === numero) return; // ya consultado
 
     const timer = setTimeout(() => {
+      const reqId = ++reqIdRef.current;
       setLookupStatus("loading");
       setLookupMessage("Consultando RENIEC…");
       startLookup(async () => {
         const res = await lookupDniAction(numero);
+        // Una consulta más reciente ya tomó el control: descartamos esta.
+        if (reqId !== reqIdRef.current) return;
         setLookedUpDni(numero);
+
         if (!res.ok) {
           setLookupMessage(res.error);
           setLookupStatus("error");
+          // Limpia los datos que RENIEC autocompletó para un DNI anterior (sin
+          // tocar lo que el usuario escribió a mano) para no quedarte con la
+          // identidad equivocada en este nuevo DNI.
+          const snap = autoRef.current;
+          setAP((p) => (p === snap.ap ? "" : p));
+          setAM((p) => (p === snap.am ? "" : p));
+          setNombres((p) => (p === snap.nombres ? "" : p));
+          setFN((p) => (p === snap.fn ? "" : p));
+          setSexo((p) => (p === snap.sexo ? "" : p));
+          setEC((p) => (p === snap.ec ? "" : p));
+          setDir((p) => (p === snap.dir ? "" : p));
+          autoRef.current = { ap: "", am: "", nombres: "", fn: "", sexo: "", ec: "", dir: "" };
           return;
         }
+
         const d = res.data!;
-        // Setters funcionales preservan lo que el usuario ya tipeó.
-        setAP((prev) => (prev.trim() ? prev : d.apellidoPaterno));
-        setAM((prev) => (prev.trim() ? prev : d.apellidoMaterno));
-        setNombres((prev) => (prev.trim() ? prev : d.nombres));
-        setFN((prev) => (prev ? prev : d.fechaNacimiento ?? ""));
-        setSexo((prev) => (prev ? prev : (d.sexo as Sexo) ?? ""));
-        setEC((prev) => (prev.trim() ? prev : d.estadoCivil ?? ""));
-        setDir((prev) => (prev.trim() ? prev : d.direccion ?? ""));
+        const sexoVal = (d.sexo ?? "") as Sexo | "";
+        const fnVal = d.fechaNacimiento ?? "";
+        const ecVal = d.estadoCivil ?? "";
+        const dirVal = d.direccion ?? "";
+        // Reemplaza cada campo de identidad con los datos del DNI consultado,
+        // SALVO que el usuario lo haya editado a mano (lo detectamos comparando
+        // el valor actual con el último auto-relleno).
+        const snap = autoRef.current;
+        setAP((p) => (!p.trim() || p === snap.ap ? d.apellidoPaterno : p));
+        setAM((p) => (!p.trim() || p === snap.am ? d.apellidoMaterno : p));
+        setNombres((p) => (!p.trim() || p === snap.nombres ? d.nombres : p));
+        setFN((p) => (!p || p === snap.fn ? fnVal : p));
+        setSexo((p) => (!p || p === snap.sexo ? sexoVal : p));
+        setEC((p) => (!p.trim() || p === snap.ec ? ecVal : p));
+        setDir((p) => (!p.trim() || p === snap.dir ? dirVal : p));
+        autoRef.current = {
+          ap: d.apellidoPaterno,
+          am: d.apellidoMaterno,
+          nombres: d.nombres,
+          fn: fnVal,
+          sexo: sexoVal,
+          ec: ecVal,
+          dir: dirVal,
+        };
         setLookupMessage(`${d.nombres} ${d.apellidoPaterno} ${d.apellidoMaterno}`);
         setLookupStatus("success");
       });
@@ -159,6 +210,10 @@ export function CreateSocioModal({
       observaciones: observaciones.trim() || undefined,
       portalPassword:
         canCreateUser && darAcceso && portalPassword ? portalPassword : undefined,
+      montoInscripcion:
+        montoInscripcion.trim() && Number(montoInscripcion) > 0
+          ? Number(montoInscripcion)
+          : undefined,
     };
     const res = await createSocio(input);
     if (!res.ok) {
@@ -443,6 +498,19 @@ export function CreateSocioModal({
               value={observaciones}
               onChange={(e) => setObs(e.target.value)}
               placeholder="cualquier nota adicional sobre el socio"
+              disabled={submitting}
+            />
+          </label>
+
+          <label className="field">
+            <span className="field__label">Cuota de inscripción (S/)</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={montoInscripcion}
+              onChange={(e) => setMontoInscripcion(e.target.value)}
+              placeholder="opcional — se registra como ingreso en caja"
               disabled={submitting}
             />
           </label>
