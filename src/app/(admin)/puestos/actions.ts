@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
+import { toNumber } from "@/lib/money";
 import {
   GIRO_LABEL,
   bandaPorNumero,
@@ -475,9 +476,37 @@ export async function assignPuesto(
       });
       if (!socio) throw new Denied("Socio no encontrado.");
 
+      // Propietario actual (asignación vigente). Si se transfiere a OTRO socio
+      // y el saliente tiene deuda pendiente, no se permite: debe regularizar
+      // sus cuotas antes de la venta/traspaso.
+      const actual = await tx.puestoAsignacion.findFirst({
+        where: { puestoId, hasta: null },
+        select: { socioId: true },
+      });
+      if (actual && actual.socioId !== socioId) {
+        const pend = await tx.cuota.findMany({
+          where: { socioId: actual.socioId, estado: "pendiente" },
+          select: { monto: true },
+        });
+        const deuda = pend.reduce((acc, c) => acc + toNumber(c.monto), 0);
+        if (deuda > 0) {
+          const prev = await tx.socio.findUnique({
+            where: { id: actual.socioId },
+            select: {
+              apellidoPaterno: true,
+              apellidoMaterno: true,
+              nombres: true,
+            },
+          });
+          throw new Denied(
+            `El propietario actual${prev ? ` (${socioNombre(prev)})` : ""} tiene S/ ${deuda.toFixed(2)} de deuda pendiente. Regulariza sus cuotas antes de transferir el puesto.`,
+          );
+        }
+      }
+
       await tx.puestoAsignacion.updateMany({
         where: { puestoId, hasta: null },
-        data: { hasta: new Date(), motivo: "Reasignación" },
+        data: { hasta: new Date(), motivo: "Transferencia" },
       });
       await tx.puestoAsignacion.create({
         data: {

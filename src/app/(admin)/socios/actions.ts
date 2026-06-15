@@ -842,6 +842,18 @@ export async function deleteSocio(id: string): Promise<ActionResult> {
       );
     }
 
+    // Tampoco si tiene puestos en su historial: borrarlo (en cascada) borraría
+    // el registro de qué puestos tuvo y a quién pertenecieron. Se retira, no se
+    // elimina, para conservar la trazabilidad de propiedad.
+    const asignaciones = await prisma.puestoAsignacion.count({
+      where: { socioId: id },
+    });
+    if (asignaciones > 0) {
+      return fail(
+        "No se puede eliminar: el socio tiene puestos en su historial. Cámbialo a estado “retirado” para conservar la trazabilidad de propiedad.",
+      );
+    }
+
     await prisma.socio.delete({ where: { id } });
     await removeSocioDir(id);
     refresh();
