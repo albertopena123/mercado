@@ -63,10 +63,11 @@ function filaDe(parcela: string): number {
   return m ? parseInt(m[1], 10) : 0;
 }
 
-// Importa los PUESTOS del padrón (canónico): limpia la grilla generada y crea
-// cada puesto real (etapa por dimensión, fila por sub-fila) + su asignación al
-// socio dueño. Los 34 puestos con doble propietario se crean SIN dueño (vacíos)
-// y se marcan en observaciones para que la directiva resuelva.
+// Importa los PUESTOS del padrón (canónico) RENUMERANDO corrido por (etapa,
+// bloque): cada etapa de cada bloque queda 1,2,3… sin huecos ni repetidos
+// (Etapa 1 = 3×5, Etapa 2 = 3×3). El número original del Excel se guarda en
+// observaciones. Bloque M = 1 fila de 12 (el "local"). Puestos con doble
+// propietario se crean vacíos y marcados para que la directiva resuelva.
 async function importPuestos(rows: Row[], apply: boolean) {
   const socios = await prisma.socio.findMany({
     select: { id: true, numeroDocumento: true, tipoDocumento: true },
@@ -78,79 +79,109 @@ async function importPuestos(rows: Row[], apply: boolean) {
   type Cell = {
     etapa: number;
     bloque: string;
-    fila: number;
-    numero: number;
+    filaOrig: number;
+    numeroOrig: number;
     dim: "d3x5" | "d3x3";
     owners: Set<string>;
   };
+  // Posiciones únicas por (etapa,bloque,fila,número original), EXCEPTO M.
   const cells = new Map<string, Cell>();
   let sinEtapa = 0;
-  let invalido = 0;
   for (const r of rows) {
+    if (r.bloque === "M") continue;
     const etapa = etapaDe(r.parcela || "");
     if (!etapa) { sinEtapa++; continue; }
-    const fila = filaDe(r.parcela || "");
-    const numero = parseInt(String(r.numero), 10);
-    if (!Number.isInteger(numero) || fila === 0) { invalido++; continue; }
-    const key = `${etapa}|${r.bloque}|${fila}|${numero}`;
+    const filaOrig = filaDe(r.parcela || "");
+    const numeroOrig = parseInt(String(r.numero), 10);
+    if (!Number.isInteger(numeroOrig) || filaOrig === 0) continue;
+    const key = `${etapa}|${r.bloque}|${filaOrig}|${numeroOrig}`;
     let c = cells.get(key);
     if (!c) {
-      c = { etapa, bloque: r.bloque, fila, numero, dim: etapa === 1 ? "d3x5" : "d3x3", owners: new Set() };
+      c = { etapa, bloque: r.bloque, filaOrig, numeroOrig, dim: etapa === 1 ? "d3x5" : "d3x3", owners: new Set() };
       cells.set(key, c);
     }
     const dni = normDni(r.dni);
     if (dni && dniToId.has(dni)) c.owners.add(dni);
   }
 
-  let conflictos = 0, conUno = 0, sinDueno = 0;
-  const confSample: string[] = [];
+  // Renumerar corrido 1..N por (etapa,bloque), respetando el orden físico.
+  type Final = { etapa: number; bloque: string; numero: number; dim: "d3x5" | "d3x3"; owners: Set<string>; ref: string };
+  const finals: Final[] = [];
+  const groups = new Map<string, Cell[]>();
   for (const c of cells.values()) {
-    if (c.owners.size > 1) {
-      conflictos++;
-      if (confSample.length < 8)
-        confSample.push(`E${c.etapa}-${c.bloque}-${c.fila}-${c.numero}: ${[...c.owners].join(" vs ")}`);
-    } else if (c.owners.size === 1) conUno++;
-    else sinDueno++;
+    const k = `${c.etapa}|${c.bloque}`;
+    const a = groups.get(k);
+    if (a) a.push(c); else groups.set(k, [c]);
+  }
+  for (const arr of groups.values()) {
+    arr.sort((a, b) => a.filaOrig - b.filaOrig || a.numeroOrig - b.numeroOrig);
+    let seq = 0;
+    for (const c of arr) {
+      seq++;
+      finals.push({ etapa: c.etapa, bloque: c.bloque, numero: seq, dim: c.dim, owners: c.owners, ref: `Excel: fila ${c.filaOrig} n.º ${c.numeroOrig}` });
+    }
   }
 
-  console.log("═══════════ IMPORTACIÓN PUESTOS (padrón 2026) ═══════════");
-  console.log(`Puestos únicos (etapa,bloque,fila,número): ${cells.size}`);
-  console.log(`  · con 1 dueño (se asignan):  ${conUno}`);
-  console.log(`  · sin dueño (vacíos):        ${sinDueno}`);
-  console.log(`  · CONFLICTO 2+ dueños:       ${conflictos} (vacíos, marcados para resolver)`);
-  console.log(`Filas sin etapa: ${sinEtapa} | inválidas: ${invalido}`);
-  console.log("─── Muestra de conflictos ───");
-  confSample.forEach((s) => console.log("  " + s));
+  // Bloque M: 1 fila de 12 puestos (Etapa 2 / 3×3). Dueños por número (1–12).
+  const mOwners = new Map<number, Set<string>>();
+  for (const r of rows) {
+    if (r.bloque !== "M") continue;
+    const numero = parseInt(String(r.numero), 10);
+    if (!Number.isInteger(numero) || numero < 1 || numero > 12) continue;
+    const dni = normDni(r.dni);
+    if (!mOwners.has(numero)) mOwners.set(numero, new Set());
+    if (dni && dniToId.has(dni)) mOwners.get(numero)!.add(dni);
+  }
+  for (let n = 1; n <= 12; n++) {
+    finals.push({ etapa: 2, bloque: "M", numero: n, dim: "d3x3", owners: mOwners.get(n) ?? new Set(), ref: "Bloque M (local)" });
+  }
+
+  let conUno = 0, sinDueno = 0, conflictos = 0;
+  for (const f of finals) {
+    if (f.owners.size > 1) conflictos++;
+    else if (f.owners.size === 1) conUno++;
+    else sinDueno++;
+  }
+  const cnt = new Map<string, number>();
+  for (const f of finals) { const k = `E${f.etapa}-${f.bloque}`; cnt.set(k, (cnt.get(k) ?? 0) + 1); }
+
+  console.log("═══════ IMPORTACIÓN PUESTOS (renumerado corrido, padrón 2026) ═══════");
+  console.log(`Puestos totales: ${finals.length}  (sin etapa omitidas: ${sinEtapa})`);
+  console.log(`  · con dueño:   ${conUno}`);
+  console.log(`  · sin dueño:   ${sinDueno}`);
+  console.log(`  · conflicto:   ${conflictos} (vacíos, marcados)`);
+  console.log("Por etapa-bloque:");
+  console.log("  " + [...cnt.entries()].sort().map(([k, v]) => `${k}=${v}`).join("  "));
 
   if (!apply) {
     console.log("\n(DRY-RUN puestos — usa --puestos --apply para crear.)");
     return;
   }
 
-  const puestoData: Prisma.PuestoCreateManyInput[] = [];
-  const asignByCodigo = new Map<string, string>();
-  for (const c of cells.values()) {
-    const codigo = puestoCodigo(c.etapa, c.bloque, c.numero, c.fila);
-    const ownerDni = c.owners.size === 1 ? [...c.owners][0] : null;
-    const socioId = ownerDni ? dniToId.get(ownerDni)! : null;
-    puestoData.push({
-      etapa: c.etapa,
-      bloque: c.bloque,
-      fila: c.fila,
-      numero: c.numero,
-      banda: bandaPorNumero(c.numero, c.etapa),
-      dimension: c.dim,
+  const puestoData: Prisma.PuestoCreateManyInput[] = finals.map((f) => {
+    const codigo = puestoCodigo(f.etapa, f.bloque, f.numero);
+    const owner = f.owners.size === 1 ? [...f.owners][0] : null;
+    return {
+      etapa: f.etapa,
+      bloque: f.bloque,
+      fila: 1,
+      numero: f.numero,
+      banda: bandaPorNumero(f.numero, f.etapa),
+      dimension: f.dim,
       tipo: "puesto",
       codigo,
-      estado: socioId ? "activo" : "vacio",
+      estado: owner ? "activo" : "vacio",
       observaciones:
-        c.owners.size > 1
-          ? `${MARCA} CONFLICTO doble propietario: ${[...c.owners].join(", ")}`
-          : MARCA,
-      searchKey: [codigo, c.bloque].map(normalizeToken).join(" "),
-    });
-    if (socioId) asignByCodigo.set(codigo, socioId);
-  }
+        f.owners.size > 1
+          ? `${MARCA} CONFLICTO doble propietario: ${[...f.owners].join(", ")} · ${f.ref}`
+          : `${MARCA} ${f.ref}`,
+      searchKey: [codigo, f.bloque].map(normalizeToken).join(" "),
+    };
+  });
+  const ownerByCodigo = new Map<string, string>();
+  for (const f of finals)
+    if (f.owners.size === 1)
+      ownerByCodigo.set(puestoCodigo(f.etapa, f.bloque, f.numero), dniToId.get([...f.owners][0])!);
 
   const delA = await prisma.puestoAsignacion.deleteMany({});
   const delP = await prisma.puesto.deleteMany({});
@@ -163,7 +194,7 @@ async function importPuestos(rows: Row[], apply: boolean) {
   });
   const codeToId = new Map(created.map((p) => [p.codigo, p.id]));
   const asignData: Prisma.PuestoAsignacionCreateManyInput[] = [];
-  for (const [codigo, socioId] of asignByCodigo) {
+  for (const [codigo, socioId] of ownerByCodigo) {
     const pid = codeToId.get(codigo);
     if (pid) asignData.push({ puestoId: pid, socioId, desde: FECHA_BASE, motivo: "Padrón 2026" });
   }
