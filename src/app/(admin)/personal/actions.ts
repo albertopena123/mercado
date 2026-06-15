@@ -49,6 +49,9 @@ function clampSize(n?: number): number {
   return n && PAGE_SIZES.includes(n) ? n : PAGE_SIZE;
 }
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Fecha de calendario estricta: debe ser exactamente "yyyy-mm-dd" (lo único que
+// inicioDiaUTC interpreta sin caer silenciosamente a hoy).
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CARGOS = new Set<CargoEmpleado>([
   "seguridad",
   "secretaria",
@@ -153,7 +156,9 @@ function validate(
   }
   if (isCreate || input.fechaIngreso !== undefined) {
     const fi = (input.fechaIngreso ?? "").trim();
-    const d = fi ? new Date(fi) : null;
+    // Exigir formato ISO antes de parsear: new Date("2026/06/15") o "June 15"
+    // parsean OK pero inicioDiaUTC los descartaría y guardaría HOY en silencio.
+    const d = ISO_DATE.test(fi) ? new Date(`${fi}T00:00:00.000Z`) : null;
     if (!d || isNaN(d.getTime())) fe.fechaIngreso = "Fecha de ingreso inválida.";
     else if (d.getTime() > hoyUTC)
       fe.fechaIngreso = "La fecha de ingreso no puede ser futura.";
@@ -392,7 +397,8 @@ export async function createEmpleado(
             apellidoMaterno: normalized.apellidoMaterno ?? null,
             nombres: normalized.nombres!,
             cargo,
-            cargoDetalle: normalized.cargoDetalle ?? null,
+            // El detalle solo aplica cuando el cargo es "otro".
+            cargoDetalle: cargo === "otro" ? normalized.cargoDetalle ?? null : null,
             telefono: normalized.telefono ?? null,
             email: normalized.email ?? null,
             direccion: normalized.direccion ?? null,
@@ -480,7 +486,11 @@ export async function updateEmpleado(
       data.apellidoMaterno = normalized.apellidoMaterno ?? null;
     if (normalized.nombres) data.nombres = normalized.nombres;
     if (normalized.cargo) data.cargo = normalized.cargo;
-    if ("cargoDetalle" in normalized)
+    // Normalizar el detalle según el cargo EFECTIVO (patch o existente): si no es
+    // "otro", se limpia aunque el cliente lo haya enviado (campo oculto stale).
+    const finalCargo = normalized.cargo ?? existing.cargo;
+    if (finalCargo !== "otro") data.cargoDetalle = null;
+    else if ("cargoDetalle" in normalized)
       data.cargoDetalle = normalized.cargoDetalle ?? null;
     if ("telefono" in normalized) data.telefono = normalized.telefono ?? null;
     if ("email" in normalized) data.email = normalized.email ?? null;
@@ -536,15 +546,34 @@ export async function setEstadoEmpleado(
     if (!["activo", "suspendido", "inactivo"].includes(estado))
       return fail("Estado inválido.");
 
+    const existing = await prisma.empleado.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) return fail("Empleado no encontrado.");
+
     const data: Prisma.EmpleadoUpdateInput = {
       estado,
       updatedBy: { connect: { id: me.id } },
     };
     // Cese: al pasar a "inactivo" se fija la fecha de cese (la indicada o hoy);
-    // al reactivar se limpia.
+    // al reactivar se limpia. La fecha de cese se valida igual que la de ingreso
+    // (formato ISO y no futura) para no aceptar valores absurdos silenciosamente.
     if (estado === "inactivo") {
       const f = (fechaCese ?? "").trim();
-      data.fechaCese = inicioDiaUTC(f || hoyISOPeru());
+      if (f) {
+        const hoyUTC = inicioDiaUTC(hoyISOPeru()).getTime();
+        const d = ISO_DATE.test(f) ? new Date(`${f}T00:00:00.000Z`) : null;
+        if (!d || isNaN(d.getTime()))
+          return fail("Fecha de cese inválida.", { fechaCese: "Formato inválido." });
+        if (d.getTime() > hoyUTC)
+          return fail("La fecha de cese no puede ser futura.", {
+            fechaCese: "No puede ser futura.",
+          });
+        data.fechaCese = d;
+      } else {
+        data.fechaCese = inicioDiaUTC(hoyISOPeru());
+      }
     } else {
       data.fechaCese = null;
     }
@@ -614,28 +643,33 @@ export async function uploadEmpleadoAdjunto(
 
     let row: { id: string };
     try {
-      row = await prisma.empleadoAdjunto.create({
-        data: {
-          empleadoId,
-          tipo: trimmedTipo,
-          url,
-          mimeType: effectiveType,
-          sizeBytes: file.size,
-          uploadedById: me.id,
-        },
-        select: { id: true },
+      // Crear la fila y (si es foto) actualizar fotoUrl ATÓMICAMENTE: si algo
+      // falla, se revierte la BD y se borra el archivo recién escrito.
+      row = await prisma.$transaction(async (tx) => {
+        const created = await tx.empleadoAdjunto.create({
+          data: {
+            empleadoId,
+            tipo: trimmedTipo,
+            url,
+            mimeType: effectiveType,
+            sizeBytes: file.size,
+            uploadedById: me.id,
+          },
+          select: { id: true },
+        });
+        if (trimmedTipo === "foto") {
+          await tx.empleado.update({
+            where: { id: empleadoId },
+            data: { fotoUrl: url, updatedBy: { connect: { id: me.id } } },
+          });
+        }
+        return created;
       });
     } catch (e) {
       await removeAdjunto(empleadoId, fileName).catch(() => undefined);
       throw e;
     }
 
-    if (trimmedTipo === "foto") {
-      await prisma.empleado.update({
-        where: { id: empleadoId },
-        data: { fotoUrl: url, updatedBy: { connect: { id: me.id } } },
-      });
-    }
     refresh();
     return ok({ id: row.id, url });
   } catch (e) {

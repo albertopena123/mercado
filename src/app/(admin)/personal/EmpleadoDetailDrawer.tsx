@@ -13,7 +13,7 @@ import {
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
-import { fechaCorta } from "@/lib/fecha";
+import { fechaCorta, hoyISOPeru } from "@/lib/fecha";
 import { formatSoles } from "@/lib/money";
 import { avatarColor, initialsFor } from "@/lib/ui/avatar";
 import {
@@ -356,7 +356,7 @@ function EmpleadoForm({
       </label>
       <label className="field">
         <span className="field__label">Labora desde</span>
-        <input type="date" value={fechaIngreso} onChange={(e) => setFechaIngreso(e.target.value)} aria-invalid={!!fe.fechaIngreso} disabled={disabled} />
+        <input type="date" value={fechaIngreso} max={hoyISOPeru()} onChange={(e) => setFechaIngreso(e.target.value)} aria-invalid={!!fe.fechaIngreso} disabled={disabled} />
         {fe.fechaIngreso && <span className="field-error">{fe.fechaIngreso}</span>}
       </label>
       {cargo === "otro" && (
