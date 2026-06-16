@@ -105,7 +105,16 @@ async function importPuestos(rows: Row[], apply: boolean) {
   }
 
   // Renumerar corrido 1..N por (etapa,bloque), respetando el orden físico.
-  type Final = { etapa: number; bloque: string; numero: number; dim: "d3x5" | "d3x3"; owners: Set<string>; ref: string };
+  type Final = {
+    etapa: number;
+    bloque: string;
+    numero: number;
+    dim: "d3x5" | "d3x3";
+    owners: Set<string>;
+    ref: string;
+    tipo?: "puesto" | "sshh" | "almacen";
+    estado?: "activo" | "vacio" | "clausurado" | "construccion";
+  };
   const finals: Final[] = [];
   const groups = new Map<string, Cell[]>();
   for (const c of cells.values()) {
@@ -134,6 +143,16 @@ async function importPuestos(rows: Row[], apply: boolean) {
   }
   for (let n = 1; n <= 12; n++) {
     finals.push({ etapa: 2, bloque: "M", numero: n, dim: "d3x3", owners: mOwners.get(n) ?? new Set(), ref: "Bloque M (local)" });
+  }
+
+  // Espacios de la ASOCIACIÓN en Etapa 1 bloque A (no están en el padrón de
+  // socios): 2 puestos en alquiler + 1 SS-HH. Se numeran después de los de socios.
+  {
+    const e1aNums = finals.filter((f) => f.etapa === 1 && f.bloque === "A").map((f) => f.numero);
+    let nx = e1aNums.length ? Math.max(...e1aNums) : 0;
+    finals.push({ etapa: 1, bloque: "A", numero: ++nx, dim: "d3x5", owners: new Set(), ref: "En alquiler — propiedad de la asociación", estado: "activo" });
+    finals.push({ etapa: 1, bloque: "A", numero: ++nx, dim: "d3x5", owners: new Set(), ref: "En alquiler — propiedad de la asociación", estado: "activo" });
+    finals.push({ etapa: 1, bloque: "A", numero: ++nx, dim: "d3x5", owners: new Set(), ref: "SS-HH — propiedad de la asociación", tipo: "sshh", estado: "activo" });
   }
 
   let conUno = 0, sinDueno = 0, conflictos = 0;
@@ -168,9 +187,9 @@ async function importPuestos(rows: Row[], apply: boolean) {
       numero: f.numero,
       banda: bandaPorNumero(f.numero, f.etapa),
       dimension: f.dim,
-      tipo: "puesto",
+      tipo: f.tipo ?? "puesto",
       codigo,
-      estado: owner ? "activo" : "vacio",
+      estado: f.estado ?? (owner ? "activo" : "vacio"),
       observaciones:
         f.owners.size > 1
           ? `${MARCA} CONFLICTO doble propietario: ${[...f.owners].join(", ")} · ${f.ref}`
