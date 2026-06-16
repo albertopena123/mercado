@@ -33,7 +33,49 @@
   background: #ffffff;
   font-family: "Google Sans Text", "Roboto", system-ui, sans-serif;
   color: var(--ink);
+  position: relative;
   overflow: hidden;
+}
+
+/* ---- Botón "Volver al inicio" (sobre el panel de marca, esquina sup. izq.) */
+.login__back {
+  position: absolute;
+  top: clamp(18px, 2.6vh, 28px);
+  left: clamp(18px, 2.4vw, 32px);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 16px 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-family: "Google Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.login__back:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.login__back:active {
+  transform: translateY(1px);
+}
+.login__back svg {
+  transition: transform 0.15s ease;
+}
+.login__back:hover svg {
+  transform: translateX(-2px);
+}
+.login__back:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 /* ===========================================================================
@@ -47,9 +89,7 @@
   overflow: hidden;
   color: #fff;
   isolation: isolate;
-  background:
-    radial-gradient(78% 46% at 50% 116%, rgba(255, 201, 125, 0.26), transparent 60%),
-    radial-gradient(130% 116% at 18% -12%, #9173ff 0%, #6d3fe0 34%, #4d23a8 72%, #321575 100%);
+  background: var(--pry-700);
 }
 /* Textura de ruido sutil para dar profundidad (sin imágenes externas) */
 .login__aside::after {
@@ -60,26 +100,14 @@
   opacity: 0.4;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
 }
-/* Resplandor suave que acompaña a la marca */
-.login__aside-glow {
-  position: absolute;
-  top: -120px;
-  left: -120px;
-  width: 420px;
-  height: 420px;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 70%);
-  filter: blur(8px);
-  pointer-events: none;
-}
-
 .login__aside-brand {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   gap: 13px;
+  /* Deja sitio arriba para el botón "Volver al inicio". */
+  margin-top: 40px;
 }
 
 .login__aside-copy {
@@ -189,7 +217,7 @@
   font-weight: 700;
   font-size: 22px;
   color: #fff;
-  background: linear-gradient(150deg, #a487ff, var(--pry-700));
+  background: var(--pry);
   box-shadow:
     0 10px 24px rgba(20, 8, 60, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -357,13 +385,13 @@
   font-weight: 600;
   color: #fff;
   cursor: pointer;
-  background: linear-gradient(180deg, #7a4ce6, var(--pry));
+  background: var(--pry);
   box-shadow: 0 10px 22px rgba(81, 40, 180, 0.3);
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease,
     opacity 0.15s ease;
 }
 .login__submit:hover:not(:disabled) {
-  background: linear-gradient(180deg, #6d3fe0, var(--pry-600));
+  background: var(--pry-600);
   box-shadow: 0 14px 28px rgba(81, 40, 180, 0.38);
 }
 .login__submit:active:not(:disabled) {
@@ -440,17 +468,31 @@
   .login__panel {
     align-items: stretch;
     padding: 0;
-    /* Fondo morado sutil arriba para no perder la identidad */
-    background:
-      radial-gradient(120% 60% at 50% 0%, rgba(109, 63, 224, 0.1), transparent 60%),
-      #ffffff;
+    background: #ffffff;
   }
   .login__panel-inner {
     margin: auto;
-    padding: 40px 24px 32px;
+    padding: 72px 24px 32px;
   }
   .login__brand-mobile {
     display: flex;
+  }
+  /* En móvil el botón de volver va sobre fondo claro */
+  .login__back {
+    background: #fff;
+    border-color: var(--line);
+    color: var(--muted);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 1px 2px rgba(20, 8, 60, 0.06);
+  }
+  .login__back:hover {
+    background: #fff;
+    border-color: #b9bdc4;
+    color: var(--ink);
+  }
+  .login__back:focus-visible {
+    outline-color: var(--pry-700);
   }
 }
 
@@ -474,7 +516,9 @@
     animation: none !important;
   }
   .login__submit,
-  .login__input {
+  .login__input,
+  .login__back,
+  .login__back svg {
     transition: none;
   }
 }

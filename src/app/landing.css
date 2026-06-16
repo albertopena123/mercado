@@ -95,7 +95,7 @@
 }
 .lp-btn--primary {
   color: #fff;
-  background: linear-gradient(180deg, #7a4ce6, var(--pry));
+  background: var(--pry);
   box-shadow: 0 12px 26px rgba(81, 40, 180, 0.32);
 }
 .lp-btn--primary:hover {
@@ -115,7 +115,7 @@
 }
 .lp-btn--amber {
   color: #3a2a05;
-  background: linear-gradient(180deg, #ffc760, var(--amber));
+  background: var(--amber);
   box-shadow: 0 12px 26px rgba(224, 144, 15, 0.34);
 }
 .lp-btn--amber:hover {
@@ -204,7 +204,7 @@
   font-weight: 700;
   font-size: 19px;
   color: #fff;
-  background: linear-gradient(150deg, #a487ff, var(--pry-700));
+  background: var(--pry-700);
   box-shadow: 0 6px 16px rgba(81, 40, 180, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
@@ -240,6 +240,29 @@
   color: var(--ink);
   background: var(--soft);
 }
+/* Enlace de la sección activa (scrollspy): cambia de color claramente. */
+.lp-nav a.is-active {
+  color: var(--pry-700);
+  background: var(--pry-50);
+}
+
+/* Salto a sección: desplazamiento suave + margen para que no quede bajo el
+   header fijo (solo en la landing, vía html:has(.lp)). */
+html:has(.lp) {
+  scroll-behavior: smooth;
+}
+#mercado,
+#comerciantes,
+#categorias,
+#ubicacion,
+#preguntas {
+  scroll-margin-top: 88px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.lp) {
+    scroll-behavior: auto;
+  }
+}
 .lp-header__actions {
   margin-left: auto;
   display: flex;
@@ -274,9 +297,7 @@
 .lp-hero {
   position: relative;
   padding: 72px 0 84px;
-  background:
-    radial-gradient(60% 60% at 85% 0%, var(--amber-50), transparent 60%),
-    radial-gradient(70% 70% at 8% 8%, var(--pry-50), transparent 58%);
+  background: var(--pry-50);
   overflow: hidden;
 }
 .lp-hero__grid {
@@ -306,7 +327,7 @@
   bottom: 6%;
   height: 28%;
   z-index: -1;
-  background: linear-gradient(90deg, var(--amber-50), #ffe6b3);
+  background: #ffe6b3;
   border-radius: 6px;
   transform: rotate(-1deg);
 }
@@ -358,7 +379,7 @@
   height: auto;
   border-radius: 24px;
   box-shadow: var(--shadow-lg);
-  background: linear-gradient(180deg, #fff6e6 0%, #f3ecff 100%);
+  background: #f3ecff;
   border: 1px solid rgba(255, 255, 255, 0.7);
 }
 .lp-scene__bulb {
@@ -458,10 +479,7 @@
   font-weight: 600;
   font-size: clamp(30px, 4vw, 44px);
   letter-spacing: -0.03em;
-  background: linear-gradient(120deg, var(--pry), var(--amber-600));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--pry);
 }
 .lp-stat__l {
   margin-top: 4px;
@@ -543,13 +561,13 @@
   box-shadow: var(--shadow-sm);
 }
 .lp-feature__icon--pry {
-  background: linear-gradient(150deg, #8b6bff, var(--pry-700));
+  background: var(--pry);
 }
 .lp-feature__icon--amber {
-  background: linear-gradient(150deg, #ffc24d, var(--amber-600));
+  background: var(--amber);
 }
 .lp-feature__icon--green {
-  background: linear-gradient(150deg, #46d39a, #0f8a55);
+  background: var(--green);
 }
 .lp-feature h3 {
   font-size: clamp(26px, 3vw, 34px);
@@ -599,13 +617,13 @@
   overflow: hidden;
 }
 .lp-card--pry {
-  background: linear-gradient(160deg, #f3eeff, #fff);
+  background: var(--pry-50);
 }
 .lp-card--amber {
-  background: linear-gradient(160deg, var(--amber-50), #fff);
+  background: var(--amber-50);
 }
 .lp-card--green {
-  background: linear-gradient(160deg, var(--green-50), #fff);
+  background: var(--green-50);
 }
 
 /* Mini panel "sistema" (mock de UI del admin) */
@@ -811,9 +829,7 @@
   text-align: center;
   overflow: hidden;
   color: #fff;
-  background:
-    radial-gradient(80% 120% at 50% 120%, rgba(255, 201, 125, 0.28), transparent 60%),
-    radial-gradient(120% 120% at 18% -10%, #9173ff 0%, #6d3fe0 38%, #4d23a8 76%, #321575 100%);
+  background: var(--pry-700);
   box-shadow: var(--shadow-lg);
 }
 .lp-cta__box::after {
@@ -1116,7 +1132,7 @@
 /* WhatsApp (verde de marca, oscurecido para que el glifo blanco cumpla el
    contraste mínimo 3:1 de WCAG 1.4.11 en toda la superficie). */
 .lp-fab__btn--wa {
-  background: linear-gradient(145deg, #0f9b5f, #0c7d54);
+  background: #0f8a55;
   box-shadow: 0 12px 28px rgba(15, 125, 84, 0.42);
 }
 .lp-fab__btn--wa:hover { box-shadow: 0 18px 36px rgba(18, 140, 126, 0.5); }
@@ -1188,6 +1204,164 @@
 .lp-fab__btn:focus-visible .lp-fab__label {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
+}
+
+/* ===========================================================================
+   FONDOS DE SECCIÓN — ambiente y profundidad
+   ---------------------------------------------------------------------------
+   Sin degradados de color: usamos GEOMETRÍA. Una rejilla fina de líneas
+   (segmentos) como textura base, y una FIGURA de contorno distinta por sección
+   (círculos concéntricos, cuadrícula, hexágonos, diana, círculos cruzados).
+   Todo va en ::before (rejilla) y ::after (figura), SIEMPRE detrás del contenido
+   (z-index 0 vs. contenido z-index 1) y sin capturar el puntero.
+   =========================================================================== */
+
+/* El contenido del contenedor siempre por encima de las capas decorativas. */
+.lp__container { position: relative; z-index: 1; }
+
+/* Secciones como lienzo. Sin overflow:hidden (no recortaría la sombra de las
+   tarjetas de borde al hacer hover); cada figura se recorta sola al borde de
+   su sección, porque la imagen de fondo se recorta a la caja del pseudo. */
+.lp-section,
+.lp-stats { position: relative; }
+
+/* SEGMENTOS: rejilla fina de líneas, muy tenue, desvanecida desde el borde. */
+.lp-section::before,
+.lp-hero::before,
+.lp-stats::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(81, 40, 180, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(81, 40, 180, 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(125% 90% at 50% -10%, #000 25%, transparent 72%);
+  mask-image: radial-gradient(125% 90% at 50% -10%, #000 25%, transparent 72%);
+}
+
+/* FIGURAS: una forma de contorno por sección, anclada y "sangrando" por una
+   esquina (la imagen se recorta sola a la caja del pseudo = límites de la
+   sección). Color horneado en el SVG; opacidad del pseudo para mantenerlo sutil. */
+.lp-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-repeat: no-repeat;
+  background-position: right -55px top -55px;
+  background-size: 300px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%236d3fe0' stroke-width='2'%3E%3Ccircle cx='120' cy='120' r='34'/%3E%3Ccircle cx='120' cy='120' r='66'/%3E%3Ccircle cx='120' cy='120' r='98'/%3E%3Ccircle cx='120' cy='120' r='118'/%3E%3C/svg%3E");
+}
+
+/* Features: círculos concéntricos (verde), abajo-izquierda. */
+#mercado::after {
+  background-position: left -60px bottom -60px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%231aa66b' stroke-width='2'%3E%3Ccircle cx='120' cy='120' r='34'/%3E%3Ccircle cx='120' cy='120' r='66'/%3E%3Ccircle cx='120' cy='120' r='98'/%3E%3Ccircle cx='120' cy='120' r='118'/%3E%3C/svg%3E");
+}
+
+/* Categorías: cuadrícula de cuadrados (ámbar), arriba-derecha. */
+#categorias::after {
+  background-position: right -45px top -45px;
+  background-size: 260px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%23e0900f' stroke-width='2'%3E%3Crect x='18' y='18' width='50' height='50'/%3E%3Crect x='95' y='18' width='50' height='50'/%3E%3Crect x='172' y='18' width='50' height='50'/%3E%3Crect x='18' y='95' width='50' height='50'/%3E%3Crect x='95' y='95' width='50' height='50'/%3E%3Crect x='172' y='95' width='50' height='50'/%3E%3Crect x='18' y='172' width='50' height='50'/%3E%3Crect x='95' y='172' width='50' height='50'/%3E%3Crect x='172' y='172' width='50' height='50'/%3E%3C/svg%3E");
+}
+
+/* Testimonios: hexágonos concéntricos (ámbar), arriba-derecha. */
+.lp-section:has(.lp-quotes)::after {
+  background-position: right -50px top -50px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%23e0900f' stroke-width='2'%3E%3Cpolygon points='120,16 210,68 210,172 120,224 30,172 30,68'/%3E%3Cpolygon points='120,58 174,89 174,151 120,182 66,151 66,89'/%3E%3C/svg%3E");
+}
+
+/* Ubicación: diana/crosshair (verde), arriba-derecha. */
+#ubicacion::after {
+  background-position: right -55px top -50px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%231aa66b' stroke-width='2'%3E%3Ccircle cx='120' cy='120' r='40'/%3E%3Ccircle cx='120' cy='120' r='78'/%3E%3Ccircle cx='120' cy='120' r='116'/%3E%3Cpath d='M120 4v40M120 196v40M4 120h40M196 120h40'/%3E%3C/svg%3E");
+}
+
+/* Preguntas: dos círculos que se cruzan (morado), abajo-izquierda. */
+#preguntas::after {
+  background-position: left -55px bottom -55px;
+  background-size: 280px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%236d3fe0' stroke-width='2'%3E%3Ccircle cx='92' cy='100' r='74'/%3E%3Ccircle cx='148' cy='140' r='74'/%3E%3C/svg%3E");
+}
+
+/* Pasos: sin figura de esquina (ya tienen el conector punteado). */
+.lp-section:has(.lp-steps)::after { content: none; }
+
+/* Ubicación: rejilla de "mapa" más marcada (verde), desvanecida hacia la derecha. */
+#ubicacion::before {
+  background-image:
+    linear-gradient(rgba(26, 166, 107, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 166, 107, 0.08) 1px, transparent 1px);
+  background-size: 38px 38px;
+  -webkit-mask-image: radial-gradient(120% 120% at 100% 50%, #000 18%, transparent 72%);
+  mask-image: radial-gradient(120% 120% at 100% 50%, #000 18%, transparent 72%);
+}
+
+/* (Los testimonios usan la figura de hexágonos de la sección; sin comillas.) */
+
+/* Motivo: conector punteado entre los 3 pasos (a la altura de los números). */
+.lp-steps { position: relative; }
+.lp-step { z-index: 1; }
+.lp-steps::before {
+  content: "";
+  position: absolute;
+  top: 54px;
+  left: 9%;
+  right: 9%;
+  z-index: 0;
+  border-top: 2px dashed var(--pry-100);
+  pointer-events: none;
+}
+
+/* CTA: anillos concéntricos blancos en dos esquinas (sobre el bloque morado).
+   El ruido (::after) baja a z-index:-1 para que los anillos queden nítidos;
+   isolation:isolate fija el contexto de apilamiento del box. */
+.lp-cta__box { isolation: isolate; }
+.lp-cta__box::after { z-index: -1; }
+.lp-cta__box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-repeat: no-repeat, no-repeat;
+  background-position: left -70px top -70px, right -55px bottom -80px;
+  background-size: 300px, 240px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Ccircle cx='120' cy='120' r='40'/%3E%3Ccircle cx='120' cy='120' r='74'/%3E%3Ccircle cx='120' cy='120' r='108'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Ccircle cx='120' cy='120' r='40'/%3E%3Ccircle cx='120' cy='120' r='74'/%3E%3Ccircle cx='120' cy='120' r='108'/%3E%3C/svg%3E");
+}
+
+/* Footer: rejilla fina blanca (segmentos), desvanecida desde arriba. */
+.lp-footer { position: relative; overflow: hidden; }
+.lp-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000, transparent 72%);
+  mask-image: radial-gradient(120% 80% at 50% 0%, #000, transparent 72%);
+}
+
+/* En una sola columna el conector horizontal de pasos sobra. */
+@media (max-width: 720px) {
+  .lp-steps::before { display: none; }
+}
+/* Figuras más pequeñas en móvil para que no dominen. */
+@media (max-width: 560px) {
+  .lp-section::after { background-size: 200px; }
 }
 
 /* ===========================================================================
@@ -1287,6 +1461,10 @@
   }
   .lp-mobile a:hover {
     background: var(--soft);
+  }
+  .lp-mobile a.is-active {
+    color: var(--pry-700);
+    background: var(--pry-50);
   }
   .lp-mobile .lp-btn {
     margin-top: 8px;

@@ -24,10 +24,26 @@ export default async function LoginPage() {
 
   return (
     <main className="login">
+      {/* Volver a la página principal del sitio público */}
+      <a className="login__back" href="/">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+        <span>Volver al inicio</span>
+      </a>
+
       {/* ===== Panel de marca (izquierda) ================================ */}
       <section className="login__aside" aria-hidden="true">
-        <div className="login__aside-glow" />
-
         <header className="login__aside-brand">
           <div className="login__mark">M</div>
           <div className="login__wordmark">

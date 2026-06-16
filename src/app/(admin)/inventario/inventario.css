@@ -1,0 +1,248 @@
+/* Estilos propios del módulo de Inventario. Reusa el design system global
+   (.page, .dtable, .modal, .field, .btn, .pagination) desde globals.css. */
+
+/* ─────────── Badge de estado del bien ─────────── */
+.inv-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.inv-badge--nuevo { background: #dcfce7; color: #166534; }
+.inv-badge--conservado { background: #e0f2fe; color: #075985; }
+.inv-badge--en_uso { background: #ede9fe; color: #5b21b6; }
+.inv-badge--sin_usar { background: var(--bg-sunken); color: var(--text-muted); }
+.inv-badge--desuso { background: #fef3c7; color: #92400e; }
+.inv-badge--mal_estado { background: #ffedd5; color: #9a3412; }
+.inv-badge--roto { background: #fee2e2; color: #991b1b; }
+.inv-badge--baja { background: #e5e7eb; color: #374151; }
+html[data-theme="dark"] .inv-badge--nuevo { background: rgba(16,185,129,.18); color: #6ee7b7; }
+html[data-theme="dark"] .inv-badge--conservado { background: rgba(56,189,248,.18); color: #7dd3fc; }
+html[data-theme="dark"] .inv-badge--en_uso { background: rgba(139,92,246,.2); color: #c4b5fd; }
+html[data-theme="dark"] .inv-badge--desuso { background: rgba(245,158,11,.18); color: #fcd34d; }
+html[data-theme="dark"] .inv-badge--mal_estado { background: rgba(234,88,12,.2); color: #fdba74; }
+html[data-theme="dark"] .inv-badge--roto { background: rgba(239,68,68,.18); color: #fca5a5; }
+html[data-theme="dark"] .inv-badge--baja { background: rgba(148,163,184,.2); color: #cbd5e1; }
+
+/* ─────────── Tarjetas de resumen ─────────── */
+.inv-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+.inv-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.inv-stat__v {
+  font-family: "Google Sans", sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.1;
+}
+.inv-stat__l {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.inv-stat--alert .inv-stat__v { color: #b91c1c; }
+html[data-theme="dark"] .inv-stat--alert .inv-stat__v { color: #fca5a5; }
+@media (max-width: 900px) {
+  .inv-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .inv-stats { grid-template-columns: 1fr 1fr; }
+}
+
+/* ─────────── Barra de filtros ─────────── */
+.inv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 4px 0 16px;
+}
+.inv-search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--bg-sunken);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--text-muted);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.inv-search:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.inv-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+.inv-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.inv-toolbar__clear {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 6px 8px;
+}
+.inv-toolbar__clear:hover { color: var(--accent); }
+
+/* ─────────── Celdas de tabla ─────────── */
+.inv-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.inv-unit {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 2px;
+}
+.inv-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+.inv-btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+/* ─────────── Mensaje de error en formularios ─────────── */
+.inv-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: #9b2c1f;
+  background: #fce8e6;
+  border: 1px solid #f3b7ae;
+  margin-bottom: 14px;
+}
+html[data-theme="dark"] .inv-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+.field-error {
+  color: #d93025;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ─────────── Selector de tipo de movimiento ─────────── */
+.inv-movtypes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.inv-movtype {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.inv-movtype:hover { background: var(--bg-soft); }
+.inv-movtype.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Resumen de stock antes/después en el modal de movimiento */
+.inv-stockline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+.inv-stockline b { font-family: "Google Sans", sans-serif; font-weight: 600; }
+.inv-stockline__arrow { color: var(--text-faint); }
+
+/* ─────────── Kardex (historial de movimientos) ─────────── */
+.inv-kardex {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inv-kardex li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.inv-kardex li:last-child { border-bottom: 0; }
+.inv-kardex__tag {
+  flex-shrink: 0;
+  min-width: 72px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.inv-kardex__tag--entrada { background: #dcfce7; color: #166534; }
+.inv-kardex__tag--salida { background: #fee2e2; color: #991b1b; }
+.inv-kardex__tag--ajuste { background: var(--bg-sunken); color: var(--text-muted); }
+.inv-kardex__main { flex: 1; min-width: 0; }
+.inv-kardex__chg { font-size: 13.5px; color: var(--text); font-weight: 500; }
+.inv-kardex__meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.inv-kardex__empty { color: var(--text-muted); font-style: italic; padding: 12px 0; }

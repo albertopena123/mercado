@@ -71,5 +71,5 @@ next-env.d.ts
 # Audit working notes (not committed)
 /.audit-findings.md
 
-# Padrón import scratch (datos exportados del Excel)
-/prisma/_padron.json
+# Padrón / scratch JSON exportado del Excel (contiene DNIs — no commitear)
+/prisma/_*.json

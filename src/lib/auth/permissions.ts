@@ -190,6 +190,30 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Personal",
   },
   {
+    key: "inventario.read",
+    name: "Ver inventario",
+    description: "Listar y consultar los bienes del inventario (oficina y almacén)",
+    category: "Inventario",
+  },
+  {
+    key: "inventario.write",
+    name: "Gestionar inventario",
+    description: "Registrar y editar los bienes del inventario",
+    category: "Inventario",
+  },
+  {
+    key: "inventario.delete",
+    name: "Eliminar bienes",
+    description: "Eliminar bienes del inventario",
+    category: "Inventario",
+  },
+  {
+    key: "inventario.move",
+    name: "Movimientos de inventario",
+    description: "Registrar entradas, salidas y ajustes de stock",
+    category: "Inventario",
+  },
+  {
     key: "portal.read",
     name: "Portal del socio",
     description:
@@ -248,6 +272,10 @@ export const ROLE_DEFS = [
       "personal.read",
       "personal.write",
       "personal.delete",
+      "inventario.read",
+      "inventario.write",
+      "inventario.delete",
+      "inventario.move",
     ],
   },
   {
@@ -270,6 +298,7 @@ export const ROLE_DEFS = [
       "puestos.read",
       "asambleas.read",
       "cuotas.read",
+      "inventario.read",
     ],
   },
   {

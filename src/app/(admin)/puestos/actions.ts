@@ -640,6 +640,7 @@ export async function listPuestosForPlano(
         estado: true,
         giro: true,
         codigo: true,
+        observaciones: true,
         asignaciones: {
           where: { hasta: null },
           take: 1,
@@ -668,6 +669,7 @@ export async function listPuestosForPlano(
         estado: p.estado,
         giro: p.giro,
         codigo: p.codigo,
+        esAlquiler: (p.observaciones ?? "").toLowerCase().includes("alquiler"),
         socioActual: vig ? { id: vig.id, nombre: socioNombre(vig) } : null,
       };
     });

@@ -45,6 +45,9 @@ model User {
   empleadosCreados   Empleado[]         @relation("EmpleadoCreatedBy")
   empleadosUpdated   Empleado[]         @relation("EmpleadoUpdatedBy")
   empleadoAdjuntos   EmpleadoAdjunto[]  @relation("EmpleadoAdjuntoUploader")
+  bienesCreados      Bien[]             @relation("BienCreatedBy")
+  bienesUpdated      Bien[]             @relation("BienUpdatedBy")
+  movimientosBien    MovimientoBien[]   @relation("MovimientoBienBy")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -653,4 +656,74 @@ model EmpleadoAdjunto {
   uploadedBy User?     @relation("EmpleadoAdjuntoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([empleadoId])
+}
+
+// ─────────────────────────── Inventario / Bienes ───────────────────────────
+//
+// Inventario de bienes/activos físicos del mercado (oficina y almacén). Cada
+// bien lleva su stock (cantidad) y un kardex de movimientos (entrada/salida/
+// ajuste) que mantiene la cantidad sincronizada y deja trazabilidad.
+enum UbicacionBien {
+  oficina
+  almacen
+}
+
+enum EstadoBien {
+  nuevo
+  conservado
+  en_uso
+  sin_usar
+  desuso
+  mal_estado
+  roto
+  baja
+}
+
+enum TipoMovBien {
+  entrada
+  salida
+  ajuste
+}
+
+model Bien {
+  id            String        @id @default(cuid())
+  codigo        String        @unique // correlativo INV-000001
+  nombre        String
+  ubicacion     UbicacionBien @default(almacen)
+  unidad        String        @default("UND") // UND, PQT, CJA, GLN, ROLLO…
+  marcaModelo   String?
+  cantidad      Int           @default(0) // stock actual (se ajusta vía movimientos)
+  estado        EstadoBien    @default(conservado)
+  observaciones String?
+  searchKey     String        @default("")
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?            @relation("BienCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?            @relation("BienUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  movimientos MovimientoBien[]
+
+  @@index([ubicacion])
+  @@index([estado])
+  @@index([nombre])
+}
+
+model MovimientoBien {
+  id               String      @id @default(cuid())
+  bienId           String
+  tipo             TipoMovBien
+  cantidad         Int // magnitud del movimiento (entrada/salida) o total fijado (ajuste)
+  cantidadAnterior Int
+  cantidadNueva    Int
+  motivo           String?
+  byUserId         String?
+  createdAt        DateTime    @default(now())
+
+  bien   Bien  @relation(fields: [bienId], references: [id], onDelete: Cascade)
+  byUser User? @relation("MovimientoBienBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([bienId, createdAt])
 }

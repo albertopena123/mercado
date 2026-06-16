@@ -111,6 +111,9 @@ export type PlanoCell = {
   estado: EstadoPuesto;
   giro: Giro | null;
   codigo: string;
+  // Puesto en alquiler (propiedad de la asociación): se rotula "ALQUILER" en el
+  // plano en vez de su número. Se deriva de las observaciones.
+  esAlquiler: boolean;
   socioActual: { id: string; nombre: string } | null;
 };
 

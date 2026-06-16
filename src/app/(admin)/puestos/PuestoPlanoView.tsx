@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
 import { armarPlano, celdasSerpiente, celdasColumnaU } from "@/lib/puestos/plano";
@@ -54,45 +54,37 @@ export function PuestoPlanoView({
   // serpentina: izquierda sube (1 abajo) y derecha baja (ver celdasSerpiente).
   const plano = cells ? armarPlano(cells, { orden: "M-A" }) : null;
 
-  // Número visible del puesto = su posición entre los puestos reales del bloque
-  // (excluye SS-HH/almacenes). Para bloques completos coincide con el número.
-  const puestoNroById = useMemo(() => {
-    const m = new Map<string, number>();
-    if (!cells) return m;
-    const byBloque = new Map<string, PlanoCell[]>();
-    for (const c of cells) {
-      if (c.tipo !== "puesto") continue;
-      const arr = byBloque.get(c.bloque) ?? [];
-      arr.push(c);
-      byBloque.set(c.bloque, arr);
-    }
-    for (const arr of byBloque.values()) {
-      arr.sort((a, b) => a.numero - b.numero);
-      arr.forEach((c, i) => m.set(c.id, i + 1));
-    }
-    return m;
-  }, [cells]);
-
   const renderPuesto = (c: PlanoCell) => {
-    const nro = puestoNroById.get(c.id) ?? c.numero;
+    // El número mostrado es el número OFICIAL del puesto (el del padrón/Excel).
+    const nro = c.numero;
     const giroBg =
       colorBy === "giro" ? (c.giro ? GIRO_COLOR[c.giro] : "#e5e7eb") : undefined;
     return (
       <button
         key={c.id}
         type="button"
-        className={`pst-cell ${colorBy === "estado" ? `pst-cell--${c.estado}` : ""}`}
+        className={`pst-cell ${
+          c.esAlquiler
+            ? "pst-cell--alquiler"
+            : colorBy === "estado"
+              ? `pst-cell--${c.estado}`
+              : ""
+        }`}
         style={
-          giroBg
+          !c.esAlquiler && giroBg
             ? { background: giroBg, color: "#fff", borderColor: giroBg }
             : undefined
         }
-        title={`${c.codigo} · Puesto ${nro}${
-          c.giro ? " · " + GIRO_LABEL[c.giro] : ""
-        } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`}
+        title={
+          c.esAlquiler
+            ? `${c.codigo} · En alquiler (propiedad de la asociación)`
+            : `${c.codigo} · Puesto ${nro}${
+                c.giro ? " · " + GIRO_LABEL[c.giro] : ""
+              } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`
+        }
         onClick={() => onSelect(c.id)}
       >
-        {nro}
+        {c.esAlquiler ? "ALQUILER" : nro}
       </button>
     );
   };
@@ -200,9 +192,29 @@ export function PuestoPlanoView({
                         </div>
                       ));
                     }
+                    // Bloque M: media fila → una sola columna vertical (#1 abajo).
+                    if (b.bloque === "M") {
+                      const col = [...band.cells].reverse();
+                      return (
+                        <div
+                          className="pst-plano__banda pst-plano__banda--uno"
+                          key={band.banda}
+                        >
+                          {col.map(renderPuesto)}
+                        </div>
+                      );
+                    }
                     // Etapa 1: serpentina por banda; el SS-HH se dibuja como un
                     // solo recuadro unido y los almacenes como celdas marcadas.
-                    const ordered = celdasSerpiente(band.cells);
+                    // Banda con alquiler (p.ej. A baja): layout fijo arriba→abajo
+                    // → socios (1,2…) · alquiler · SS-HH, en vez de serpentina.
+                    const rank = (c: PlanoCell) =>
+                      c.tipo === "sshh" ? 2 : c.esAlquiler ? 1 : 0;
+                    const ordered = band.cells.some((c) => c.esAlquiler)
+                      ? [...band.cells].sort(
+                          (a, b) => rank(a) - rank(b) || a.numero - b.numero,
+                        )
+                      : celdasSerpiente(band.cells);
                     const sshh = ordered.filter((c) => c.tipo === "sshh");
                     const visibles = ordered.filter((c) => c.tipo !== "sshh");
                     return (

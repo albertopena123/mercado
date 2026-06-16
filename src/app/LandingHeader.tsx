@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+/* Orden = orden real de aparición al hacer scroll. #comerciantes vive DENTRO de
+   la sección #mercado y aparece antes que #categorias. */
 const LINKS = [
   { href: "#mercado", label: "El mercado" },
-  { href: "#categorias", label: "Categorías" },
   { href: "#comerciantes", label: "Comerciantes" },
+  { href: "#categorias", label: "Categorías" },
   { href: "#ubicacion", label: "Ubicación" },
 ];
 
 export function LandingHeader() {
   const [open, setOpen] = useState(false);
+  // Sección actualmente resaltada en el header (scrollspy).
+  const [active, setActive] = useState("");
+  // Tras un clic, ignoramos el scrollspy un instante para que no parpadee
+  // mientras el desplazamiento suave atraviesa secciones intermedias.
+  const lockUntil = useRef(0);
 
   // Cerrar el menú con la tecla Escape.
   useEffect(() => {
@@ -22,7 +29,48 @@ export function LandingHeader() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Scrollspy: resalta el enlace de la sección que está bajo el header.
+  useEffect(() => {
+    const ids = LINKS.map((l) => l.href.slice(1));
+    let raf = 0;
+    const compute = () => {
+      raf = 0;
+      if (performance.now() < lockUntil.current) return;
+      const lineY = 96; // línea de referencia justo bajo el header fijo (72px)
+      let current = "";
+      let best = -Infinity;
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        // Sección "activa" = la cuya parte superior ya cruzó la línea y está
+        // más cerca de ella (maneja correctamente secciones anidadas).
+        const top = el.getBoundingClientRect().top - lineY;
+        if (top <= 0 && top > best) {
+          best = top;
+          current = "#" + id;
+        }
+      }
+      setActive((prev) => (prev === current ? prev : current));
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(compute);
+    };
+    compute();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   const close = () => setOpen(false);
+  // Marca el enlace al instante al hacer clic y bloquea el scrollspy un momento.
+  const pick = (href: string) => {
+    setActive(href);
+    lockUntil.current = performance.now() + 700;
+  };
 
   return (
     <header className="lp-header">
@@ -31,7 +79,10 @@ export function LandingHeader() {
           href="#top"
           className="lp-brand"
           aria-label="Mercado Milagros, inicio"
-          onClick={close}
+          onClick={() => {
+            setActive("");
+            close();
+          }}
         >
           <span className="lp-brand__mark">M</span>
           <span>
@@ -42,7 +93,13 @@ export function LandingHeader() {
 
         <nav className="lp-nav">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href}>
+            <a
+              key={l.href}
+              href={l.href}
+              className={active === l.href ? "is-active" : undefined}
+              aria-current={active === l.href ? "true" : undefined}
+              onClick={() => pick(l.href)}
+            >
               {l.label}
             </a>
           ))}
@@ -86,7 +143,16 @@ export function LandingHeader() {
         className={`lp-mobile${open ? " is-open" : ""}`}
       >
         {LINKS.map((l) => (
-          <a key={l.href} href={l.href} onClick={close}>
+          <a
+            key={l.href}
+            href={l.href}
+            className={active === l.href ? "is-active" : undefined}
+            aria-current={active === l.href ? "true" : undefined}
+            onClick={() => {
+              pick(l.href);
+              close();
+            }}
+          >
             {l.label}
           </a>
         ))}

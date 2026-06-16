@@ -177,13 +177,9 @@ function MarketScene() {
           <rect width="34" height="34" fill="#5fd3a0" />
           <rect width="17" height="34" fill="#1aa66b" />
         </pattern>
-        <linearGradient id="lp-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff6e6" />
-          <stop offset="1" stopColor="#f3ecff" />
-        </linearGradient>
       </defs>
 
-      <rect width="560" height="460" rx="24" fill="url(#lp-sky)" />
+      <rect width="560" height="460" rx="24" fill="#f3ecff" />
 
       {/* sol */}
       <circle cx="486" cy="74" r="40" fill="#ffd27a" opacity="0.55" />
@@ -240,9 +236,9 @@ const STEPS = [
 ];
 
 const QUOTES = [
-  { txt: "Tener mi puesto registrado en el sistema me dio tranquilidad. Todo es más ordenado y transparente.", name: "Rosa Quispe", role: "Comerciante de abarrotes", ava: "linear-gradient(135deg,#8b6bff,#5128b4)" },
-  { txt: "Vengo cada mañana por las verduras frescas. Es el mercado más completo de Puerto Maldonado.", name: "Luis Ramírez", role: "Cliente frecuente", ava: "linear-gradient(135deg,#46d39a,#0f8a55)" },
-  { txt: "La administración resuelve rápido y los pagos quedan claros. Se nota la mejora del último año.", name: "Carmen Flores", role: "Comerciante de comidas", ava: "linear-gradient(135deg,#ffc24d,#e0900f)" },
+  { txt: "Tener mi puesto registrado en el sistema me dio tranquilidad. Todo es más ordenado y transparente.", name: "Rosa Quispe", role: "Comerciante de abarrotes", ava: "#6d3fe0" },
+  { txt: "Vengo cada mañana por las verduras frescas. Es el mercado más completo de Puerto Maldonado.", name: "Luis Ramírez", role: "Cliente frecuente", ava: "#1aa66b" },
+  { txt: "La administración resuelve rápido y los pagos quedan claros. Se nota la mejora del último año.", name: "Carmen Flores", role: "Comerciante de comidas", ava: "#e0900f" },
 ];
 
 const FAQ = [
