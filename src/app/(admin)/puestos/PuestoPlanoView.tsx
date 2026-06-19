@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { listPuestosForPlano } from "./actions";
 import { armarPlano, celdasSerpiente, celdasColumnaU } from "@/lib/puestos/plano";
@@ -28,15 +28,20 @@ export function PuestoPlanoView({
   onSelect,
   canWrite,
   onGenerar,
+  focusSocioId = null,
+  onClearFocus,
 }: {
   etapa: number;
   onEtapa: (n: number) => void;
   onSelect: (id: string) => void;
   canWrite: boolean;
   onGenerar: () => void;
+  focusSocioId?: string | null;
+  onClearFocus?: () => void;
 }) {
   const [cells, setCells] = useState<PlanoCell[] | null>(null);
   const [colorBy, setColorBy] = useState<ColorBy>("estado");
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +55,21 @@ export function PuestoPlanoView({
     };
   }, [etapa]);
 
+  // Puestos del socio enfocado (al venir desde /socios). Deriva nombre y conteo
+  // de las propias celdas, y al cargar lleva la primera a la vista.
+  const focusCells =
+    focusSocioId && cells
+      ? cells.filter((c) => c.socioActual?.id === focusSocioId)
+      : [];
+  const focusNombre = focusCells[0]?.socioActual?.nombre ?? null;
+  const focusing = !!focusSocioId;
+
+  useEffect(() => {
+    if (!focusSocioId || !cells) return;
+    const el = rootRef.current?.querySelector<HTMLElement>('[data-focus="1"]');
+    el?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  }, [focusSocioId, cells]);
+
   // El plano físico tiene el bloque A a la DERECHA (orden M…A) y numera en
   // serpentina: izquierda sube (1 abajo) y derecha baja (ver celdasSerpiente).
   const plano = cells ? armarPlano(cells, { orden: "M-A" }) : null;
@@ -57,19 +77,31 @@ export function PuestoPlanoView({
   const renderPuesto = (c: PlanoCell) => {
     // El número mostrado es el número OFICIAL del puesto (el del padrón/Excel).
     const nro = c.numero;
+    // El ocupante fue importado sin DNI (placeholder): se marca con anillo ámbar
+    // para diferenciarlo, sin tapar el color por estado/giro.
+    const sinDni = !!c.socioActual?.sinDni;
+    // Puesto del socio enfocado (al venir desde /socios): se resalta.
+    const isFocus = !!focusSocioId && c.socioActual?.id === focusSocioId;
     const giroBg =
       colorBy === "giro" ? (c.giro ? GIRO_COLOR[c.giro] : "#e5e7eb") : undefined;
+    const cls = [
+      "pst-cell",
+      c.esAlquiler
+        ? "pst-cell--alquiler"
+        : colorBy === "estado"
+          ? `pst-cell--${c.estado}`
+          : "",
+      sinDni ? "pst-cell--sin-dni" : "",
+      isFocus ? "pst-cell--focus" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     return (
       <button
         key={c.id}
         type="button"
-        className={`pst-cell ${
-          c.esAlquiler
-            ? "pst-cell--alquiler"
-            : colorBy === "estado"
-              ? `pst-cell--${c.estado}`
-              : ""
-        }`}
+        className={cls}
+        data-focus={isFocus ? "1" : undefined}
         style={
           !c.esAlquiler && giroBg
             ? { background: giroBg, color: "#fff", borderColor: giroBg }
@@ -80,7 +112,9 @@ export function PuestoPlanoView({
             ? `${c.codigo} · En alquiler (propiedad de la asociación)`
             : `${c.codigo} · Puesto ${nro}${
                 c.giro ? " · " + GIRO_LABEL[c.giro] : ""
-              } · ${c.socioActual ? c.socioActual.nombre : "Libre"}`
+              } · ${c.socioActual ? c.socioActual.nombre : "Libre"}${
+                sinDni ? " · SIN DNI" : ""
+              }`
         }
         onClick={() => onSelect(c.id)}
       >
@@ -90,7 +124,33 @@ export function PuestoPlanoView({
   };
 
   return (
-    <div className="pst-plano-wrap">
+    <div className="pst-plano-wrap" ref={rootRef}>
+      {focusing && (
+        <div className="pst-focus-bar">
+          <Icon name="home" size={15} />
+          <span className="pst-focus-bar__txt">
+            {focusCells.length > 0 ? (
+              <>
+                Resaltando los puestos de <strong>{focusNombre}</strong> ·{" "}
+                {focusCells.length}{" "}
+                {focusCells.length === 1 ? "puesto" : "puestos"} en la Etapa{" "}
+                {etapa}
+              </>
+            ) : (
+              <>Este socio no tiene puestos en la Etapa {etapa}.</>
+            )}
+          </span>
+          {onClearFocus && (
+            <button
+              type="button"
+              className="pst-focus-bar__clear"
+              onClick={onClearFocus}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
       <div className="pst-plano-controls">
         <div className="pst-seg">
           {ETAPAS.map((n) => (
@@ -155,7 +215,11 @@ export function PuestoPlanoView({
           )}
         </div>
       ) : (
-        <div className="pst-plano-scroll">
+        <div
+          className={`pst-plano-scroll ${
+            focusing && focusCells.length > 0 ? "pst-plano--focusing" : ""
+          }`}
+        >
           <div className="pst-plano__calle">Av. Los Próceres</div>
           <div className="pst-plano">
             <span className="pst-plano__puerta">{etapa === 2 ? "P4" : "P1"}</span>
@@ -206,11 +270,15 @@ export function PuestoPlanoView({
                     }
                     // Etapa 1: serpentina por banda; el SS-HH se dibuja como un
                     // solo recuadro unido y los almacenes como celdas marcadas.
-                    // Banda con alquiler (p.ej. A baja): layout fijo arriba→abajo
-                    // → socios (1,2…) · alquiler · SS-HH, en vez de serpentina.
+                    // Banda con SS-HH o alquiler (p.ej. A baja): layout fijo
+                    // arriba→abajo → puestos (por número) · alquiler · SS-HH, en
+                    // vez de serpentina, para que el SS-HH quede abajo (pegado a
+                    // la calle) como en el plano físico.
                     const rank = (c: PlanoCell) =>
                       c.tipo === "sshh" ? 2 : c.esAlquiler ? 1 : 0;
-                    const ordered = band.cells.some((c) => c.esAlquiler)
+                    const ordered = band.cells.some(
+                      (c) => c.esAlquiler || c.tipo === "sshh",
+                    )
                       ? [...band.cells].sort(
                           (a, b) => rank(a) - rank(b) || a.numero - b.numero,
                         )

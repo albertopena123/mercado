@@ -50,6 +50,7 @@ export function CreateSocioModal({
   const [provincia, setProv] = useState("");
   const [departamento, setDept] = useState("");
   const [fechaIngreso, setFI] = useState(today);
+  const [numeroPadron, setNumeroPadron] = useState("");
   const [observaciones, setObs] = useState("");
   // Acceso al portal (opcional)
   const [darAcceso, setDarAcceso] = useState(false);
@@ -207,6 +208,7 @@ export function CreateSocioModal({
       provincia: provincia.trim() || undefined,
       departamento: departamento.trim() || undefined,
       fechaIngreso,
+      numeroPadron: numeroPadron.trim() ? Number(numeroPadron) : undefined,
       observaciones: observaciones.trim() || undefined,
       portalPassword:
         canCreateUser && darAcceso && portalPassword ? portalPassword : undefined,
@@ -473,23 +475,41 @@ export function CreateSocioModal({
           </div>
 
           <h4 className="modal__section">Asociación</h4>
-          <label className="field">
-            <span className="field__label">
-              Fecha de ingreso<span className="field__req">*</span>
-            </span>
-            <input
-              type="date"
-              value={fechaIngreso}
-              onChange={(e) => setFI(e.target.value)}
-              max={today}
-              required
-              aria-invalid={!!fe.fechaIngreso}
-              disabled={submitting}
-            />
-            {fe.fechaIngreso && (
-              <span className="field-error">{fe.fechaIngreso}</span>
-            )}
-          </label>
+          <div className="soc-formgrid soc-formgrid--2col">
+            <label className="field">
+              <span className="field__label">
+                Fecha de ingreso<span className="field__req">*</span>
+              </span>
+              <input
+                type="date"
+                value={fechaIngreso}
+                onChange={(e) => setFI(e.target.value)}
+                max={today}
+                required
+                aria-invalid={!!fe.fechaIngreso}
+                disabled={submitting}
+              />
+              {fe.fechaIngreso && (
+                <span className="field-error">{fe.fechaIngreso}</span>
+              )}
+            </label>
+            <label className="field">
+              <span className="field__label">Nº de padrón</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={numeroPadron}
+                onChange={(e) => setNumeroPadron(e.target.value)}
+                placeholder="opcional"
+                aria-invalid={!!fe.numeroPadron}
+                disabled={submitting}
+              />
+              {fe.numeroPadron && (
+                <span className="field-error">{fe.numeroPadron}</span>
+              )}
+            </label>
+          </div>
 
           <label className="field">
             <span className="field__label">Observaciones</span>

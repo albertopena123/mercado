@@ -16,6 +16,8 @@ type SearchParams = {
   size?: string;
   sort?: string;
   dir?: string;
+  view?: string;
+  socio?: string;
 };
 
 const ESTADOS: EstadoPuesto[] = [
@@ -69,12 +71,17 @@ export default async function Page({
     canAssign: me.permissions.has("puestos.assign"),
   };
 
+  const initialView = sp.view === "plano" ? "plano" : "tabla";
+  const focusSocioId = sp.socio?.trim() || null;
+
   return (
     <PuestosClient
       initial={res.data!}
       stats={stats}
       perms={perms}
       filters={{ q: sp.q ?? "", estado, etapa, bloque }}
+      initialView={initialView}
+      focusSocioId={focusSocioId}
     />
   );
 }

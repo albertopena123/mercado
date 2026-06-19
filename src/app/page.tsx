@@ -1,5 +1,6 @@
 import "./landing.css";
 import { LandingHeader } from "./LandingHeader";
+import { HeroCarousel } from "./HeroCarousel";
 import { FloatingActions } from "./FloatingActions";
 import { AnunciosSection } from "./AnunciosSection";
 import { ADDRESS, directionsUrl, mapsPlaceUrl, mapEmbedUrl, whatsappUrl } from "./contact";
@@ -131,6 +132,13 @@ function IconNav() {
     </svg>
   );
 }
+function IconArrow() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" {...stroke} strokeWidth={2.2}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
 
 /* ---------- Ilustración del mercado (hero) ------------------------------ */
 function MarketScene() {
@@ -166,8 +174,8 @@ function MarketScene() {
     <svg className="lp-scene" viewBox="0 0 560 460" role="img" aria-label="Ilustración del Mercado Milagros: puestos con toldos, luces y productos frescos">
       <defs>
         <pattern id="lp-st-pry" width="34" height="34" patternUnits="userSpaceOnUse">
-          <rect width="34" height="34" fill="#8b6bff" />
-          <rect width="17" height="34" fill="#6d3fe0" />
+          <rect width="34" height="34" fill="#4d9bff" />
+          <rect width="17" height="34" fill="#0b63d6" />
         </pattern>
         <pattern id="lp-st-amb" width="34" height="34" patternUnits="userSpaceOnUse">
           <rect width="34" height="34" fill="#ffd27a" />
@@ -179,7 +187,7 @@ function MarketScene() {
         </pattern>
       </defs>
 
-      <rect width="560" height="460" rx="24" fill="#f3ecff" />
+      <rect width="560" height="460" rx="24" fill="#eaf2fe" />
 
       {/* sol */}
       <circle cx="486" cy="74" r="40" fill="#ffd27a" opacity="0.55" />
@@ -200,7 +208,7 @@ function MarketScene() {
       })}
 
       {/* piso */}
-      <rect x="0" y="360" width="560" height="100" rx="0" fill="#efe7fb" />
+      <rect x="0" y="360" width="560" height="100" rx="0" fill="#e1ecfb" />
       <rect x="0" y="360" width="560" height="100" fill="#000" opacity="0.02" />
 
       {/* puestos */}
@@ -258,39 +266,13 @@ export default function LandingPage() {
         {/* ===================== HERO ===================== */}
         <section className="lp-hero">
           <div className="lp__container lp-hero__grid">
-            <div className="lp-hero__copy">
-              <span className="lp-eyebrow">
-                <span className="lp-eyebrow__dot" /> El mercado N.º 1 de Madre de Dios
-              </span>
-              <h1>
-                El corazón comercial de <span className="lp-hl">Madre de Dios</span>
-              </h1>
-              <p className="lp-hero__lead">
-                Productos frescos todos los días, comerciantes formales y una
-                gestión moderna y transparente. Bienvenido al Mercado Milagros.
-              </p>
-              <div className="lp-hero__cta">
-                <a className="lp-btn lp-btn--primary lp-btn--lg" href="#mercado">Conoce el mercado</a>
-                <a className="lp-btn lp-btn--ghost lp-btn--lg" href="/login">Acceder al sistema</a>
-              </div>
-              <div className="lp-hero__trust">
-                <div className="lp-hero__trust-logos">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logos_sistema/logo_madrededios.png" alt="Gobierno Regional de Madre de Dios" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logos_sistema/logo_peru.png" alt="Gobierno del Perú" />
-                </div>
-                <p className="lp-hero__trust-text">
-                  Una iniciativa al servicio<br />de la región <b>Madre de Dios</b>
-                </p>
-              </div>
-            </div>
+            <HeroCarousel />
 
             <div className="lp-hero__visual">
               <MarketScene />
               <div className="lp-float lp-float--a">
                 <div className="lp-float__avatars">
-                  <span style={{ background: "#8b6bff" }}>R</span>
+                  <span style={{ background: "#0b63d6" }}>R</span>
                   <span style={{ background: "#1aa66b" }}>L</span>
                   <span style={{ background: "#f5a623" }}>C</span>
                 </div>
@@ -308,6 +290,40 @@ export default function LandingPage() {
                   <div className="lp-float__small">Abierto hoy · 6am–6pm</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Curva blanca que funde el hero con la sección siguiente */}
+          <div className="lp-hero__wave" aria-hidden="true">
+            <svg viewBox="0 0 1440 70" preserveAspectRatio="none">
+              <path d="M0 40 C 360 78 1080 6 1440 44 L1440 70 L0 70 Z" fill="#fff" />
+            </svg>
+          </div>
+        </section>
+
+        {/* ===================== ¿QUÉ QUIERES HACER HOY? ===================== */}
+        <section className="lp-quick">
+          <div className="lp__container">
+            <div className="lp-quick__head">
+              <h2>¿Qué quieres hacer hoy?</h2>
+              <p>Encuentra rápido lo que buscas en el Mercado Milagros.</p>
+            </div>
+            <div className="lp-quick__grid">
+              {[
+                { ic: <IconLeaf />, t: "Conoce el mercado", d: "Productos frescos y comerciantes formales todos los días.", href: "#mercado" },
+                { ic: <IconBox />, t: "Explora categorías", d: "Más de 120 puestos organizados por rubro.", href: "#categorias" },
+                { ic: <IconPin />, t: "Cómo llegar", d: "Ubicación, horarios y ruta en un toque.", href: "#ubicacion" },
+                { ic: <IconShieldCheck />, t: "Acceder al sistema", d: "Consola de administración para personal autorizado.", href: "/login" },
+              ].map((q) => (
+                <a className="lp-quick__card" key={q.t} href={q.href}>
+                  <span className="lp-quick__ic">{q.ic}</span>
+                  <span className="lp-quick__t">{q.t}</span>
+                  <span className="lp-quick__d">{q.d}</span>
+                  <span className="lp-quick__go">
+                    Ver <IconArrow />
+                  </span>
+                </a>
+              ))}
             </div>
           </div>
         </section>

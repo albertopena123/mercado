@@ -10,8 +10,10 @@ import { hashPassword } from "@/lib/auth/password";
 import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
+  esDocumentoPendiente,
 } from "@/lib/socios/document";
 import { nextCodigo } from "@/lib/socios/codigo";
+import { buildXlsx } from "@/lib/xlsx";
 import {
   buildSocioSearchKey,
   normalizeToken,
@@ -105,9 +107,22 @@ function validateSocioInput(
     const tipo = input.tipoDocumento ?? out.tipoDocumento;
     const num = (input.numeroDocumento ?? "").trim();
     if (!num) fe.numeroDocumento = "Número de documento requerido.";
+    // Documento placeholder de socio SIN DNI (SIN-DNI-####): se acepta tal cual.
+    // No es un DNI real, así que no debe pasar la validación de formato — si no,
+    // no se podría editar (p. ej. ponerle su Nº de padrón) a esos socios.
+    else if (esDocumentoPendiente(num)) out.numeroDocumento = num;
     else if (tipo && !validateNumeroDocumento(tipo, num))
       fe.numeroDocumento = "Formato inválido para el tipo de documento.";
     else if (tipo) out.numeroDocumento = normalizeNumeroDocumento(tipo, num);
+  }
+
+  // Nº de padrón: opcional. null/0/"" → se borra; entero positivo razonable.
+  if (input.numeroPadron !== undefined) {
+    const v = input.numeroPadron;
+    if (v === null || v === 0) out.numeroPadron = null;
+    else if (!Number.isInteger(v) || v < 0 || v > 100000)
+      fe.numeroPadron = "Nº de padrón inválido (entero positivo).";
+    else out.numeroPadron = v;
   }
 
   if (isCreate || input.apellidoPaterno !== undefined) {
@@ -184,6 +199,7 @@ import type { TipoDocumento } from "@/generated/prisma/client";
 function toSocioRow(s: {
   id: string;
   codigo: string;
+  numeroPadron: number | null;
   tipoDocumento: TipoDocumento;
   numeroDocumento: string;
   apellidoPaterno: string;
@@ -196,6 +212,7 @@ function toSocioRow(s: {
   return {
     id: s.id,
     codigo: s.codigo,
+    numeroPadron: s.numeroPadron,
     tipoDocumento: s.tipoDocumento,
     numeroDocumento: s.numeroDocumento,
     apellidoPaterno: s.apellidoPaterno,
@@ -284,6 +301,7 @@ export async function listSocios(
         select: {
           id: true,
           codigo: true,
+          numeroPadron: true,
           tipoDocumento: true,
           numeroDocumento: true,
           apellidoPaterno: true,
@@ -346,16 +364,11 @@ export async function getSocioStats(): Promise<
   }
 }
 
-function csvCell(value: string | null | undefined): string {
-  const s = (value ?? "").replace(/"/g, '""');
-  return `"${s}"`;
-}
-
-export async function exportSociosCsv(params: {
+export async function exportSociosXlsx(params: {
   q?: string;
   estado?: ListSociosParams["estado"];
   tipoDocumento?: ListSociosParams["tipoDocumento"];
-}): Promise<ActionResult<{ csv: string; filename: string; count: number }>> {
+}): Promise<ActionResult<{ base64: string; filename: string; count: number }>> {
   try {
     await authorize("socios.read");
     const where = buildWhere(params);
@@ -368,6 +381,7 @@ export async function exportSociosCsv(params: {
       ],
       select: {
         codigo: true,
+        numeroPadron: true,
         tipoDocumento: true,
         numeroDocumento: true,
         apellidoPaterno: true,
@@ -390,6 +404,7 @@ export async function exportSociosCsv(params: {
 
     const headers = [
       "Código",
+      "Nº Padrón",
       "Tipo Doc.",
       "Número Doc.",
       "Apellido Paterno",
@@ -411,46 +426,38 @@ export async function exportSociosCsv(params: {
 
     const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
-    // Delimitador ";" — Excel en español lo usa como separador de lista.
-    const lines = [headers.map(csvCell).join(";")];
-    for (const r of rows) {
-      lines.push(
-        [
-          r.codigo,
-          r.tipoDocumento,
-          r.numeroDocumento,
-          r.apellidoPaterno,
-          r.apellidoMaterno ?? "",
-          r.nombres,
-          r.sexo ?? "",
-          r.estadoCivil ?? "",
-          r.telefono ?? "",
-          r.email ?? "",
-          r.direccion ?? "",
-          r.distrito ?? "",
-          r.provincia ?? "",
-          r.departamento ?? "",
-          fmt(r.fechaNacimiento),
-          fmt(r.fechaIngreso),
-          r.estado,
-          r.observaciones ?? "",
-        ]
-          .map(csvCell)
-          .join(";"),
-      );
-    }
+    const data = rows.map((r) => [
+      r.codigo,
+      r.numeroPadron,
+      r.tipoDocumento,
+      r.numeroDocumento,
+      r.apellidoPaterno,
+      r.apellidoMaterno ?? "",
+      r.nombres,
+      r.sexo ?? "",
+      r.estadoCivil ?? "",
+      r.telefono ?? "",
+      r.email ?? "",
+      r.direccion ?? "",
+      r.distrito ?? "",
+      r.provincia ?? "",
+      r.departamento ?? "",
+      fmt(r.fechaNacimiento),
+      fmt(r.fechaIngreso),
+      r.estado,
+      r.observaciones ?? "",
+    ]);
 
-    // BOM UTF-8 para que Excel detecte tildes y ñ correctamente.
-    const csv = "﻿" + lines.join("\r\n");
+    const buf = buildXlsx("Padrón de socios", headers, data);
     const stamp = new Date().toISOString().slice(0, 10);
     return ok({
-      csv,
-      filename: `padron-socios-${stamp}.csv`,
+      base64: buf.toString("base64"),
+      filename: "padron-socios-" + stamp + ".xlsx",
       count: rows.length,
     });
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
-    console.error("exportSociosCsv", e);
+    console.error("exportSociosXlsx", e);
     return fail("No se pudo generar el archivo.");
   }
 }
@@ -475,6 +482,7 @@ export async function getSocio(
               select: {
                 id: true,
                 codigo: true,
+                etapa: true,
                 giro: true,
                 dimension: true,
                 estado: true,
@@ -529,6 +537,7 @@ export async function getSocio(
         id: a.id,
         puestoId: a.puestoId,
         codigo: a.puesto.codigo,
+        etapa: a.puesto.etapa,
         giro: a.puesto.giro,
         dimension: a.puesto.dimension,
         estadoPuesto: a.puesto.estado,
@@ -618,6 +627,7 @@ export async function createSocio(
           const searchKey = buildSocioSearchKey({
             codigo,
             numeroDocumento: normalized.numeroDocumento!,
+            numeroPadron: normalized.numeroPadron ?? null,
             apellidoPaterno: normalized.apellidoPaterno!,
             apellidoMaterno: normalized.apellidoMaterno ?? null,
             nombres: normalized.nombres!,
@@ -628,6 +638,7 @@ export async function createSocio(
               searchKey,
               tipoDocumento: normalized.tipoDocumento!,
               numeroDocumento: normalized.numeroDocumento!,
+              numeroPadron: normalized.numeroPadron ?? null,
               apellidoPaterno: normalized.apellidoPaterno!,
               apellidoMaterno: normalized.apellidoMaterno ?? null,
               nombres: normalized.nombres!,
@@ -777,6 +788,7 @@ export async function updateSocio(
       select: {
         tipoDocumento: true,
         codigo: true,
+        numeroPadron: true,
         numeroDocumento: true,
         apellidoPaterno: true,
         apellidoMaterno: true,
@@ -824,15 +836,22 @@ export async function updateSocio(
       data.fechaIngreso = new Date(normalized.fechaIngreso);
     if ("observaciones" in normalized)
       data.observaciones = normalized.observaciones ?? null;
+    if ("numeroPadron" in normalized)
+      data.numeroPadron = normalized.numeroPadron ?? null;
 
     // Recomputar searchKey con el estado final (existing + patch aplicado)
     const finalAM =
       "apellidoMaterno" in normalized
         ? normalized.apellidoMaterno ?? null
         : existing.apellidoMaterno;
+    const finalPadron =
+      "numeroPadron" in normalized
+        ? normalized.numeroPadron ?? null
+        : existing.numeroPadron;
     data.searchKey = buildSocioSearchKey({
       codigo: existing.codigo,
       numeroDocumento: normalized.numeroDocumento ?? existing.numeroDocumento,
+      numeroPadron: finalPadron,
       apellidoPaterno:
         normalized.apellidoPaterno ?? existing.apellidoPaterno,
       apellidoMaterno: finalAM,

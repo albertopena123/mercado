@@ -8,12 +8,13 @@ import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast";
 import { avatarColor, initialsFor } from "@/lib/ui/avatar";
 import { fechaCorta } from "@/lib/fecha";
+import { esDocumentoPendiente } from "@/lib/socios/document";
 import type { EstadoSocio, TipoDocumento } from "@/generated/prisma/client";
 import { EstadoBadge } from "./EstadoBadge";
 import { StatCards } from "./StatCards";
 import { CreateSocioModal } from "./CreateSocioModal";
 import { SocioDetailDrawer } from "./SocioDetailDrawer";
-import { exportSociosCsv } from "./actions";
+import { exportSociosXlsx } from "./actions";
 import type {
   ListSociosResult,
   PermFlags,
@@ -75,7 +76,7 @@ export function SociosClient({
     if (exporting) return;
     setExporting(true);
     setExportError(null);
-    const res = await exportSociosCsv({
+    const res = await exportSociosXlsx({
       q: filters.q || undefined,
       estado: filters.estado,
       tipoDocumento: filters.tipoDocumento,
@@ -85,8 +86,12 @@ export function SociosClient({
       setExportError(res.error);
       return;
     }
-    const blob = new Blob([res.data!.csv], {
-      type: "text/csv;charset=utf-8;",
+    // base64 → bytes → Blob .xlsx (Excel lo abre nativo, sin mojibake)
+    const bin = atob(res.data!.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -256,14 +261,37 @@ export function SociosClient({
               </tr>
             </thead>
             <tbody>
-              {initial.items.map((s) => (
-                <tr key={s.id} onClick={() => setOpenId(s.id)}>
+              {initial.items.map((s) => {
+                const sinDni = esDocumentoPendiente(s.numeroDocumento);
+                return (
+                <tr
+                  key={s.id}
+                  className={sinDni ? "soc-row--sin-dni" : undefined}
+                  onClick={() => setOpenId(s.id)}
+                >
                   <td data-label="Código">
                     <span className="soc-codigo">{s.codigo}</span>
+                    {s.numeroPadron != null && (
+                      <span className="soc-codigo-padron">
+                        Padrón {s.numeroPadron}
+                      </span>
+                    )}
                   </td>
                   <td data-label="Documento">
-                    <span className="soc-doc-type">{s.tipoDocumento}</span>{" "}
-                    {s.numeroDocumento}
+                    {sinDni ? (
+                      <span
+                        className="soc-sindni-chip"
+                        title="Socio sin DNI registrado — pendiente de regularizar"
+                      >
+                        <Icon name="info" size={12} />
+                        Sin DNI
+                      </span>
+                    ) : (
+                      <>
+                        <span className="soc-doc-type">{s.tipoDocumento}</span>{" "}
+                        {s.numeroDocumento}
+                      </>
+                    )}
                   </td>
                   <td data-label="Socio">
                     <div className="soc-namecell">
@@ -293,7 +321,8 @@ export function SociosClient({
                     <EstadoBadge estado={s.estado} />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <Pagination

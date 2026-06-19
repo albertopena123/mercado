@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
@@ -41,6 +42,7 @@ export function SocioDetailDrawer({
   onClose: () => void;
 }) {
   const toast = useToast();
+  const router = useRouter();
   const [socio, setSocio] = useState<SocioDetail | null>(null);
   const [tab, setTab] = useState<Tab>("datos");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -118,6 +120,11 @@ export function SocioDetailDrawer({
   const puestosVigentes = socio.puestos.filter((p) => p.hasta === null);
   const puestosHistoricos = socio.puestos.filter((p) => p.hasta !== null);
 
+  // Lleva al plano de puestos resaltando los puestos de este socio (en la etapa
+  // del puesto elegido). Ver focusSocioId en PuestoPlanoView.
+  const verEnPlano = (etapa: number) =>
+    router.push(`/puestos?view=plano&etapa=${etapa}&socio=${socio.id}`);
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside
@@ -136,7 +143,10 @@ export function SocioDetailDrawer({
               )}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="drawer__eyebrow">Socio · {socio.codigo}</div>
+              <div className="drawer__eyebrow">
+                Socio · {socio.codigo}
+                {socio.numeroPadron != null && ` · Padrón ${socio.numeroPadron}`}
+              </div>
               <h2>
                 {socio.apellidoPaterno} {socio.apellidoMaterno ?? ""},{" "}
                 {socio.nombres}
@@ -162,8 +172,8 @@ export function SocioDetailDrawer({
                     key={p.id}
                     type="button"
                     className="badge badge--green soc-puesto-chip"
-                    onClick={() => setTab("puestos")}
-                    title="Ver puestos del socio"
+                    onClick={() => verEnPlano(p.etapa)}
+                    title="Ver en el plano"
                   >
                     <Icon name="home" size={12} /> {p.codigo}
                   </button>
@@ -253,11 +263,33 @@ export function SocioDetailDrawer({
                 <>
                   {puestosVigentes.length > 0 && (
                     <section>
-                      <h4>Puestos vigentes</h4>
+                      <h4>
+                        Puestos vigentes
+                        {puestosVigentes.length > 1 && (
+                          <button
+                            type="button"
+                            className="soc-puesto__verplano-all"
+                            onClick={() => verEnPlano(puestosVigentes[0].etapa)}
+                          >
+                            <Icon name="apps" size={13} /> Ver los{" "}
+                            {puestosVigentes.length} en el plano
+                          </button>
+                        )}
+                      </h4>
                       {puestosVigentes.map((p) => (
                         <article
                           key={p.id}
-                          className="soc-puesto soc-puesto--vigente"
+                          className="soc-puesto soc-puesto--vigente soc-puesto--link"
+                          role="button"
+                          tabIndex={0}
+                          title="Ver en el plano"
+                          onClick={() => verEnPlano(p.etapa)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              verEnPlano(p.etapa);
+                            }
+                          }}
                         >
                           <div className="soc-puesto__head">
                             <span className="soc-puesto__code">
@@ -276,6 +308,9 @@ export function SocioDetailDrawer({
                           <div className="soc-puesto__dates">
                             Asignado desde {fechaTS(p.desde)}
                           </div>
+                          <span className="soc-puesto__verplano">
+                            <Icon name="apps" size={13} /> Ver en el plano
+                          </span>
                         </article>
                       ))}
                     </section>
@@ -447,6 +482,7 @@ function DatosForm({
   type InitialState = {
     tipoDocumento: TipoDocumento;
     numeroDocumento: string;
+    numeroPadron: string;
     apellidoPaterno: string;
     apellidoMaterno: string;
     nombres: string;
@@ -466,6 +502,7 @@ function DatosForm({
     () => ({
       tipoDocumento: socio.tipoDocumento,
       numeroDocumento: socio.numeroDocumento,
+      numeroPadron: socio.numeroPadron != null ? String(socio.numeroPadron) : "",
       apellidoPaterno: socio.apellidoPaterno,
       apellidoMaterno: socio.apellidoMaterno ?? "",
       nombres: socio.nombres,
@@ -489,6 +526,7 @@ function DatosForm({
   const toast = useToast();
   const [tipo, setTipo] = useState<TipoDocumento>(initial.tipoDocumento);
   const [numero, setNumero] = useState(initial.numeroDocumento);
+  const [numeroPadron, setNumeroPadron] = useState(initial.numeroPadron);
   const [ap, setAP] = useState(initial.apellidoPaterno);
   const [am, setAM] = useState(initial.apellidoMaterno);
   const [nombres, setNombres] = useState(initial.nombres);
@@ -514,6 +552,7 @@ function DatosForm({
   const isDirty =
     tipo !== initial.tipoDocumento ||
     numero !== initial.numeroDocumento ||
+    numeroPadron !== initial.numeroPadron ||
     ap !== initial.apellidoPaterno ||
     am !== initial.apellidoMaterno ||
     nombres !== initial.nombres ||
@@ -538,6 +577,7 @@ function DatosForm({
     const patch: UpdateSocioPatch = {
       tipoDocumento: tipo,
       numeroDocumento: numero,
+      numeroPadron: numeroPadron.trim() === "" ? null : Number(numeroPadron),
       apellidoPaterno: ap,
       apellidoMaterno: am || undefined,
       nombres,
@@ -728,21 +768,39 @@ function DatosForm({
       </div>
 
       <h4>Asociación</h4>
-      <label className="field">
-        <span className="field__label">
-          Fecha de ingreso<span className="field__req">*</span>
-        </span>
-        <input
-          type="date"
-          value={fechaIngreso}
-          onChange={(e) => setFI(e.target.value)}
-          max={today}
-          disabled={disabled}
-        />
-        {fe.fechaIngreso && (
-          <span className="field-error">{fe.fechaIngreso}</span>
-        )}
-      </label>
+      <div className="soc-formgrid soc-formgrid--2col">
+        <label className="field">
+          <span className="field__label">
+            Fecha de ingreso<span className="field__req">*</span>
+          </span>
+          <input
+            type="date"
+            value={fechaIngreso}
+            onChange={(e) => setFI(e.target.value)}
+            max={today}
+            disabled={disabled}
+          />
+          {fe.fechaIngreso && (
+            <span className="field-error">{fe.fechaIngreso}</span>
+          )}
+        </label>
+        <label className="field">
+          <span className="field__label">Nº de padrón</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={numeroPadron}
+            onChange={(e) => setNumeroPadron(e.target.value)}
+            placeholder="sin registrar"
+            aria-invalid={!!fe.numeroPadron}
+            disabled={disabled}
+          />
+          {fe.numeroPadron && (
+            <span className="field-error">{fe.numeroPadron}</span>
+          )}
+        </label>
+      </div>
 
       <label className="field">
         <span className="field__label">Observaciones</span>

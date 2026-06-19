@@ -146,6 +146,9 @@ enum Sexo {
 model Socio {
   id              String        @id @default(cuid())
   codigo          String        @unique
+  // Nº de padrón oficial de la asociación (del Excel del padrón). No único a
+  // propósito: el padrón fuente trae huecos/ruido; se regulariza luego.
+  numeroPadron    Int?
   tipoDocumento   TipoDocumento
   numeroDocumento String
   apellidoPaterno String
@@ -199,6 +202,7 @@ model Socio {
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
+  @@index([numeroPadron])
   @@index([apellidoPaterno, apellidoMaterno, nombres])
 }
 

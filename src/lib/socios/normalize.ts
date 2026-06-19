@@ -16,6 +16,7 @@ export function normalizeToken(s: string): string {
 export function buildSocioSearchKey(parts: {
   codigo?: string | null;
   numeroDocumento?: string | null;
+  numeroPadron?: number | null;
   apellidoPaterno?: string | null;
   apellidoMaterno?: string | null;
   nombres?: string | null;
@@ -23,6 +24,7 @@ export function buildSocioSearchKey(parts: {
   return [
     parts.codigo,
     parts.numeroDocumento,
+    parts.numeroPadron != null ? String(parts.numeroPadron) : null,
     parts.apellidoPaterno,
     parts.apellidoMaterno,
     parts.nombres,

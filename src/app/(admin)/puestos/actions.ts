@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
+import { esDocumentoPendiente } from "@/lib/socios/document";
 import { toNumber } from "@/lib/money";
 import {
   GIRO_LABEL,
@@ -651,6 +652,7 @@ export async function listPuestosForPlano(
                 apellidoPaterno: true,
                 apellidoMaterno: true,
                 nombres: true,
+                numeroDocumento: true,
               },
             },
           },
@@ -670,7 +672,13 @@ export async function listPuestosForPlano(
         giro: p.giro,
         codigo: p.codigo,
         esAlquiler: (p.observaciones ?? "").toLowerCase().includes("alquiler"),
-        socioActual: vig ? { id: vig.id, nombre: socioNombre(vig) } : null,
+        socioActual: vig
+          ? {
+              id: vig.id,
+              nombre: socioNombre(vig),
+              sinDni: esDocumentoPendiente(vig.numeroDocumento),
+            }
+          : null,
       };
     });
     return ok(cells);

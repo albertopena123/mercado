@@ -360,6 +360,79 @@
   border-color: #fcd34d;
   color: #92400e;
 }
+
+/* Ocupante sin DNI (documento placeholder, a regularizar): anillo ámbar que se
+   ve sobre cualquier relleno (estado o giro). Usa outline para sobrevivir al
+   box-shadow del :hover. Ver socioActual.sinDni / esDocumentoPendiente(). */
+.pst-cell--sin-dni {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}
+
+/* Puesto del socio enfocado (al venir desde /socios): anillo de acento + pulso,
+   y se atenúan los demás para que destaque. Outline sobrevive al hover. */
+.pst-cell--focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 3;
+}
+.pst-cell--focus::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 6px;
+  animation: pst-focus-pulse 1.5s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes pst-focus-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent-soft);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+    opacity: 0;
+  }
+}
+.pst-plano--focusing
+  .pst-cell:not(.pst-cell--focus):not(.pst-cell--sshh):not(.pst-cell--almacen) {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+/* Barra de contexto al resaltar los puestos de un socio */
+.pst-focus-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+}
+.pst-focus-bar__txt {
+  flex: 1;
+}
+.pst-focus-bar strong {
+  font-weight: 700;
+}
+.pst-focus-bar__clear {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pst-focus-bar__clear:hover {
+  background: var(--accent);
+  color: #fff;
+}
 /* Espacios que no son puesto (solo se ven en el plano) */
 .pst-cell--almacen {
   background: var(--bg-sunken);

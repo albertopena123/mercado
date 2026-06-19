@@ -45,11 +45,15 @@ export function PuestosClient({
   stats,
   perms,
   filters,
+  initialView = "tabla",
+  focusSocioId = null,
 }: {
   initial: ListPuestosResult;
   stats: PuestoStats;
   perms: PermFlags;
   filters: { q: string; estado?: EstadoPuesto; etapa?: number; bloque?: string };
+  initialView?: "tabla" | "plano";
+  focusSocioId?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,8 +62,10 @@ export function PuestosClient({
   const [createOpen, setCreateOpen] = useState(false);
   const [generarOpen, setGenerarOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [view, setView] = useState<"tabla" | "plano">("tabla");
+  const [view, setView] = useState<"tabla" | "plano">(initialView);
   const [planoEtapa, setPlanoEtapa] = useState<number>(filters.etapa ?? 1);
+  // Socio cuyos puestos se resaltan en el plano (al venir desde /socios).
+  const [focusSocio, setFocusSocio] = useState<string | null>(focusSocioId);
 
   const updateParam = (
     entries: Record<string, string | undefined>,
@@ -143,6 +149,8 @@ export function PuestosClient({
           onSelect={setOpenId}
           canWrite={perms.canWrite}
           onGenerar={() => setGenerarOpen(true)}
+          focusSocioId={focusSocio}
+          onClearFocus={() => setFocusSocio(null)}
         />
       )}
 

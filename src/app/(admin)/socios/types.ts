@@ -18,6 +18,7 @@ export type ActionResult<T = undefined> =
 export type SocioRow = {
   id: string;
   codigo: string;
+  numeroPadron: number | null;
   tipoDocumento: TipoDocumento;
   numeroDocumento: string;
   apellidoPaterno: string;
@@ -64,6 +65,7 @@ export type SocioDetail = SocioRow & {
     id: string; // id de la asignación
     puestoId: string;
     codigo: string;
+    etapa: number;
     giro: Giro | null;
     dimension: DimensionPuesto;
     estadoPuesto: EstadoPuesto;
@@ -76,6 +78,9 @@ export type SocioDetail = SocioRow & {
 export type CreateSocioInput = {
   tipoDocumento: TipoDocumento;
   numeroDocumento: string;
+  // Nº de padrón oficial del socio (registro de la asociación). Opcional: hay
+  // socios sin él. null en un patch = borrarlo.
+  numeroPadron?: number | null;
   apellidoPaterno: string;
   apellidoMaterno?: string;
   nombres: string;

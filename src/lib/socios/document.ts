@@ -1,5 +1,14 @@
 import type { TipoDocumento } from "@/generated/prisma/client";
 
+// Prefijo del documento placeholder para socios importados del padrón SIN DNI
+// registrado (la columna DNI venía vacía o con basura). Se marcan así para
+// regularizarlos luego y se diferencian visualmente en la lista de socios.
+export const DOC_PENDIENTE_PREFIX = "SIN-DNI-";
+
+export function esDocumentoPendiente(numeroDocumento: string): boolean {
+  return numeroDocumento.startsWith(DOC_PENDIENTE_PREFIX);
+}
+
 export function validateNumeroDocumento(
   tipo: TipoDocumento,
   numero: string,

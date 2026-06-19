@@ -8,11 +8,14 @@
    =========================================================================== */
 
 .lp {
-  --pry: #6d3fe0;
-  --pry-600: #6035cf;
-  --pry-700: #5128b4;
-  --pry-100: #ece5ff;
-  --pry-50: #f5f2ff;
+  --pry: #0b63d6;
+  --pry-600: #0a55b8;
+  --pry-700: #084b9e;
+  --pry-100: #d8e8fb;
+  --pry-50: #eef5fe;
+
+  --yellow: #ffd23e;
+  --yellow-600: #f2bb00;
 
   --amber: #f5a623;
   --amber-600: #e0900f;
@@ -135,6 +138,28 @@
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
+/* CTA principal del hero: amarillo brillante sobre el azul */
+.lp-btn--yellow {
+  color: #0a3a7a;
+  background: var(--yellow);
+  box-shadow: 0 12px 26px rgba(242, 187, 0, 0.4);
+}
+.lp-btn--yellow:hover {
+  transform: translateY(-2px);
+  background: #ffda5c;
+  box-shadow: 0 18px 34px rgba(242, 187, 0, 0.5);
+}
+/* CTA secundario sobre fondo oscuro: vidrio con borde */
+.lp-btn--glass {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(4px);
+}
+.lp-btn--glass:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.22);
+}
 
 /* Los botones suelen ser <a>; subimos especificidad para que su color de texto
    gane sobre el reset `.lp a { color: inherit }`. */
@@ -142,6 +167,8 @@
 .lp a.lp-btn--ghost { color: var(--pry-700); }
 .lp a.lp-btn--amber { color: #3a2a05; }
 .lp a.lp-btn--white { color: var(--pry-700); }
+.lp a.lp-btn--yellow { color: #0a3a7a; }
+.lp a.lp-btn--glass { color: #fff; }
 /* Mismos overrides para los enlaces flotantes y la pastilla del mapa: su
    color define el `currentColor` de los iconos, así que debe ganar a
    `.lp a { color: inherit }`. */
@@ -296,8 +323,11 @@ html:has(.lp) {
    =========================================================================== */
 .lp-hero {
   position: relative;
-  padding: 72px 0 84px;
-  background: var(--pry-50);
+  padding: 84px 0 104px;
+  color: #fff;
+  background:
+    radial-gradient(120% 130% at 82% -20%, rgba(255, 255, 255, 0.28), transparent 58%),
+    linear-gradient(158deg, #0c74e4 0%, #0a57bd 46%, #073f95 100%);
   overflow: hidden;
 }
 .lp-hero__grid {
@@ -309,33 +339,77 @@ html:has(.lp) {
 .lp-hero__copy {
   max-width: 560px;
 }
+/* Texto destacado del hero en glass-white */
+.lp-hero .lp-eyebrow {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+.lp-hero .lp-eyebrow__dot {
+  background: var(--yellow);
+  box-shadow: 0 0 0 4px rgba(255, 210, 62, 0.25);
+}
 .lp-hero h1 {
   font-size: clamp(38px, 5vw, 60px);
-  font-weight: 500;
+  font-weight: 700;
+  color: #fff;
   margin: 22px 0 0;
 }
 .lp-hero h1 .lp-hl {
-  position: relative;
-  color: var(--pry-700);
+  color: var(--yellow);
   white-space: nowrap;
-}
-.lp-hero h1 .lp-hl::after {
-  content: "";
-  position: absolute;
-  left: -2%;
-  right: -2%;
-  bottom: 6%;
-  height: 28%;
-  z-index: -1;
-  background: #ffe6b3;
-  border-radius: 6px;
-  transform: rotate(-1deg);
 }
 .lp-hero__lead {
   margin-top: 22px;
   font-size: 18px;
   line-height: 1.6;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Curva blanca inferior que funde el hero con la sección siguiente */
+.lp-hero__wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  line-height: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.lp-hero__wave svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+/* Carrusel: animación de entrada por slide */
+.lp-hero__slide {
+  animation: lp-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Dots del carrusel */
+.lp-dots {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+}
+.lp-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.lp-dot.is-on {
+  width: 28px;
+  background: var(--yellow);
+}
+.lp-dot:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 .lp-hero__cta {
   margin-top: 32px;
@@ -379,7 +453,7 @@ html:has(.lp) {
   height: auto;
   border-radius: 24px;
   box-shadow: var(--shadow-lg);
-  background: #f3ecff;
+  background: #eaf2fe;
   border: 1px solid rgba(255, 255, 255, 0.7);
 }
 .lp-scene__bulb {
@@ -485,6 +559,82 @@ html:has(.lp) {
   margin-top: 4px;
   font-size: 14px;
   color: var(--muted);
+}
+
+/* ===========================================================================
+   ¿QUÉ QUIERES HACER HOY? — accesos rápidos bajo el hero
+   =========================================================================== */
+.lp-quick {
+  padding: 64px 0 76px;
+  background: #fff;
+}
+.lp-quick__head {
+  max-width: 560px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+.lp-quick__head h2 {
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 600;
+}
+.lp-quick__head p {
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--muted);
+}
+.lp-quick__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.lp-quick__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 22px;
+  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.16s ease, box-shadow 0.18s ease, border-color 0.18s;
+}
+.lp-quick__card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--pry-100);
+}
+.lp-quick__ic {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--pry-50);
+  color: var(--pry-700);
+}
+.lp-quick__t {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+}
+.lp-quick__d {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  flex: 1;
+}
+.lp-quick__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--pry-700);
+}
+.lp-quick__card:hover .lp-quick__go {
+  gap: 9px;
 }
 
 /* ===========================================================================
@@ -1235,11 +1385,17 @@ html:has(.lp) {
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(81, 40, 180, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(81, 40, 180, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(11, 99, 214, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 99, 214, 0.05) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask-image: radial-gradient(125% 90% at 50% -10%, #000 25%, transparent 72%);
   mask-image: radial-gradient(125% 90% at 50% -10%, #000 25%, transparent 72%);
+}
+/* En el hero (azul) la rejilla es blanca y muy tenue */
+.lp-hero::before {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
 }
 
 /* FIGURAS: una forma de contorno por sección, anclada y "sangrando" por una
@@ -1498,6 +1654,9 @@ html:has(.lp) {
   .lp-cats {
     grid-template-columns: 1fr 1fr;
   }
+  .lp-quick__grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -1536,6 +1695,9 @@ html:has(.lp) {
     display: none;
   }
   .lp-cats {
+    grid-template-columns: 1fr;
+  }
+  .lp-quick__grid {
     grid-template-columns: 1fr;
   }
 }

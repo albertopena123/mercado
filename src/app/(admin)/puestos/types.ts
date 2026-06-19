@@ -114,7 +114,9 @@ export type PlanoCell = {
   // Puesto en alquiler (propiedad de la asociación): se rotula "ALQUILER" en el
   // plano en vez de su número. Se deriva de las observaciones.
   esAlquiler: boolean;
-  socioActual: { id: string; nombre: string } | null;
+  // sinDni: el socio ocupante fue importado sin DNI (documento placeholder) y
+  // está pendiente de regularizar; se marca el puesto en el plano.
+  socioActual: { id: string; nombre: string; sinDni: boolean } | null;
 };
 
 export type GenerarGrillaInput = {
