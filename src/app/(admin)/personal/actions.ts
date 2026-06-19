@@ -17,6 +17,10 @@ import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
 } from "@/lib/socios/document";
+import {
+  lookupDniUnamad,
+  type DniLookupResult,
+} from "@/lib/socios/dni-lookup";
 import { normalizeToken } from "@/lib/socios/normalize";
 import {
   validateUpload,
@@ -86,6 +90,35 @@ function ok<T>(data?: T): ActionResult<T> {
 }
 function refresh() {
   revalidatePath("/personal");
+}
+
+// Consulta el DNI (RENIEC vía UNAMAD) para autocompletar el formulario de
+// personal — misma fuente que socios, pero con permiso de personal.
+export async function lookupDniEmpleadoAction(
+  dni: string,
+): Promise<ActionResult<DniLookupResult>> {
+  try {
+    await authorize("personal.write");
+    const clean = (dni ?? "").trim();
+    if (!/^\d{8}$/.test(clean))
+      return fail("El DNI debe tener exactamente 8 dígitos.");
+    let data: DniLookupResult | null;
+    try {
+      data = await lookupDniUnamad(clean);
+    } catch (e) {
+      console.error("lookupDniEmpleadoAction fetch", e);
+      const err = e as { name?: string };
+      if (err?.name === "AbortError")
+        return fail("La consulta al servicio de DNI tardó demasiado.");
+      return fail("No se pudo consultar el servicio de DNI.");
+    }
+    if (!data) return fail("No se encontró información para este DNI.");
+    return ok(data);
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("lookupDniEmpleadoAction", e);
+    return fail("No se pudo consultar el DNI.");
+  }
 }
 function isP2002(e: unknown): boolean {
   return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";

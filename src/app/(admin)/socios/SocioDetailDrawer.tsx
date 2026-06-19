@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { fechaCorta, fechaTS, fechaHora, hoyISOPeru } from "@/lib/fecha";
-import { getSocio, updateSocio, deleteSocio } from "./actions";
+import { getSocio, updateSocio, deleteSocio, lookupDniAction } from "./actions";
 import { EstadoBadge } from "./EstadoBadge";
 import { DocumentoInput } from "./DocumentoInput";
 import { AdjuntosPanel } from "./AdjuntosPanel";
@@ -18,6 +18,7 @@ import type { TipoDocumento, Sexo, EstadoPuesto } from "@/generated/prisma/clien
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 
 type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial";
+type LookupStatus = "idle" | "loading" | "success" | "error";
 
 const PUESTO_ESTADO_LBL: Record<EstadoPuesto, string> = {
   activo: "Activo",
@@ -546,6 +547,53 @@ function DatosForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
 
+  // Autocompletado por DNI (RENIEC vía UNAMAD) al editar: si cambias el documento
+  // a un DNI de 8 dígitos distinto, trae los datos y los SOBREESCRIBE (para corregir).
+  const [, startLookup] = useTransition();
+  const [lookupStatus, setLookupStatus] = useState<LookupStatus>("idle");
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  // Init al DNI actual → no consulta al abrir el socio; solo cuando lo cambias.
+  const [lookedUpDni, setLookedUpDni] = useState<string | null>(
+    initial.numeroDocumento,
+  );
+  const reqIdRef = useRef(0);
+
+  useEffect(() => {
+    if (tipo !== "DNI" || !/^\d{8}$/.test(numero)) {
+      setLookupStatus("idle");
+      setLookupMessage(null);
+      return;
+    }
+    if (lookedUpDni === numero) return;
+    const timer = setTimeout(() => {
+      const reqId = ++reqIdRef.current;
+      setLookupStatus("loading");
+      setLookupMessage("Consultando RENIEC…");
+      startLookup(async () => {
+        const res = await lookupDniAction(numero);
+        if (reqId !== reqIdRef.current) return;
+        setLookedUpDni(numero);
+        if (!res.ok) {
+          // En edición no borramos lo existente si la consulta falla.
+          setLookupMessage(res.error);
+          setLookupStatus("error");
+          return;
+        }
+        const d = res.data!;
+        setAP(d.apellidoPaterno);
+        setAM(d.apellidoMaterno);
+        setNombres(d.nombres);
+        if (d.fechaNacimiento) setFN(d.fechaNacimiento);
+        if (d.sexo) setSexo(d.sexo as Sexo);
+        if (d.estadoCivil) setEC(d.estadoCivil);
+        if (d.direccion) setDir(d.direccion);
+        setLookupMessage(`${d.nombres} ${d.apellidoPaterno} ${d.apellidoMaterno}`);
+        setLookupStatus("success");
+      });
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [tipo, numero, lookedUpDni]);
+
   // El reset al cambiar de socio / tras guardar se hace remontando el form
   // vía `key={socio.updatedAt}` en el padre (evita setState-en-effect).
 
@@ -634,6 +682,25 @@ function DatosForm({
         }}
         disabled={disabled}
       />
+
+      {tipo === "DNI" && lookupStatus !== "idle" && (
+        <div
+          className={`dni-status dni-status--${lookupStatus}`}
+          role="status"
+          aria-live="polite"
+        >
+          {lookupStatus === "loading" && (
+            <span className="dni-status__spinner" aria-hidden />
+          )}
+          {lookupStatus === "success" && <Icon name="check" size={14} />}
+          {lookupStatus === "error" && <Icon name="info" size={14} />}
+          <span>
+            {lookupStatus === "success"
+              ? `RENIEC · ${lookupMessage}`
+              : lookupMessage}
+          </span>
+        </div>
+      )}
 
       <div className="soc-formgrid soc-formgrid--2col">
         <label className="field">

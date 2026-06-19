@@ -1,13 +1,21 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { hoyISOPeru } from "@/lib/fecha";
 import { CARGO_LABEL, CARGOS } from "@/lib/empleados/labels";
 import type { TipoDocumento, CargoEmpleado } from "@/generated/prisma/client";
-import { createEmpleado } from "./actions";
+import { createEmpleado, lookupDniEmpleadoAction } from "./actions";
 import type { CreateEmpleadoInput } from "./types";
+
+type LookupStatus = "idle" | "loading" | "success" | "error";
 
 export function CreateEmpleadoModal({
   onClose,
@@ -35,7 +43,58 @@ export function CreateEmpleadoModal({
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  useEscClose(true, onClose, submitting);
+  // Autocompletado por DNI (RENIEC vía UNAMAD), igual que el alta de socios.
+  const [, startLookup] = useTransition();
+  const [lookupStatus, setLookupStatus] = useState<LookupStatus>("idle");
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  const [lookedUpDni, setLookedUpDni] = useState<string | null>(null);
+  const reqIdRef = useRef(0);
+  const autoRef = useRef({ ap: "", am: "", nombres: "", dir: "" });
+
+  useEscClose(true, onClose, submitting || lookupStatus === "loading");
+
+  // Consulta con debounce cuando hay un DNI de 8 dígitos. Rellena apellidos,
+  // nombres y dirección, sin pisar lo que el usuario haya editado a mano.
+  useEffect(() => {
+    if (tipoDocumento !== "DNI" || !/^\d{8}$/.test(numeroDocumento)) {
+      setLookupStatus("idle");
+      setLookupMessage(null);
+      return;
+    }
+    if (lookedUpDni === numeroDocumento) return;
+    const timer = setTimeout(() => {
+      const reqId = ++reqIdRef.current;
+      setLookupStatus("loading");
+      setLookupMessage("Consultando RENIEC…");
+      startLookup(async () => {
+        const res = await lookupDniEmpleadoAction(numeroDocumento);
+        if (reqId !== reqIdRef.current) return;
+        setLookedUpDni(numeroDocumento);
+        if (!res.ok) {
+          setLookupMessage(res.error);
+          setLookupStatus("error");
+          const snap = autoRef.current;
+          setApellidoPaterno((p) => (p === snap.ap ? "" : p));
+          setApellidoMaterno((p) => (p === snap.am ? "" : p));
+          setNombres((p) => (p === snap.nombres ? "" : p));
+          setDireccion((p) => (p === snap.dir ? "" : p));
+          autoRef.current = { ap: "", am: "", nombres: "", dir: "" };
+          return;
+        }
+        const d = res.data!;
+        const dir = d.direccion ?? "";
+        const snap = autoRef.current;
+        setApellidoPaterno((p) => (!p.trim() || p === snap.ap ? d.apellidoPaterno : p));
+        setApellidoMaterno((p) => (!p.trim() || p === snap.am ? d.apellidoMaterno : p));
+        setNombres((p) => (!p.trim() || p === snap.nombres ? d.nombres : p));
+        setDireccion((p) => (!p.trim() || p === snap.dir ? dir : p));
+        autoRef.current = { ap: d.apellidoPaterno, am: d.apellidoMaterno, nombres: d.nombres, dir };
+        setLookupMessage(`${d.nombres} ${d.apellidoPaterno} ${d.apellidoMaterno}`);
+        setLookupStatus("success");
+      });
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [tipoDocumento, numeroDocumento, lookedUpDni]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -121,6 +180,25 @@ export function CreateEmpleadoModal({
               )}
             </label>
           </div>
+
+          {tipoDocumento === "DNI" && lookupStatus !== "idle" && (
+            <div
+              className={`dni-status dni-status--${lookupStatus}`}
+              role="status"
+              aria-live="polite"
+            >
+              {lookupStatus === "loading" && (
+                <span className="dni-status__spinner" aria-hidden />
+              )}
+              {lookupStatus === "success" && <Icon name="check" size={14} />}
+              {lookupStatus === "error" && <Icon name="info" size={14} />}
+              <span>
+                {lookupStatus === "success"
+                  ? `RENIEC · ${lookupMessage}`
+                  : lookupMessage}
+              </span>
+            </div>
+          )}
 
           <div className="soc-formgrid">
             <label className="field">

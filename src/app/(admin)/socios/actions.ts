@@ -407,6 +407,7 @@ export async function exportSociosXlsx(params: {
       "Nº Padrón",
       "Tipo Doc.",
       "Número Doc.",
+      "Sin DNI",
       "Apellido Paterno",
       "Apellido Materno",
       "Nombres",
@@ -430,7 +431,9 @@ export async function exportSociosXlsx(params: {
       r.codigo,
       r.numeroPadron,
       r.tipoDocumento,
-      r.numeroDocumento,
+      // Documento placeholder de socio SIN DNI → en blanco (no "SIN-DNI-0001").
+      esDocumentoPendiente(r.numeroDocumento) ? "" : r.numeroDocumento,
+      esDocumentoPendiente(r.numeroDocumento) ? "SÍ" : "",
       r.apellidoPaterno,
       r.apellidoMaterno ?? "",
       r.nombres,
