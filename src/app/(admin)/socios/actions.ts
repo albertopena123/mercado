@@ -12,7 +12,7 @@ import {
   normalizeNumeroDocumento,
   esDocumentoPendiente,
 } from "@/lib/socios/document";
-import { nextCodigo } from "@/lib/socios/codigo";
+import { nextCodigoFromList } from "@/lib/socios/codigo";
 import { buildXlsx } from "@/lib/xlsx";
 import {
   buildSocioSearchKey,
@@ -493,6 +493,9 @@ export async function getSocio(
             },
           },
         },
+        // Cargos directivos VIGENTES (hasta=null): para mostrar si el socio es
+        // miembro del Consejo Directivo / Fiscalía / coordinador de bloque.
+        directivos: { where: { hasta: null }, orderBy: { desde: "desc" } },
       },
     });
     if (!s) return fail("Socio no encontrado.");
@@ -547,6 +550,14 @@ export async function getSocio(
         desde: a.desde.toISOString(),
         hasta: a.hasta ? a.hasta.toISOString() : null,
         motivo: a.motivo,
+      })),
+      directivos: s.directivos.map((d) => ({
+        id: d.id,
+        organo: d.organo,
+        cargo: d.cargo,
+        bloque: d.bloque,
+        periodo: d.periodo,
+        desde: d.desde.toISOString(),
       })),
     });
   } catch (e) {
@@ -622,11 +633,11 @@ export async function createSocio(
           });
           if (dup) return { duplicate: true as const };
 
-          const last = await tx.socio.findFirst({
-            orderBy: { codigo: "desc" },
+          const codigos = await tx.socio.findMany({
+            where: { codigo: { startsWith: "SOC-" } },
             select: { codigo: true },
           });
-          const codigo = nextCodigo(last?.codigo ?? null);
+          const codigo = nextCodigoFromList(codigos.map((s) => s.codigo));
           const searchKey = buildSocioSearchKey({
             codigo,
             numeroDocumento: normalized.numeroDocumento!,
@@ -942,6 +953,15 @@ export async function deleteSocio(id: string): Promise<ActionResult> {
   }
 }
 
+// Transiciones de estado permitidas. fallecido es terminal; desde retirado solo
+// se puede reactivar (re-alta). Espejado en ChangeEstadoModal para la UI.
+const ESTADO_TRANSICIONES: Record<EstadoSocio, EstadoSocio[]> = {
+  activo: ["suspendido", "retirado", "fallecido"],
+  suspendido: ["activo", "retirado", "fallecido"],
+  retirado: ["activo"],
+  fallecido: [],
+};
+
 export async function changeEstadoSocio(
   id: string,
   toEstado: EstadoSocio,
@@ -964,6 +984,12 @@ export async function changeEstadoSocio(
       if (!cur) throw new Denied("Socio no encontrado.");
       if (cur.estado === toEstado)
         throw new Denied("El socio ya está en ese estado.");
+      // Máquina de estados: evita resucitar un fallecido (terminal) y otras
+      // transiciones sin sentido.
+      if (!ESTADO_TRANSICIONES[cur.estado].includes(toEstado))
+        throw new Denied(
+          `No se permite cambiar de “${cur.estado}” a “${toEstado}”.`,
+        );
 
       const updates: Prisma.SocioUpdateInput = {
         estado: toEstado,
@@ -981,6 +1007,26 @@ export async function changeEstadoSocio(
           byUserId: me.id,
         },
       });
+
+      // Al retirar o registrar fallecimiento, liberar sus puestos vigentes:
+      // cerrar las asignaciones y dejar el puesto vacío, para que la propiedad
+      // no quede a nombre de quien ya no es socio activo.
+      if (toEstado === "retirado" || toEstado === "fallecido") {
+        const abiertas = await tx.puestoAsignacion.findMany({
+          where: { socioId: id, hasta: null },
+          select: { puestoId: true },
+        });
+        if (abiertas.length > 0) {
+          await tx.puestoAsignacion.updateMany({
+            where: { socioId: id, hasta: null },
+            data: { hasta: new Date(), motivo: `Socio ${toEstado}: ${m}` },
+          });
+          await tx.puesto.updateMany({
+            where: { id: { in: abiertas.map((a) => a.puestoId) } },
+            data: { estado: "vacio" },
+          });
+        }
+      }
     });
 
     refresh();

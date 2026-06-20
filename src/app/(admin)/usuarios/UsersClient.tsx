@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
@@ -93,9 +94,13 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
     [params, pathname, router],
   );
 
-  // Hydration-safe: render absolute dates on first paint, swap to relative after mount.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Hydration-safe: render absolute dates on first paint, swap to relative after
+  // mount. useSyncExternalStore evita el setState-en-effect.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   // H7: top-level mutation counter so we can render "actualizando…"
   // for the entire span of an action (server-action await + router.refresh).
@@ -146,10 +151,14 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
     return () => document.removeEventListener("mousedown", h);
   }, [openMenuId, roleChipOpen]);
 
-  // Reset selection when filter set changes meaningfully
-  useEffect(() => {
+  // Reset selection when filter set changes meaningfully. Se ajusta durante el
+  // render (patrón recomendado por React) en vez de en un useEffect.
+  const filterSig = `${search}|${statusFilter}|${roleFilter}`;
+  const [prevFilterSig, setPrevFilterSig] = useState(filterSig);
+  if (prevFilterSig !== filterSig) {
+    setPrevFilterSig(filterSig);
     setSelected(new Set());
-  }, [search, statusFilter, roleFilter]);
+  }
 
   // Computed
   const filtered = useMemo(() => {

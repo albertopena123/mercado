@@ -11,14 +11,14 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String?    @unique
+  id           String    @id @default(cuid())
+  email        String?   @unique
   name         String
   passwordHash String
-  active       Boolean    @default(true)
+  active       Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   tipoDocumento   TipoDocumento?
   numeroDocumento String?
@@ -32,22 +32,28 @@ model User {
   socioAdjuntos   SocioAdjunto[]   @relation("SocioAdjuntoUploader")
   socioEstadoLogs SocioEstadoLog[] @relation("SocioEstadoLogBy")
 
-  puestosCreated     Puesto[]           @relation("PuestoCreatedBy")
-  puestosUpdated     Puesto[]           @relation("PuestoUpdatedBy")
-  puestoAsignaciones PuestoAsignacion[] @relation("PuestoAsignacionBy")
-  asambleasCreated   Asamblea[]         @relation("AsambleaCreatedBy")
-  asistenciasReg     Asistencia[]       @relation("AsistenciaBy")
-  cuotasPago         Cuota[]            @relation("CuotaPagoBy")
-  constanciasEmitidas Constancia[]      @relation("ConstanciaEmitidoPor")
-  anunciosCreados    Anuncio[]          @relation("AnuncioCreatedBy")
-  anunciosUpdated    Anuncio[]          @relation("AnuncioUpdatedBy")
-  movimientosCaja    MovimientoCaja[]   @relation("MovimientoRegistradoPor")
-  empleadosCreados   Empleado[]         @relation("EmpleadoCreatedBy")
-  empleadosUpdated   Empleado[]         @relation("EmpleadoUpdatedBy")
-  empleadoAdjuntos   EmpleadoAdjunto[]  @relation("EmpleadoAdjuntoUploader")
-  bienesCreados      Bien[]             @relation("BienCreatedBy")
-  bienesUpdated      Bien[]             @relation("BienUpdatedBy")
-  movimientosBien    MovimientoBien[]   @relation("MovimientoBienBy")
+  puestosCreated        Puesto[]           @relation("PuestoCreatedBy")
+  puestosUpdated        Puesto[]           @relation("PuestoUpdatedBy")
+  puestoAsignaciones    PuestoAsignacion[] @relation("PuestoAsignacionBy")
+  asambleasCreated      Asamblea[]         @relation("AsambleaCreatedBy")
+  asistenciasReg        Asistencia[]       @relation("AsistenciaBy")
+  cuotasPago            Cuota[]            @relation("CuotaPagoBy")
+  constanciasEmitidas   Constancia[]       @relation("ConstanciaEmitidoPor")
+  comprobantesEmitidos  Comprobante[]      @relation("ComprobanteEmitidoPor")
+  transferenciasCreadas Transferencia[]    @relation("TransferenciaCreatedBy")
+  transferenciasRenunciaSubidas Transferencia[] @relation("TransferenciaRenunciaUploadedBy")
+  transferenciasContratoSubidas Transferencia[] @relation("TransferenciaContratoUploadedBy")
+  anunciosCreados       Anuncio[]          @relation("AnuncioCreatedBy")
+  anunciosUpdated       Anuncio[]          @relation("AnuncioUpdatedBy")
+  movimientosCaja       MovimientoCaja[]   @relation("MovimientoRegistradoPor")
+  empleadosCreados      Empleado[]         @relation("EmpleadoCreatedBy")
+  empleadosUpdated      Empleado[]         @relation("EmpleadoUpdatedBy")
+  empleadoAdjuntos      EmpleadoAdjunto[]  @relation("EmpleadoAdjuntoUploader")
+  bienesCreados         Bien[]             @relation("BienCreatedBy")
+  bienesUpdated         Bien[]             @relation("BienUpdatedBy")
+  movimientosBien       MovimientoBien[]   @relation("MovimientoBienBy")
+  directivosReg         Directivo[]        @relation("DirectivoBy")
+  renunciasCreadas      Renuncia[]         @relation("RenunciaCreatedBy")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -67,8 +73,8 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  key         String   @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   name        String
   description String?
   category    String
@@ -102,14 +108,14 @@ model RolePermission {
 }
 
 model Session {
-  id         String      @id @default(cuid())
+  id         String     @id @default(cuid())
   userId     String
-  token      String      @unique
+  token      String     @unique
   expiresAt  DateTime
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime   @default(now())
   userAgent  String?
   ip         String?
-  clientType ClientType  @default(web)
+  clientType ClientType @default(web)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -180,8 +186,8 @@ model Socio {
 
   fotoUrl String?
 
-  userId        String?  @unique
-  portalEnabled Boolean  @default(false)
+  userId        String? @unique
+  portalEnabled Boolean @default(false)
 
   createdById String?
   updatedById String?
@@ -194,11 +200,16 @@ model Socio {
   adjuntos  SocioAdjunto[]
   estadoLog SocioEstadoLog[]
 
-  asignacionesPuesto PuestoAsignacion[]
-  asistencias        Asistencia[]
-  cuotas             Cuota[]
-  constancias        Constancia[]
-  movimientosCaja    MovimientoCaja[]
+  asignacionesPuesto             PuestoAsignacion[]
+  asistencias                    Asistencia[]
+  cuotas                         Cuota[]
+  constancias                    Constancia[]
+  comprobantes                   Comprobante[]
+  movimientosCaja                MovimientoCaja[]
+  transferenciasComoTransferente Transferencia[]    @relation("TransferenteSocio")
+  transferenciasComoAdquiriente  Transferencia[]    @relation("AdquirienteSocio")
+  directivos                     Directivo[]
+  renuncias                      Renuncia[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -235,6 +246,106 @@ model SocioEstadoLog {
   byUser User? @relation("SocioEstadoLogBy", fields: [byUserId], references: [id], onDelete: SetNull)
 
   @@index([socioId])
+}
+
+// ─────────────────────────── Órganos directivos ───────────────────────────
+//
+// Modela quién ocupa cargos en los órganos de gobierno de la asociación
+// (Consejo Directivo, Fiscalía, comités) y los coordinadores de bloque. Sustituye
+// al "presidente" hardcodeado en ORG por datos vivos. Un Directivo vincula un
+// Socio con un cargo dentro de un órgano por un periodo (desde/hasta; hasta=null
+// = vigente), conservando el historial de juntas directivas y sosteniendo la ruta
+// diferenciada de sanciones a directivos (REFASA Art. 7.2, 16.1 y 38).
+enum Organo {
+  consejo_directivo
+  fiscalia
+  comite
+  coordinacion_bloque
+}
+
+enum CargoDirectivo {
+  presidente
+  vicepresidente
+  secretario
+  tesorero
+  fiscal
+  vocal
+  coordinador // de bloque
+  otro
+}
+
+model Directivo {
+  id      String         @id @default(cuid())
+  socioId String
+  organo  Organo
+  cargo   CargoDirectivo
+  // Bloque que coordina (solo para organo = coordinacion_bloque).
+  bloque  String?
+  // Etiqueta del periodo de gestión, p. ej. "2025-2027".
+  periodo String?
+
+  desde         DateTime  @default(now())
+  hasta         DateTime? // null = cargo vigente
+  observaciones String?
+
+  byUserId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  socio  Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  byUser User? @relation("DirectivoBy", fields: [byUserId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([organo, hasta])
+  @@index([cargo, hasta])
+}
+
+// ─────────────────────────── Renuncias ───────────────────────────
+//
+// Expediente de la renuncia voluntaria de un socio. El Estatuto (Art. 8.a) exige
+// que la renuncia escrita, dirigida al Presidente, sea ACEPTADA por el Consejo
+// Directivo y ratificada por la Asamblea General. Se modela como una máquina de
+// estados: solicitada → aceptada_cd → ratificada_ag → efectiva (o rechazada). Al
+// quedar efectiva, el socio pasa a 'retirado' (con SocioEstadoLog) y se liberan
+// sus puestos. La carta imprimible se respalda en este registro.
+enum EstadoRenuncia {
+  solicitada
+  aceptada_cd
+  ratificada_ag
+  efectiva
+  rechazada
+}
+
+model Renuncia {
+  id      String @id @default(cuid())
+  socioId String
+
+  estado         EstadoRenuncia @default(solicitada)
+  motivo         String?
+  fechaSolicitud DateTime       @default(now())
+
+  // Acta del Consejo Directivo que ACEPTA la renuncia (Estatuto Art. 8.a).
+  actaCdNumero String?
+  actaCdFecha  DateTime?
+  // Acta de la Asamblea General que RATIFICA la renuncia.
+  actaAgNumero String?
+  actaAgFecha  DateTime?
+
+  // Cuándo quedó efectiva (socio retirado + puestos liberados).
+  efectivaEn    DateTime?
+  // Motivo del rechazo, si el órgano no acepta la renuncia.
+  motivoRechazo String?
+  observaciones String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  socio     Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("RenunciaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([estado])
 }
 
 // ─────────────────────────── Puestos ───────────────────────────
@@ -299,9 +410,10 @@ model Puesto {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy    User?              @relation("PuestoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy    User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  asignaciones PuestoAsignacion[]
+  createdBy      User?              @relation("PuestoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  asignaciones   PuestoAsignacion[]
+  transferencias Transferencia[]
 
   @@unique([etapa, bloque, fila, numero])
   @@index([estado])
@@ -330,6 +442,73 @@ model PuestoAsignacion {
   @@index([socioId, hasta])
 }
 
+// ─────────────────────────── Transferencias de puesto ───────────────────────────
+//
+// Expediente del traspaso de un puesto: del socio TRANSFERENTE al ADQUIRIENTE
+// (persona nueva). Guarda los datos del adquiriente para generar el contrato y,
+// al FORMALIZAR, dar de alta al adquiriente como socio + mover el puesto +
+// retirar al transferente (todo atómico).
+enum EstadoTransferencia {
+  borrador // datos cargados; aún no formalizada
+  completada // formalizada: puesto movido + socio nuevo + transferente retirado
+  anulada
+}
+
+model Transferencia {
+  id     String @id @default(cuid())
+  codigo String @unique // "TR-2026-0001"
+
+  transferenteId String
+  puestoId       String
+
+  // Datos del adquiriente (nuevo dueño). Snapshot al crear; al formalizar se
+  // usan para dar de alta al socio nuevo y para el contrato.
+  adqTipoDocumento   TipoDocumento @default(DNI)
+  adqNumeroDocumento String
+  adqApellidoPaterno String
+  adqApellidoMaterno String?
+  adqNombres         String
+  adqEstadoCivil     String?
+  adqDireccion       String?
+  adqDistrito        String?
+  adqProvincia       String?
+  adqDepartamento    String?
+  adqTelefono        String?
+
+  monto  Decimal?            @db.Decimal(10, 2) // precio de venta (interno, no va en el contrato)
+  fecha  DateTime // fecha del contrato
+  estado EstadoTransferencia @default(borrador)
+
+  adquirienteSocioId String? // socio creado al formalizar
+  completadaEn       DateTime?
+
+  // Escaneos firmados que respaldan la formalización (ambos requeridos para
+  // poder formalizar): se suben a /api/uploads/transferencias/<id>/<file>.
+  renunciaUrl String? // carta de renuncia firmada
+  contratoUrl String? // contrato de transferencia firmado
+  // Auditoría: quién y cuándo subió cada escaneo.
+  renunciaUploadedById String?
+  renunciaUploadedAt   DateTime?
+  contratoUploadedById String?
+  contratoUploadedAt   DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transferente     Socio  @relation("TransferenteSocio", fields: [transferenteId], references: [id], onDelete: Cascade)
+  puesto           Puesto @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  adquirienteSocio Socio? @relation("AdquirienteSocio", fields: [adquirienteSocioId], references: [id], onDelete: SetNull)
+  createdBy        User?  @relation("TransferenciaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  renunciaUploadedBy User? @relation("TransferenciaRenunciaUploadedBy", fields: [renunciaUploadedById], references: [id], onDelete: SetNull)
+  contratoUploadedBy User? @relation("TransferenciaContratoUploadedBy", fields: [contratoUploadedById], references: [id], onDelete: SetNull)
+
+  @@index([transferenteId])
+  @@index([puestoId])
+  @@index([estado])
+  @@index([createdAt])
+}
+
 // ─────────────────────────── Asambleas ───────────────────────────
 
 enum TipoAsamblea {
@@ -351,15 +530,23 @@ enum EstadoAsistencia {
 }
 
 model Asamblea {
-  id           String         @id @default(cuid())
-  titulo       String
-  tipo         TipoAsamblea   @default(ordinaria)
-  fecha        DateTime // inicio de la entrada (fecha + hora)
-  lugar        String?
-  agenda       String?
-  estado       EstadoAsamblea @default(programada)
-  quorumMinimo Int?
-  toleranciaMin Int     @default(15) // minutos de tolerancia: hasta inicio+tol = presente
+  id            String         @id @default(cuid())
+  titulo        String
+  tipo          TipoAsamblea   @default(ordinaria)
+  fecha         DateTime // inicio de la entrada (fecha + hora)
+  lugar         String?
+  agenda        String?
+  estado        EstadoAsamblea @default(programada)
+  quorumMinimo  Int?
+  toleranciaMin Int            @default(15) // minutos de tolerancia: hasta inicio+tol = presente
+
+  // Multas (S/) que se cargan como deuda al "Aplicar multas": a los socios en
+  // tardanza y a los ausentes (sin justificar). null/0 = sin multa de ese tipo.
+  multaTardanza     Decimal?  @db.Decimal(10, 2)
+  multaInasistencia Decimal?  @db.Decimal(10, 2)
+  // Sello de cuándo se aplicaron las multas (para mostrar estado / permitir
+  // reaplicar). null = aún no aplicadas.
+  multasAplicadasEn DateTime?
 
   // Código único que viaja en el QR de asistencia: el socio escanea y abre
   // /portal/asambleas/<codigo> para auto-registrarse. No es secreto.
@@ -403,20 +590,25 @@ enum EstadoCuota {
 }
 
 model Cuota {
-  id          String      @id @default(cuid())
-  socioId     String
-  periodo     String // "2026-05"
-  concepto    String
-  monto       Decimal     @db.Decimal(10, 2)
-  vencimiento DateTime?
-  estado      EstadoCuota @default(pendiente)
-  pagadoEn    DateTime?
-  pagadoMonto Decimal?    @db.Decimal(10, 2)
-  metodoPago  String?
-  byUserId    String?
-  createdById String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  socioId      String
+  periodo      String // "2026-05"
+  concepto     String
+  monto        Decimal     @db.Decimal(10, 2)
+  vencimiento  DateTime?
+  estado       EstadoCuota @default(pendiente)
+  pagadoEn     DateTime?
+  pagadoMonto  Decimal?    @db.Decimal(10, 2)
+  metodoPago   String?
+  // N.° de operación / recibo registrado al pagar. Obligatorio para el autovalúo:
+  // un índice único parcial (ver migración) impide reusar el mismo N.° en otra
+  // cuota de autovalúo (concepto ILIKE '%autoval%'), evitando que un recibo se
+  // use para "pagar" el autovalúo de otro año.
+  nroOperacion String?
+  byUserId     String?
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   socio  Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
   byUser User? @relation("CuotaPagoBy", fields: [byUserId], references: [id], onDelete: SetNull)
@@ -429,12 +621,20 @@ model Cuota {
 
 // ─────────────────────────── Constancias emitidas ───────────────────────────
 //
-// Cada vez que se emite una constancia de socio hábil se registra aquí. El
-// registro es la "fuente de verdad" que respalda la verificación pública por
-// QR/código: aunque el socio cambie o se elimine después, el documento emitido
-// sigue siendo verificable gracias al snapshot de datos.
+// Cada vez que se emite una constancia (de socio hábil o de no adeudo) se
+// registra aquí. El registro es la "fuente de verdad" que respalda la
+// verificación pública por QR/código: aunque el socio cambie o se elimine
+// después, el documento emitido sigue siendo verificable gracias al snapshot.
+enum TipoConstancia {
+  socio_habil
+  no_adeudo
+}
+
 model Constancia {
   id String @id @default(cuid())
+
+  // Tipo de constancia: socio hábil o constancia de no adeudo.
+  tipo TipoConstancia @default(socio_habil)
 
   // Folio correlativo legible para registro/seguimiento ("000123-2026").
   folio String @unique
@@ -461,6 +661,43 @@ model Constancia {
 
   socio      Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
   emitidoPor User?  @relation("ConstanciaEmitidoPor", fields: [emitidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([emitidoEn])
+}
+
+// ─────────────────────────── Comprobantes de pago ───────────────────────────
+//
+// Recibo emitido cuando un socio paga cuotas/deudas. Mismo patrón que la
+// Constancia: folio correlativo + código verificable por QR en
+// /comprobantes/verificar/<codigo>, con snapshot de los datos al momento del
+// pago (sigue siendo verificable aunque el socio o la cuota cambien después).
+// 1:1 con el MovimientoCaja del ingreso registrado.
+model Comprobante {
+  id String @id @default(cuid())
+
+  folio  String @unique // "000123-2026"
+  codigo String @unique // "CP-2026-XXXX-XXXX"
+
+  // Snapshot del pago al momento de emitir.
+  socioId         String?
+  socioCodigo     String
+  socioNombre     String
+  numeroDocumento String
+  monto           Decimal @db.Decimal(10, 2)
+  metodoPago      String?
+  nroOperacion    String?
+  detalle         String // qué se pagó (conceptos/periodos), texto
+
+  movimientoCajaId String? @unique
+
+  emitidoEn    DateTime @default(now())
+  anulada      Boolean  @default(false)
+  emitidoPorId String?
+
+  socio          Socio?          @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  movimientoCaja MovimientoCaja? @relation(fields: [movimientoCajaId], references: [id], onDelete: SetNull)
+  emitidoPor     User?           @relation("ComprobanteEmitidoPor", fields: [emitidoPorId], references: [id], onDelete: SetNull)
 
   @@index([socioId])
   @@index([emitidoEn])
@@ -550,13 +787,15 @@ enum TipoComprobante {
 }
 
 model MovimientoCaja {
-  id        String              @id @default(cuid())
-  tipo      TipoMovimiento
-  categoria CategoriaMovimiento
-  monto     Decimal             @db.Decimal(10, 2)
-  fecha     DateTime            @default(now())
-  concepto  String
-  metodoPago String? // efectivo | transferencia | yape/plin | otro
+  id           String              @id @default(cuid())
+  tipo         TipoMovimiento
+  categoria    CategoriaMovimiento
+  monto        Decimal             @db.Decimal(10, 2)
+  fecha        DateTime            @default(now())
+  concepto     String
+  metodoPago   String? // efectivo | transferencia | yape/plin | otro
+  // Nº de operación bancaria / código Yape-Plin / nº de depósito (si aplica).
+  nroOperacion String?
 
   // Comprobante (boleta/factura/recibo) opcional, con archivo adjunto.
   comprobanteTipo   TipoComprobante @default(ninguno)
@@ -572,8 +811,9 @@ model MovimientoCaja {
   updatedAt       DateTime @updatedAt
   searchKey       String   @default("")
 
-  socio         Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
-  registradoPor User?  @relation("MovimientoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: SetNull)
+  socio         Socio?       @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  registradoPor User?        @relation("MovimientoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: SetNull)
+  comprobante   Comprobante?
 
   @@index([tipo])
   @@index([categoria])
@@ -605,18 +845,18 @@ enum CargoEmpleado {
 }
 
 model Empleado {
-  id              String         @id @default(cuid())
-  codigo          String         @unique // EMP-000001
+  id              String        @id @default(cuid())
+  codigo          String        @unique // EMP-000001
   tipoDocumento   TipoDocumento
   numeroDocumento String
   apellidoPaterno String
   apellidoMaterno String?
   nombres         String
-  cargo           CargoEmpleado  @default(otro)
+  cargo           CargoEmpleado @default(otro)
   cargoDetalle    String? // descripción libre, útil cuando cargo = otro
 
-  telefono String?
-  email    String?
+  telefono  String?
+  email     String?
   direccion String?
 
   // Fechas de CALENDARIO (medianoche UTC): desde cuándo labora y, si cesó, cuándo.
@@ -657,7 +897,7 @@ model EmpleadoAdjunto {
   createdAt    DateTime @default(now())
 
   empleado   Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  uploadedBy User?     @relation("EmpleadoAdjuntoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy User?    @relation("EmpleadoAdjuntoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([empleadoId])
 }

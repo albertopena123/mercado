@@ -278,29 +278,66 @@ export async function createBien(
     const cantidad = normalized.cantidad ?? 0;
     const estado = normalized.estado ?? "conservado";
 
-    const last = await prisma.bien.findFirst({
-      orderBy: { codigo: "desc" },
-      select: { codigo: true },
-    });
-    const codigo = nextCodigo(last?.codigo ?? null);
+    // Reintenta ante colisión del código correlativo bajo concurrencia (dos
+    // altas simultáneas leerían el mismo "último" código). Mismo patrón que
+    // createEmpleado.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const last = await prisma.bien.findFirst({
+          orderBy: { codigo: "desc" },
+          select: { codigo: true },
+        });
+        const codigo = nextCodigo(last?.codigo ?? null);
 
-    const created = await prisma.bien.create({
-      data: {
-        codigo,
-        nombre,
-        ubicacion,
-        unidad,
-        marcaModelo,
-        cantidad,
-        estado,
-        observaciones: normalized.observaciones ?? null,
-        searchKey: buildSearchKey({ codigo, nombre, marcaModelo, unidad }),
-        createdById: me.id,
-        updatedById: me.id,
-      },
-    });
-    refresh();
-    return ok({ id: created.id });
+        const created = await prisma.$transaction(async (tx) => {
+          const bien = await tx.bien.create({
+            data: {
+              codigo,
+              nombre,
+              ubicacion,
+              unidad,
+              marcaModelo,
+              cantidad,
+              estado,
+              observaciones: normalized.observaciones ?? null,
+              searchKey: buildSearchKey({ codigo, nombre, marcaModelo, unidad }),
+              createdById: me.id,
+              updatedById: me.id,
+            },
+            select: { id: true },
+          });
+          // Asiento de apertura del kardex: deja trazable el stock inicial para
+          // que la cantidad pueda reconstruirse desde cero a partir de los
+          // movimientos.
+          if (cantidad > 0) {
+            await tx.movimientoBien.create({
+              data: {
+                bienId: bien.id,
+                tipo: "entrada",
+                cantidad,
+                cantidadAnterior: 0,
+                cantidadNueva: cantidad,
+                motivo: "Stock inicial",
+                byUserId: me.id,
+              },
+            });
+          }
+          return bien;
+        });
+        refresh();
+        return ok({ id: created.id });
+      } catch (e) {
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === "P2002"
+        ) {
+          const target = e.meta?.target as string[] | undefined;
+          if (target?.includes("codigo") && attempt < 2) continue;
+        }
+        throw e;
+      }
+    }
+    return fail("No se pudo generar el código del bien. Reintenta.");
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
     console.error("createBien", e);

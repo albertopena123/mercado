@@ -42,6 +42,10 @@ export type AsambleaDetail = {
   estado: EstadoAsamblea;
   quorumMinimo: number | null;
   toleranciaMin: number;
+  // Multas (S/) por tardanza e inasistencia; null = sin multa de ese tipo.
+  multaTardanza: number | null;
+  multaInasistencia: number | null;
+  multasAplicadasEn: string | null; // ISO; null = aún no aplicadas
   total: number;
   presente: number;
   ausente: number;
@@ -59,6 +63,15 @@ export type CreateAsambleaInput = {
   agenda?: string;
   quorumMinimo?: number | null;
   toleranciaMin?: number | null;
+  multaTardanza?: number | null;
+  multaInasistencia?: number | null;
+};
+
+export type AplicarMultasResult = {
+  tardanzas: number; // cuotas creadas por tardanza
+  ausentes: number; // cuotas creadas por inasistencia
+  yaExistentes: number; // saltadas por ya estar cargadas
+  total: number; // S/ total cargado
 };
 
 export type CheckInResult = {

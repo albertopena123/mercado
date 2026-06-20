@@ -13,7 +13,8 @@ import {
 } from "@/lib/constancia/codigo";
 import { generarQrSvg } from "@/lib/constancia/qr";
 import type { ActionResult } from "../../types";
-import { VIGENCIA_DIAS, type EmitResult } from "./shared";
+import { VIGENCIA_DIAS, type EmitResult, type TipoConstancia } from "./shared";
+import { contarInasistenciasInjustificadas } from "./asistencia";
 
 function fail(error: string): ActionResult<EmitResult> {
   return { ok: false, error };
@@ -28,6 +29,13 @@ function isP2002(e: unknown): boolean {
   );
 }
 
+// Deuda detectada DENTRO de la transacción de emisión (re-validación anti-TOCTOU
+// para la constancia de no adeudo). Se propaga con su mensaje hasta el catch.
+class DeudaError extends Error {}
+
+// Tolerancia para comparar montos en coma flotante (medio centavo).
+const EPS = 0.005;
+
 /**
  * Emite (registra) una constancia de socio hábil. Vuelve a validar en el
  * servidor que el socio esté ACTIVO y SIN deuda — el candado no puede saltarse
@@ -36,6 +44,7 @@ function isP2002(e: unknown): boolean {
  */
 export async function emitirConstancia(
   socioId: string,
+  tipo: TipoConstancia = "socio_habil",
 ): Promise<ActionResult<EmitResult>> {
   try {
     // Emitir CREA un registro oficial y consume un folio: exige permiso de
@@ -53,13 +62,22 @@ export async function emitirConstancia(
 
     const deuda = socio.cuotas.reduce((acc, c) => acc + toNumber(c.monto), 0);
     if (socio.estado !== "activo")
+      return fail("Solo se puede emitir la constancia a socios activos.");
+    // La de socio (membresía) se emite aunque haya deuda; la de no adeudo no.
+    if (tipo === "no_adeudo" && deuda > 0)
       return fail(
-        "Solo los socios activos pueden recibir una constancia de socio hábil.",
+        "El socio mantiene deuda pendiente; no se puede emitir la constancia de no adeudo.",
       );
-    if (deuda > 0)
-      return fail(
-        "El socio mantiene deuda pendiente; debe regularizarla antes de emitir la constancia.",
-      );
+    // La de no adeudo exige además estar al día en asambleas (Reglamento Interno
+    // de Administración, Disp. CUARTA): sin inasistencias injustificadas a
+    // asambleas ya concluidas. Se subsanan justificando esas asistencias.
+    if (tipo === "no_adeudo") {
+      const inasistencias = await contarInasistenciasInjustificadas(socio.id);
+      if (inasistencias > 0)
+        return fail(
+          `El socio registra ${inasistencias} inasistencia(s) injustificada(s) a asambleas; regularícelas (justificándolas) antes de emitir la constancia de no adeudo.`,
+        );
+    }
 
     const nombre = `${socio.nombres} ${socio.apellidoPaterno} ${
       socio.apellidoMaterno ?? ""
@@ -92,17 +110,32 @@ export async function emitirConstancia(
             where: { emitidoEn: { gte: desde, lt: hasta } },
           });
           const folio = formatFolio(n + 1, anio);
+          // Re-validación AUTORITATIVA de la deuda dentro de la transacción: una
+          // cuota pendiente creada entre la lectura inicial y este commit haría
+          // falsa la afirmación de "no adeudo". habil refleja la realidad al
+          // momento de emitir (activo y sin deuda), no un valor fijo.
+          const pendTx = await tx.cuota.findMany({
+            where: { socioId: socio.id, estado: "pendiente" },
+            select: { monto: true },
+          });
+          const deudaTx = pendTx.reduce((acc, c) => acc + toNumber(c.monto), 0);
+          if (tipo === "no_adeudo" && deudaTx > EPS)
+            throw new DeudaError(
+              "El socio mantiene deuda pendiente; no se puede emitir la constancia de no adeudo.",
+            );
+          const habil = socio.estado === "activo" && deudaTx <= EPS;
           return tx.constancia.create({
             data: {
               folio,
               codigo,
+              tipo,
               socioId: socio.id,
               socioCodigo: socio.codigo,
               socioNombre: nombre,
               tipoDocumento: socio.tipoDocumento,
               numeroDocumento: socio.numeroDocumento,
               estadoSnapshot: socio.estado,
-              habil: true,
+              habil,
               emitidoEn: now,
               validoHasta,
               emitidoPorId: me.id,
@@ -133,6 +166,7 @@ export async function emitirConstancia(
     // requirePermission redirige lanzando NEXT_REDIRECT; re-lanzarlo para no
     // tragarnos la redirección a /403 mostrando un error genérico.
     unstable_rethrow(e);
+    if (e instanceof DeudaError) return fail(e.message);
     console.error("emitirConstancia", e);
     return fail("No se pudo emitir la constancia.");
   }

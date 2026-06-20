@@ -39,7 +39,7 @@ async function main() {
   const conflictKeys = new Set([...dnisPorPuesto].filter(([, s]) => s.size > 1).map(([k]) => k));
 
   type It = { dni: string; bloque: string; numero: number; row: Row };
-  const items: It[] = []; const sinDni: string[] = []; const conflictos = new Set<string>(); const noPuesto: string[] = [];
+  const items: It[] = []; const sinDni: string[] = []; const conflictos = new Set<string>();
   for (const r of rows) {
     const dni = normDni(r.dni); const numero = parseInt(String(r.numero), 10); const bloque = (r.bloque || "").toUpperCase();
     if (!dni) { sinDni.push(`${bloque}-${r.numero} ${r.nombre.trim()}`); continue; }

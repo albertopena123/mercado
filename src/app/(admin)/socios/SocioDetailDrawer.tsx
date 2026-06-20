@@ -14,11 +14,27 @@ import { ChangeEstadoModal } from "./ChangeEstadoModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SocioCuotasTab } from "./SocioCuotasTab";
 import type { SocioDetail, PermFlags, UpdateSocioPatch } from "./types";
-import type { TipoDocumento, Sexo, EstadoPuesto } from "@/generated/prisma/client";
+import type {
+  TipoDocumento,
+  Sexo,
+  EstadoPuesto,
+  CargoDirectivo,
+} from "@/generated/prisma/client";
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 
 type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial";
 type LookupStatus = "idle" | "loading" | "success" | "error";
+
+const CARGO_DIRECTIVO_LBL: Record<CargoDirectivo, string> = {
+  presidente: "Presidente",
+  vicepresidente: "Vicepresidente",
+  secretario: "Secretario",
+  tesorero: "Tesorero",
+  fiscal: "Fiscal",
+  vocal: "Vocal",
+  coordinador: "Coordinador",
+  otro: "Directivo",
+};
 
 const PUESTO_ESTADO_LBL: Record<EstadoPuesto, string> = {
   activo: "Activo",
@@ -178,6 +194,27 @@ export function SocioDetailDrawer({
                   >
                     <Icon name="home" size={12} /> {p.codigo}
                   </button>
+                ))}
+                {socio.directivos.map((d) => (
+                  <span
+                    key={d.id}
+                    className="badge"
+                    style={{
+                      background: "#ede9fe",
+                      color: "#5b21b6",
+                      borderColor: "#ddd6fe",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                    title="Cargo directivo vigente"
+                  >
+                    <Icon name="shield" size={12} />
+                    {CARGO_DIRECTIVO_LBL[d.cargo]}
+                    {d.cargo === "coordinador" && d.bloque
+                      ? ` · Bloque ${d.bloque}`
+                      : ""}
+                  </span>
                 ))}
               </div>
             </div>
@@ -392,29 +429,35 @@ export function SocioDetailDrawer({
             {deleting ? "Eliminando…" : "Eliminar socio"}
           </button>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {/* Siempre clickeable: la página de constancia muestra el
-                certificado (si está hábil) o el motivo del bloqueo + acceso a
-                cuotas (si debe / no está activo). */}
+            {/* Constancias (socio / no adeudo): se eligen en esa página. La de
+                socio se emite a cualquier activo; la de no adeudo exige sin
+                deuda. */}
             <a
               className="btn btn--ghost"
               href={`/socios/${socio.id}/constancia`}
               target="_blank"
               rel="noreferrer"
               title={
-                socio.estado === "activo" && socio.deuda <= 0
-                  ? "Emitir constancia de socio hábil"
-                  : "Ver por qué aún no se puede emitir la constancia"
+                socio.estado === "activo"
+                  ? "Emitir constancia del socio (socio / no adeudo)"
+                  : "Solo se emite a socios activos"
               }
             >
               <Icon
-                name={
-                  socio.estado === "activo" && socio.deuda <= 0
-                    ? "external"
-                    : "lock"
-                }
+                name={socio.estado === "activo" ? "external" : "lock"}
                 size={16}
               />
               <span>Constancia</span>
+            </a>
+            <a
+              className="btn btn--ghost"
+              href={`/socios/${socio.id}/renuncia`}
+              target="_blank"
+              rel="noreferrer"
+              title="Generar la carta de renuncia del socio (para firmar)"
+            >
+              <Icon name="mail" size={16} />
+              <span>Carta de renuncia</span>
             </a>
             <button className="btn btn--primary" onClick={onClose}>
               Cerrar
@@ -560,6 +603,9 @@ function DatosForm({
 
   useEffect(() => {
     if (tipo !== "DNI" || !/^\d{8}$/.test(numero)) {
+      // Reset del estado transitorio del lookup cuando el documento deja de ser
+      // un DNI válido (mismo patrón de disable que AdminShell para esta regla).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLookupStatus("idle");
       setLookupMessage(null);
       return;

@@ -86,6 +86,42 @@
   color: #555;
   margin: -18px 0 24px;
 }
+/* Banner institucional de cabecera (ancho completo). */
+.constancia__banner {
+  margin: 0 0 14px;
+}
+.constancia__banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* Membrete superior: lema del año + partida registral. */
+.constancia__membrete {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.constancia__lema {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+.constancia__partida {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+/* Pie del documento: domicilio + celular de la institución. */
+.constancia__domicilio {
+  margin-top: 30px;
+  padding-top: 10px;
+  border-top: 1px solid #cbd5e1;
+  text-align: center;
+  font-size: 11px;
+  color: #475569;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+}
 .constancia__header {
   display: flex;
   align-items: center;

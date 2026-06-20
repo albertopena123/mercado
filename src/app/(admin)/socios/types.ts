@@ -5,6 +5,8 @@ import type {
   EstadoPuesto,
   Giro,
   DimensionPuesto,
+  Organo,
+  CargoDirectivo,
 } from "@/generated/prisma/client";
 
 export type ActionResult<T = undefined> =
@@ -72,6 +74,15 @@ export type SocioDetail = SocioRow & {
     desde: string;
     hasta: string | null; // null = asignación vigente
     motivo: string | null;
+  }[];
+  // Cargos directivos vigentes (hasta=null): CD / Fiscalía / coordinador de bloque.
+  directivos: {
+    id: string;
+    organo: Organo;
+    cargo: CargoDirectivo;
+    bloque: string | null;
+    periodo: string | null;
+    desde: string;
   }[];
 };
 

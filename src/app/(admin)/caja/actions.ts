@@ -12,6 +12,7 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { normalizeToken } from "@/lib/socios/normalize";
 import { toNumber } from "@/lib/money";
+import { hoyISOPeru } from "@/lib/fecha";
 import {
   CATEGORIA_LABEL,
   TIPO_LABEL,
@@ -330,7 +331,11 @@ export async function createMovimiento(
         tipo: normalized.tipo!,
         categoria,
         monto: new Prisma.Decimal(normalized.monto!),
-        fecha: normalized.fecha ? parseFecha(normalized.fecha) : new Date(),
+        // Sin fecha → hoy (Perú) como fecha de CALENDARIO (medianoche UTC), no
+        // un instante: así no se corre un día al mostrarse/filtrarse en UTC.
+        fecha: normalized.fecha
+          ? parseFecha(normalized.fecha)
+          : parseFecha(hoyISOPeru()),
         concepto,
         metodoPago: normalized.metodoPago ?? null,
         socioId: normalized.socioId ?? null,
@@ -361,9 +366,21 @@ export async function updateMovimiento(
     await authorize("caja.write");
     const existing = await prisma.movimientoCaja.findUnique({
       where: { id },
-      select: { concepto: true, categoria: true, comprobanteNumero: true },
+      select: {
+        concepto: true,
+        categoria: true,
+        comprobanteNumero: true,
+        origen: true,
+      },
     });
     if (!existing) return fail("Movimiento no encontrado.");
+    // Los movimientos automáticos (pago de cuota/inscripción) están ligados 1:1
+    // a un comprobante emitido y a la cuota saldada; editarlos desincronizaría
+    // la contabilidad respecto de los recibos. Solo se editan los manuales.
+    if (existing.origen !== "manual")
+      return fail(
+        "Este movimiento se generó automáticamente (pago de cuota/inscripción) y está ligado a un comprobante; no se puede editar desde Caja.",
+      );
 
     const { fieldErrors, normalized } = validate(patch, false);
     if (Object.keys(fieldErrors).length > 0)
@@ -375,7 +392,9 @@ export async function updateMovimiento(
     if (normalized.monto !== undefined)
       data.monto = new Prisma.Decimal(normalized.monto);
     if (normalized.fecha !== undefined)
-      data.fecha = normalized.fecha ? parseFecha(normalized.fecha) : new Date();
+      data.fecha = normalized.fecha
+        ? parseFecha(normalized.fecha)
+        : parseFecha(hoyISOPeru());
     if (normalized.concepto !== undefined) data.concepto = normalized.concepto;
     if (normalized.metodoPago !== undefined)
       data.metodoPago = normalized.metodoPago ?? null;
@@ -413,6 +432,17 @@ export async function updateMovimiento(
 export async function deleteMovimiento(id: string): Promise<ActionResult> {
   try {
     await authorize("caja.delete");
+    const mov = await prisma.movimientoCaja.findUnique({
+      where: { id },
+      select: { origen: true },
+    });
+    if (!mov) return fail("Movimiento no encontrado.");
+    // No borrar movimientos automáticos (pago de cuota/inscripción): dejarían un
+    // comprobante huérfano y la cuota como pagada sin respaldo en caja.
+    if (mov.origen !== "manual")
+      return fail(
+        "Este movimiento se generó automáticamente (pago de cuota/inscripción) y está ligado a un comprobante; no se puede eliminar desde Caja.",
+      );
     await prisma.movimientoCaja.delete({ where: { id } });
     await removeMovimientoDir(id);
     refresh();

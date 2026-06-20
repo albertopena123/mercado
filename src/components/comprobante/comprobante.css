@@ -1,0 +1,350 @@
+/* Comprobante de pago imprimible. Adaptado del estilo de la constancia: misma
+   estética de documento oficial + reglas @media print. */
+
+.comprobante-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.comprobante-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* La hoja */
+.comprobante {
+  position: relative;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 48px 60px;
+  box-shadow: var(--shadow-sm);
+  font-family: "Times New Roman", Georgia, serif;
+  line-height: 1.7;
+}
+.comprobante::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/logos_sistema/logo_peru.png");
+  background-repeat: no-repeat;
+  background-position: center 47%;
+  background-size: 56%;
+  opacity: 0.06;
+  filter: grayscale(100%);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.comprobante > * {
+  position: relative;
+  z-index: 1;
+}
+/* Sello ANULADO si el comprobante fue anulado */
+.comprobante--anulado::after {
+  content: "ANULADO";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 96px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(185, 28, 28, 0.14);
+  transform: rotate(-22deg);
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+.comprobante__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: center;
+  border-bottom: 4px double #1a1a1a;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.comprobante__header-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.comprobante__logo {
+  flex: 0 0 auto;
+  height: 68px;
+  width: auto;
+  object-fit: contain;
+}
+.comprobante__org {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.comprobante__org-sub {
+  font-size: 12px;
+  color: #555;
+  margin-top: 4px;
+}
+.comprobante__title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 18px 0 4px;
+  text-decoration: underline;
+}
+.comprobante__folio {
+  text-align: center;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin: 0 0 24px;
+}
+.comprobante__banner {
+  margin: 0 0 14px;
+}
+.comprobante__banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.comprobante__membrete {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.comprobante__lema {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+.comprobante__partida {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+.comprobante__domicilio {
+  margin-top: 28px;
+  padding-top: 10px;
+  border-top: 1px solid #cbd5e1;
+  text-align: center;
+  font-size: 11px;
+  color: #475569;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+}
+
+.comprobante__body {
+  font-size: 15.5px;
+  text-align: justify;
+}
+.comprobante__body p {
+  margin: 0 0 14px;
+}
+.comprobante__body b {
+  font-weight: 700;
+}
+.comprobante__monto {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin: 18px 0;
+  font-family: "Google Sans", system-ui, sans-serif;
+}
+.comprobante__detalle {
+  margin: 0 0 16px;
+  padding: 14px 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.comprobante__detalle-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin: 0 0 8px;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+}
+.comprobante__detalle ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.comprobante__detalle li {
+  margin: 0 0 4px;
+}
+.comprobante__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+.comprobante__meta span {
+  color: #475569;
+}
+.comprobante__fecha {
+  margin-top: 28px;
+}
+
+.comprobante__firmas {
+  display: flex;
+  justify-content: center;
+  gap: 56px;
+  margin-top: 70px;
+}
+.comprobante__firma {
+  flex: 0 1 240px;
+  text-align: center;
+}
+.comprobante__firma-line {
+  border-top: 1px solid #1a1a1a;
+  margin: 0 0 6px;
+}
+.comprobante__firma-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+}
+.comprobante__firma-sub {
+  font-size: 11.5px;
+  color: #555;
+  margin-top: 2px;
+}
+
+/* Bloque de verificación (QR + códigos) */
+.comprobante-verif {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px dashed #94a3b8;
+}
+.comprobante-verif__qr {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+}
+.comprobante-verif__qr svg {
+  display: block;
+  width: 112px;
+  height: 112px;
+}
+.comprobante-verif__info {
+  flex: 1;
+  min-width: 0;
+  font-family: "Google Sans Text", system-ui, sans-serif;
+  line-height: 1.4;
+}
+.comprobante-verif__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+.comprobante-verif__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  margin: 0 0 3px;
+  border-bottom: 1px dotted #e2e8f0;
+  padding-bottom: 3px;
+}
+.comprobante-verif__row > span {
+  color: #64748b;
+}
+.comprobante-verif__row > b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: right;
+}
+.comprobante-verif__note {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+.comprobante-verif__url {
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+@media print {
+  .topbar,
+  .sidebar,
+  .footer,
+  .sidebar__mobile-backdrop,
+  .socio-topbar,
+  .socio-shell__nav,
+  .no-print {
+    display: none !important;
+  }
+  .shell__body,
+  .main {
+    display: block !important;
+    overflow: visible !important;
+  }
+  .comprobante-page {
+    padding: 0;
+    max-width: 100%;
+  }
+  .comprobante {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .comprobante-verif {
+    break-inside: avoid;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+@media (max-width: 640px) {
+  .comprobante-page {
+    padding: 16px 12px;
+  }
+  .comprobante {
+    padding: 26px 20px;
+  }
+  .comprobante__header {
+    gap: 12px;
+  }
+  .comprobante__logo {
+    height: 50px;
+  }
+  .comprobante-verif {
+    flex-wrap: wrap;
+  }
+  .comprobante__firmas {
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+}

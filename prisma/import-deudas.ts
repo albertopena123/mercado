@@ -62,7 +62,7 @@ async function main() {
   const DNI = "DNI", NOMBRE = "APELLIDOS Y NOMBRES 2021 - GESTION SANTOS";
   // Por ahora solo Etapa 1 (3×5). Pasa --etapa2 o --todas para incluir más.
   const etapas = process.argv.includes("--todas") ? [1, 2] : process.argv.includes("--etapa2") ? [2] : [1];
-  const rows: any[] = [];
+  const rows: Record<string, string>[] = [];
   for (const e of etapas) {
     try { rows.push(...JSON.parse(readFileSync(path.join(process.cwd(), "prisma", `_deudas${e}.json`), "utf8").replace(/^﻿/, ""))); } catch {}
   }

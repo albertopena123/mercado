@@ -94,6 +94,32 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Puestos",
   },
   {
+    key: "transferencias.read",
+    name: "Ver transferencias de puesto",
+    description: "Listar y consultar traspasos de puesto entre socios",
+    category: "Transferencias de puesto",
+  },
+  {
+    key: "transferencias.write",
+    name: "Gestionar transferencias de puesto",
+    description: "Crear, formalizar y anular traspasos de puesto",
+    category: "Transferencias de puesto",
+  },
+  {
+    key: "organos.read",
+    name: "Ver órganos directivos",
+    description:
+      "Consultar la junta directiva, la fiscalía y los coordinadores de bloque",
+    category: "Órganos directivos",
+  },
+  {
+    key: "organos.write",
+    name: "Gestionar órganos directivos",
+    description:
+      "Registrar y dar de baja cargos del Consejo Directivo, Fiscalía y coordinadores de bloque",
+    category: "Órganos directivos",
+  },
+  {
     key: "asambleas.read",
     name: "Ver asambleas",
     description: "Listar y consultar asambleas y su asistencia",
@@ -257,6 +283,10 @@ export const ROLE_DEFS = [
       "puestos.read",
       "puestos.write",
       "puestos.assign",
+      "transferencias.read",
+      "transferencias.write",
+      "organos.read",
+      "organos.write",
       "asambleas.read",
       "asambleas.write",
       "asambleas.attendance",
@@ -296,6 +326,8 @@ export const ROLE_DEFS = [
       "roles.read",
       "socios.read",
       "puestos.read",
+      "transferencias.read",
+      "organos.read",
       "asambleas.read",
       "cuotas.read",
       "inventario.read",

@@ -17,6 +17,13 @@ export const SIDEBAR_NAV: SidebarItem[] = [
   { id: "socios", label: "Padrón de socios", icon: "card", href: "/socios" },
   { id: "personal", label: "Personal", icon: "users", href: "/personal" },
   { id: "puestos", label: "Puestos", icon: "folder", href: "/puestos" },
+  {
+    id: "transferencias",
+    label: "Transferencias",
+    icon: "external",
+    href: "/transferencias",
+  },
+  { id: "organos", label: "Junta directiva", icon: "user", href: "/organos" },
   { id: "inventario", label: "Inventario", icon: "rules", href: "/inventario" },
   { id: "cuotas", label: "Cuotas y deuda", icon: "chart", href: "/cuotas" },
   { id: "caja", label: "Caja", icon: "card", href: "/caja" },

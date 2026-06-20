@@ -3,6 +3,7 @@ import "../verificar.css";
 import { prisma } from "@/lib/prisma";
 import { fechaHora, fechaLargaTS } from "@/lib/fecha";
 import { maskDocumento } from "@/lib/constancia/codigo";
+import { ORG } from "@/lib/org";
 
 export const metadata = { title: "Verificación de constancia" };
 export const dynamic = "force-dynamic";
@@ -94,9 +95,7 @@ export default async function Page({
     <main className={`verif verif--${estado}`}>
       <div className="verif__card">
         <div className="verif__org">
-          <p className="verif__org-name">
-            Asociación de Comerciantes del Mercado Milagros
-          </p>
+          <p className="verif__org-name">{ORG.nombreLegal}</p>
           <p className="verif__org-sub">
             Verificación de autenticidad de constancia
           </p>
@@ -138,8 +137,12 @@ export default async function Page({
               <b>{c.socioCodigo}</b>
             </div>
             <div className="verif__row">
-              <span>Condición</span>
-              <b>{c.habil ? "Socio hábil" : "—"}</b>
+              <span>Tipo de constancia</span>
+              <b>
+                {c.tipo === "no_adeudo"
+                  ? "Constancia de no adeudo"
+                  : "Constancia de socio"}
+              </b>
             </div>
             <div className="verif__row">
               <span>Fecha de emisión</span>

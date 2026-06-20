@@ -57,8 +57,12 @@ export function CreateEmpleadoModal({
   // nombres y dirección, sin pisar lo que el usuario haya editado a mano.
   useEffect(() => {
     if (tipoDocumento !== "DNI" || !/^\d{8}$/.test(numeroDocumento)) {
+      // Reset legítimo de la UI cuando el documento deja de ser un DNI válido:
+      // es un efecto que sincroniza con un input externo, no un render derivado.
+      /* eslint-disable react-hooks/set-state-in-effect */
       setLookupStatus("idle");
       setLookupMessage(null);
+      /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
     if (lookedUpDni === numeroDocumento) return;

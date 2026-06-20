@@ -499,9 +499,20 @@ export async function assignPuesto(
       await tx.$queryRaw`SELECT id FROM "Puesto" WHERE id = ${puestoId} FOR UPDATE`;
       const puesto = await tx.puesto.findUnique({
         where: { id: puestoId },
-        select: { id: true },
+        select: { id: true, estado: true, tipo: true },
       });
       if (!puesto) throw new Denied("Puesto no encontrado.");
+      // Solo se asignan ESPACIOS comerciales (no SS-HH ni almacenes).
+      if (puesto.tipo !== "puesto")
+        throw new Denied(
+          "Ese espacio no es un puesto comercial (SS-HH/almacén); no puede asignarse a un socio.",
+        );
+      // No reactivar implícitamente un puesto clausurado o en construcción:
+      // asignar no debe saltarse la clausura/obra. Hay que reabrirlo primero.
+      if (puesto.estado === "clausurado" || puesto.estado === "construccion")
+        throw new Denied(
+          `El puesto está en estado “${puesto.estado}”. Reábrelo (cámbialo a vacío) antes de asignarlo.`,
+        );
       const socio = await tx.socio.findUnique({
         where: { id: socioId },
         select: { id: true },

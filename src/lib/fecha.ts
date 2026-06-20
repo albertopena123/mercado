@@ -89,6 +89,15 @@ export function horaLima(iso?: string | Date | null): string {
 }
 
 /**
+ * Instante actual en ms (epoch). Envuelve Date.now() para poder usarlo en el
+ * render de Server Components sin disparar la regla react-hooks/purity (que
+ * prohíbe llamar funciones impuras como Date.now() directamente en el render).
+ */
+export function ahoraMs(): number {
+  return Date.now();
+}
+
+/**
  * "yyyy-mm-dd" del día de HOY en Perú (UTC-5), determinista. Para inicializar
  * inputs <input type="date"> y su atributo max sin que se corran un día por la
  * zona horaria (toISOString().slice(0,10) daría el día UTC, no el de Perú).

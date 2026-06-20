@@ -11,7 +11,13 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { peruDateTime } from "@/lib/fecha";
+import { toNumber } from "@/lib/money";
 import { generarCodigoVerificacion, anioLima } from "@/lib/constancia/codigo";
+import { generarQrSvg } from "@/lib/constancia/qr";
+import { appBaseUrl } from "@/lib/url";
+import { currentQrToken } from "@/lib/asambleas/qrToken";
+import { buildXlsx } from "@/lib/xlsx";
+import { esDocumentoPendiente } from "@/lib/socios/document";
 import type {
   ActionResult,
   CreateAsambleaInput,
@@ -20,6 +26,7 @@ import type {
   AsambleaDetail,
   AsambleaRow,
   CheckInResult,
+  AplicarMultasResult,
 } from "./types";
 
 const PAGE_SIZE = 25;
@@ -164,6 +171,12 @@ export async function getAsamblea(
       estado: a.estado,
       quorumMinimo: a.quorumMinimo,
       toleranciaMin: a.toleranciaMin,
+      multaTardanza: a.multaTardanza != null ? Number(a.multaTardanza) : null,
+      multaInasistencia:
+        a.multaInasistencia != null ? Number(a.multaInasistencia) : null,
+      multasAplicadasEn: a.multasAplicadasEn
+        ? a.multasAplicadasEn.toISOString()
+        : null,
       total: a.asistencias.length,
       presente: counts.presente,
       ausente: counts.ausente,
@@ -183,6 +196,22 @@ export async function getAsamblea(
     console.error("getAsamblea", e);
     return fail("No se pudo cargar la asamblea.");
   }
+}
+
+// Valida un monto de multa (S/): vacío/null → null; debe ser 0–100000. Si es 0
+// también queda null (sin multa de ese tipo).
+function parseMulta(
+  v: number | null | undefined,
+  key: string,
+  fe: Record<string, string>,
+): number | null {
+  if (v == null || String(v) === "") return null;
+  const m = Number(v);
+  if (isNaN(m) || m < 0 || m > 100000) {
+    fe[key] = "Monto inválido (0–100000).";
+    return null;
+  }
+  return m > 0 ? m : null;
 }
 
 export async function createAsamblea(
@@ -210,6 +239,12 @@ export async function createAsamblea(
       if (isNaN(t) || t < 0 || t > 240) fe.toleranciaMin = "0–240 min.";
       else tolerancia = t;
     }
+    const multaTardanza = parseMulta(input.multaTardanza, "multaTardanza", fe);
+    const multaInasistencia = parseMulta(
+      input.multaInasistencia,
+      "multaInasistencia",
+      fe,
+    );
     if (Object.keys(fe).length > 0)
       return fail("Revisa los campos marcados.", fe);
 
@@ -229,6 +264,8 @@ export async function createAsamblea(
           agenda: input.agenda?.trim() || null,
           quorumMinimo: quorum,
           toleranciaMin: tolerancia,
+          multaTardanza,
+          multaInasistencia,
           codigoVerificacion: generarCodigoVerificacion(anioLima()),
           createdById: me.id,
         },
@@ -288,6 +325,19 @@ export async function updateAsamblea(
         data.quorumMinimo = n;
       }
     }
+    if (patch.multaTardanza !== undefined || patch.multaInasistencia !== undefined) {
+      const feM: Record<string, string> = {};
+      if (patch.multaTardanza !== undefined)
+        data.multaTardanza = parseMulta(patch.multaTardanza, "multaTardanza", feM);
+      if (patch.multaInasistencia !== undefined)
+        data.multaInasistencia = parseMulta(
+          patch.multaInasistencia,
+          "multaInasistencia",
+          feM,
+        );
+      if (Object.keys(feM).length > 0)
+        return fail("Revisa los campos marcados.", feM);
+    }
     await prisma.asamblea.update({ where: { id }, data });
     refresh(id);
     return ok();
@@ -295,6 +345,29 @@ export async function updateAsamblea(
     if (e instanceof Denied) return fail(e.message);
     console.error("updateAsamblea", e);
     return fail("No se pudo actualizar la asamblea.");
+  }
+}
+
+const ESTADOS_ASAMBLEA: EstadoAsamblea[] = ["programada", "en_curso", "cerrada"];
+
+// Abre / cierra / reabre la asamblea (programada → en_curso → cerrada). Es lo
+// que controla la "puerta" del registro de asistencia del socio: en_curso la
+// abre de inmediato (aunque aún no llegue la hora de inicio), cerrada la
+// finaliza. La clasificación presente/tardanza sigue dependiendo de la hora.
+export async function setEstadoAsamblea(
+  id: string,
+  estado: EstadoAsamblea,
+): Promise<ActionResult<{ estado: EstadoAsamblea }>> {
+  try {
+    await authorize("asambleas.attendance");
+    if (!ESTADOS_ASAMBLEA.includes(estado)) return fail("Estado inválido.");
+    await prisma.asamblea.update({ where: { id }, data: { estado } });
+    refresh(id);
+    return ok({ estado });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("setEstadoAsamblea", e);
+    return fail("No se pudo cambiar el estado de la asamblea.");
   }
 }
 
@@ -393,6 +466,18 @@ export async function checkInByDni(
         where: { id: asis.id },
         data: { estado, byUserId: me.id },
       });
+      // La primera marca "inicia" la reunión: programada → en_curso para que el
+      // estado refleje que el registro está activo. No bloqueante.
+      if (asamblea.estado === "programada") {
+        try {
+          await prisma.asamblea.update({
+            where: { id: asambleaId },
+            data: { estado: "en_curso" },
+          });
+        } catch (e) {
+          console.error("checkInByDni: auto-promover estado", e);
+        }
+      }
       refresh(asambleaId);
     }
 
@@ -451,5 +536,268 @@ export async function setAsistencia(
     if (e instanceof Denied) return fail(e.message);
     console.error("setAsistencia", e);
     return fail("No se pudo registrar la asistencia.");
+  }
+}
+
+// Carga las multas de la asamblea como cuotas (deuda) pendientes: a cada socio
+// en TARDANZA (monto = multaTardanza) y a cada AUSENTE (monto = multaInasistencia).
+// Presente y justificado NO pagan. Idempotente: reaplicar no duplica.
+export async function aplicarMultasAsamblea(
+  id: string,
+): Promise<ActionResult<AplicarMultasResult>> {
+  try {
+    const me = await authorize("cuotas.write");
+    const a = await prisma.asamblea.findUnique({
+      where: { id },
+      select: {
+        titulo: true,
+        fecha: true,
+        estado: true,
+        multaTardanza: true,
+        multaInasistencia: true,
+        asistencias: { select: { socioId: true, estado: true } },
+      },
+    });
+    if (!a) return fail("Asamblea no encontrada.");
+    // No multar una asamblea aún no realizada: mientras está "programada" la
+    // asistencia sigue cambiando (ausentes que aún pueden llegar), lo que
+    // produciría cobros incorrectos. Debe estar en_curso o cerrada.
+    if (a.estado === "programada")
+      return fail(
+        "La asamblea aún no se realiza. Iníciala (o ciérrala) antes de aplicar multas.",
+      );
+    const mt = a.multaTardanza != null ? Number(a.multaTardanza) : 0;
+    const mi = a.multaInasistencia != null ? Number(a.multaInasistencia) : 0;
+    if (mt <= 0 && mi <= 0)
+      return fail(
+        "Esta asamblea no tiene montos de multa definidos. Edítala y agrégalos.",
+      );
+
+    // Periodo (mes) y etiqueta de fecha en hora de Perú.
+    const periodo = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Lima",
+      year: "numeric",
+      month: "2-digit",
+    }).format(a.fecha); // "YYYY-MM"
+    const fechaLbl = new Intl.DateTimeFormat("es-PE", {
+      timeZone: "America/Lima",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(a.fecha);
+    // Marca estable de ESTA asamblea, embebida en el concepto. Permite (1)
+    // identificar y reconciliar SOLO las multas de esta asamblea aunque luego
+    // cambien su título/fecha, y (2) que la unicidad (socioId, periodo,
+    // concepto) no choque con otra asamblea del mismo mes con igual título.
+    const ref = `[asm:${id}]`;
+    const conceptoT = `Multa por tardanza · ${a.titulo} (${fechaLbl}) ${ref}`;
+    const conceptoI = `Multa por inasistencia · ${a.titulo} (${fechaLbl}) ${ref}`;
+
+    // Conjunto deseado (un socio es tardanza O ausente, nunca ambos).
+    const want = new Map<
+      string,
+      { tipo: "t" | "i"; concepto: string; monto: number }
+    >();
+    for (const x of a.asistencias) {
+      if (x.estado === "tardanza" && mt > 0)
+        want.set(x.socioId, { tipo: "t", concepto: conceptoT, monto: mt });
+      else if (x.estado === "ausente" && mi > 0)
+        want.set(x.socioId, { tipo: "i", concepto: conceptoI, monto: mi });
+    }
+    if (want.size === 0)
+      return fail("No hay socios en tardanza ni ausentes para multar.");
+
+    // Reconciliación atómica e idempotente: conserva las multas pendientes que
+    // siguen correspondiendo, elimina las obsoletas/reclasificadas (deuda NO
+    // pagada) y crea las que faltan. No recarga ni toca multas ya pagadas. Todo
+    // en una transacción (sin esto, read+insert+sello no eran atómicos).
+    const res = await prisma.$transaction(async (tx) => {
+      const existentes = await tx.cuota.findMany({
+        where: { concepto: { contains: ref } },
+        select: {
+          id: true,
+          socioId: true,
+          concepto: true,
+          estado: true,
+          monto: true,
+          periodo: true,
+        },
+      });
+
+      // Socios que ya pagaron una multa de esta asamblea: no se recargan.
+      const pagados = new Set(
+        existentes.filter((e) => e.estado === "pagada").map((e) => e.socioId),
+      );
+      for (const s of pagados) want.delete(s);
+
+      let conservadas = 0;
+      const aEliminar: string[] = [];
+      for (const e of existentes) {
+        if (e.estado !== "pendiente") continue;
+        const w = want.get(e.socioId);
+        const sigueIgual =
+          !!w &&
+          e.concepto === w.concepto &&
+          e.periodo === periodo &&
+          toNumber(e.monto) === w.monto;
+        if (sigueIgual) {
+          want.delete(e.socioId); // ya satisfecha; no recrear
+          conservadas++;
+        } else {
+          aEliminar.push(e.id); // obsoleta, reclasificada o monto/título cambiado
+        }
+      }
+      if (aEliminar.length > 0)
+        await tx.cuota.deleteMany({ where: { id: { in: aEliminar } } });
+
+      const aCrear = [...want.entries()].map(([socioId, w]) => ({ socioId, w }));
+      if (aCrear.length > 0)
+        await tx.cuota.createMany({
+          data: aCrear.map(({ socioId, w }) => ({
+            socioId,
+            periodo,
+            concepto: w.concepto,
+            monto: new Prisma.Decimal(w.monto.toFixed(2)),
+            createdById: me.id,
+          })),
+          skipDuplicates: true,
+        });
+
+      await tx.asamblea.update({
+        where: { id },
+        data: { multasAplicadasEn: new Date() },
+      });
+
+      return { creadas: aCrear.map((c) => c.w), conservadas };
+    });
+
+    refresh(id);
+    // La deuda de los socios cambió: refrescar también estas vistas.
+    revalidatePath("/cuotas");
+    revalidatePath("/socios");
+    revalidatePath("/portal/deudas");
+
+    const tardanzas = res.creadas.filter((w) => w.tipo === "t").length;
+    const ausentes = res.creadas.filter((w) => w.tipo === "i").length;
+    const total =
+      Math.round(res.creadas.reduce((acc, w) => acc + w.monto, 0) * 100) / 100;
+    return ok({
+      tardanzas,
+      ausentes,
+      yaExistentes: res.conservadas,
+      total,
+    });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("aplicarMultasAsamblea", e);
+    return fail("No se pudieron aplicar las multas.");
+  }
+}
+
+// Hoja de firmas (.xlsx) de los ASISTIDOS (presente + tardanza), ordenados por
+// llegada. El check-in (checkInByDni) sella `updatedAt` al marcar presente/
+// tardanza, así que updatedAt ASC ≈ orden de llegada. Columnas: N°, Apellidos y
+// Nombres, DNI, Firma (en blanco para firmar). Los sin DNI van con DNI vacío.
+export async function exportAsistenciaXlsx(
+  asambleaId: string,
+): Promise<ActionResult<{ base64: string; filename: string; count: number }>> {
+  try {
+    await authorize("asambleas.read");
+    const a = await prisma.asamblea.findUnique({
+      where: { id: asambleaId },
+      select: {
+        titulo: true,
+        fecha: true,
+        asistencias: {
+          where: {
+            estado: { in: ["presente", "tardanza"] as EstadoAsistencia[] },
+          },
+          orderBy: [
+            { updatedAt: "asc" },
+            { socio: { apellidoPaterno: "asc" } },
+          ],
+          select: {
+            socio: {
+              select: {
+                apellidoPaterno: true,
+                apellidoMaterno: true,
+                nombres: true,
+                numeroDocumento: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!a) return fail("Asamblea no encontrada.");
+
+    const headers = ["N°", "Apellidos y Nombres", "DNI", "Firma"];
+    const rows = a.asistencias.map((x, i) => {
+      const nombre = [
+        x.socio.apellidoPaterno,
+        x.socio.apellidoMaterno,
+        x.socio.nombres,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const dni = esDocumentoPendiente(x.socio.numeroDocumento)
+        ? ""
+        : x.socio.numeroDocumento;
+      return [i + 1, nombre, dni, ""];
+    });
+
+    const buf = buildXlsx("Asistencia", headers, rows, [6, 42, 14, 40]);
+    const stamp = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Lima",
+    }).format(a.fecha); // YYYY-MM-DD
+    const slug =
+      a.titulo
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        .slice(0, 40) || "asamblea";
+    return ok({
+      base64: buf.toString("base64"),
+      filename: `asistencia-${slug}-${stamp}.xlsx`,
+      count: rows.length,
+    });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("exportAsistenciaXlsx", e);
+    return fail("No se pudo generar la hoja de asistencia.");
+  }
+}
+
+// Frame actual del QR rotativo de asistencia: SVG del QR (que apunta a
+// /portal/asambleas/<codigo>?t=<token de la ventana>) + ms restantes de la
+// ventana. La pantalla de la mesa lo refresca solo; el token vivo es lo que
+// prueba presencia (no se puede marcar "desde casa" con la URL estática).
+export async function getAsambleaQrFrame(
+  asambleaId: string,
+): Promise<ActionResult<{ svg: string; msLeft: number }>> {
+  try {
+    // Acuñar el token vivo es una operación de la MESA (no de cualquier lector):
+    // exige asambleas.attendance, no el read amplio. Si no, un usuario de
+    // solo-lectura podría cosechar el token y pasárselo a ausentes.
+    await authorize("asambleas.attendance");
+    const a = await prisma.asamblea.findUnique({
+      where: { id: asambleaId },
+      select: { codigoVerificacion: true, estado: true },
+    });
+    if (!a?.codigoVerificacion)
+      return fail("La asamblea no tiene código de verificación.");
+    if (a.estado === "cerrada")
+      return fail("La asamblea está cerrada; el código ya no se emite.");
+    const { token, msLeft } = currentQrToken(asambleaId, Date.now());
+    const base = await appBaseUrl();
+    const url = `${base}/portal/asambleas/${a.codigoVerificacion}?t=${token}`;
+    const svg = await generarQrSvg(url);
+    return ok({ svg, msLeft });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("getAsambleaQrFrame", e);
+    return fail("No se pudo generar el código QR.");
   }
 }

@@ -27,6 +27,8 @@ const today = new Intl.DateTimeFormat("en-CA", {
   const [lugar, setLugar] = useState("");
   const [agenda, setAgenda] = useState("");
   const [quorum, setQuorum] = useState("50");
+  const [multaTardanza, setMultaTardanza] = useState("");
+  const [multaInasistencia, setMultaInasistencia] = useState("");
   const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +52,10 @@ const today = new Intl.DateTimeFormat("en-CA", {
       agenda: agenda.trim() || undefined,
       quorumMinimo: quorum.trim() ? Number(quorum) : null,
       toleranciaMin: tolerancia.trim() ? Number(tolerancia) : null,
+      multaTardanza: multaTardanza.trim() ? Number(multaTardanza) : null,
+      multaInasistencia: multaInasistencia.trim()
+        ? Number(multaInasistencia)
+        : null,
     };
     const res = await createAsamblea(input);
     if (!res.ok) {
@@ -187,6 +193,41 @@ const today = new Intl.DateTimeFormat("en-CA", {
               />
               {fe.quorumMinimo && (
                 <span className="field-error">{fe.quorumMinimo}</span>
+              )}
+            </label>
+          </div>
+
+          <div className="soc-formgrid soc-formgrid--2col">
+            <label className="field">
+              <span className="field__label">Multa por tardanza (S/)</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={multaTardanza}
+                onChange={(e) => setMultaTardanza(e.target.value)}
+                placeholder="opcional"
+                aria-invalid={!!fe.multaTardanza}
+                disabled={submitting}
+              />
+              {fe.multaTardanza && (
+                <span className="field-error">{fe.multaTardanza}</span>
+              )}
+            </label>
+            <label className="field">
+              <span className="field__label">Multa por inasistencia (S/)</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={multaInasistencia}
+                onChange={(e) => setMultaInasistencia(e.target.value)}
+                placeholder="opcional"
+                aria-invalid={!!fe.multaInasistencia}
+                disabled={submitting}
+              />
+              {fe.multaInasistencia && (
+                <span className="field-error">{fe.multaInasistencia}</span>
               )}
             </label>
           </div>

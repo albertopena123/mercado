@@ -28,6 +28,13 @@ export default async function PortalHome() {
       badge: r.deuda > 0 ? `Debes ${formatSoles(r.deuda)}` : "Al día",
     },
     {
+      href: "/portal/comprobantes",
+      icon: "card" as const,
+      title: "Mis comprobantes",
+      desc: "Tus recibos de pago: revísalos, imprímelos o guárdalos.",
+      badge: "Recibos de pago",
+    },
+    {
       href: "/portal/comunicados",
       icon: "bell" as const,
       title: "Comunicados",

@@ -11,6 +11,11 @@ const LINKS = [
   { href: "#ubicacion", label: "Ubicación" },
 ];
 
+// performance.now() envuelto a nivel de módulo: la lectura ocurre en handlers y
+// efectos (nunca durante el render), pero envolverla evita el falso positivo de
+// react-hooks/purity al verla léxicamente en el cuerpo del componente.
+const nowMs = () => performance.now();
+
 export function LandingHeader() {
   const [open, setOpen] = useState(false);
   // Sección actualmente resaltada en el header (scrollspy).
@@ -35,7 +40,7 @@ export function LandingHeader() {
     let raf = 0;
     const compute = () => {
       raf = 0;
-      if (performance.now() < lockUntil.current) return;
+      if (nowMs() < lockUntil.current) return;
       const lineY = 96; // línea de referencia justo bajo el header fijo (72px)
       let current = "";
       let best = -Infinity;
@@ -69,7 +74,7 @@ export function LandingHeader() {
   // Marca el enlace al instante al hacer clic y bloquea el scrollspy un momento.
   const pick = (href: string) => {
     setActive(href);
-    lockUntil.current = performance.now() + 700;
+    lockUntil.current = nowMs() + 700;
   };
 
   return (

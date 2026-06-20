@@ -1,5 +1,9 @@
 /* ───────── Portal del socio (mobile-first) ───────── */
 .pt {
+  /* Identidad del portal: morado de marca (los var(--pry-*) caen aquí). */
+  --pt-accent: #5128b4;
+  --pt-accent-2: #7a4ce6;
+  --pt-surface: #f6f7fb;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -124,11 +128,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--accent, #5128b4);
+  color: var(--pt-accent, #5128b4);
   font-size: 13.5px;
   font-weight: 600;
   text-decoration: none;
   margin-bottom: 14px;
+}
+.pt-back:hover {
+  text-decoration: underline;
 }
 
 /* ── Tarjetas de servicios ── */
@@ -321,6 +328,24 @@
   opacity: 0.6;
   cursor: default;
 }
+/* Botón principal a lo ancho, con gradiente de marca (CTA del pase). */
+.pt-btn--block {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 15px;
+  border-radius: 13px;
+  background: linear-gradient(160deg, var(--pt-accent-2, #7a4ce6), var(--pt-accent, #5128b4));
+  box-shadow: 0 10px 22px rgba(81, 40, 180, 0.28);
+  transition: transform 0.12s ease, box-shadow 0.16s ease, filter 0.12s ease;
+}
+.pt-btn--block:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 14px 28px rgba(81, 40, 180, 0.34);
+}
+.pt-btn--block:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(81, 40, 180, 0.28);
+}
 
 .pt-empty {
   text-align: center;
@@ -340,4 +365,206 @@
   .pt-dl dd {
     margin-bottom: 8px;
   }
+}
+
+/* ───────── Pase de asistencia (check-in del socio) ───────── */
+.pt-pase {
+  position: relative;
+  max-width: 460px;
+  margin: 8px auto 0;
+  background: #fff;
+  border: 1px solid var(--border, #e7e3f3);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(33, 16, 84, 0.07);
+}
+/* Franja de marca superior (firma sutil). */
+.pt-pase::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--pt-accent-2, #7a4ce6), var(--pt-accent, #5128b4));
+}
+
+.pt-pase__head {
+  padding: 24px 22px 16px;
+}
+.pt-pase__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--pt-accent, #5128b4);
+  margin-bottom: 12px;
+}
+.pt-pase__titlerow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pt-pase__title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+}
+.pt-pase__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  margin-top: 13px;
+}
+.pt-pase__metaitem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text-muted, #5c5872);
+}
+.pt-pase__metaitem svg {
+  color: var(--pt-accent, #5128b4);
+  opacity: 0.85;
+  flex: none;
+}
+
+/* Chip del estado de la asamblea. */
+.pt-state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pt-state-chip--programada { background: #ede9fe; color: #5b21b6; }
+.pt-state-chip--en_curso { background: #dcfce7; color: #166534; }
+.pt-state-chip--cerrada { background: #eef0f6; color: #64748b; }
+.pt-state-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* Divisor punteado tipo ticket. */
+.pt-pase__perf {
+  margin: 4px 22px 0;
+  border-top: 1.5px dashed var(--border, #e7e3f3);
+}
+
+.pt-pase__body {
+  padding: 28px 24px 26px;
+  text-align: center;
+}
+
+/* Medallón de estado: disco tintado + halo concéntrico. */
+.pt-medallion {
+  --disc-bg: #eef0f6;
+  --disc-fg: #64748b;
+  --halo-1: rgba(100, 116, 139, 0.12);
+  --halo-2: rgba(100, 116, 139, 0.05);
+  position: relative;
+  width: 84px;
+  height: 84px;
+  margin: 2px auto 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--disc-bg);
+  color: var(--disc-fg);
+  box-shadow: 0 0 0 7px var(--halo-1), 0 0 0 15px var(--halo-2);
+}
+.pt-medallion--ok {
+  --disc-bg: #dcfce7; --disc-fg: #15803d;
+  --halo-1: rgba(34, 197, 94, 0.13); --halo-2: rgba(34, 197, 94, 0.05);
+}
+.pt-medallion--warn {
+  --disc-bg: #fef3c7; --disc-fg: #b45309;
+  --halo-1: rgba(245, 158, 11, 0.15); --halo-2: rgba(245, 158, 11, 0.05);
+}
+.pt-medallion--info {
+  --disc-bg: #e0f2fe; --disc-fg: #0369a1;
+  --halo-1: rgba(2, 132, 199, 0.13); --halo-2: rgba(2, 132, 199, 0.05);
+}
+.pt-medallion--danger {
+  --disc-bg: #fee2e2; --disc-fg: #b91c1c;
+  --halo-1: rgba(239, 68, 68, 0.13); --halo-2: rgba(239, 68, 68, 0.05);
+}
+.pt-medallion--brand {
+  --disc-fg: #fff;
+  --halo-1: rgba(81, 40, 180, 0.18); --halo-2: rgba(81, 40, 180, 0.07);
+  background: linear-gradient(160deg, var(--pt-accent-2, #7a4ce6), var(--pt-accent, #5128b4));
+}
+
+.pt-pase__status-title {
+  margin: 0 0 7px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.pt-pase__status-text {
+  margin: 0 auto;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted, #5c5872);
+}
+.pt-pase__status-text .pt-badge {
+  vertical-align: 1px;
+}
+.pt-pase__action {
+  margin-top: 22px;
+}
+.pt-pase__hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 13px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted, #5c5872);
+}
+.pt-pase__hint svg {
+  flex: none;
+  opacity: 0.8;
+}
+
+/* Movimiento: entrada suave y pulso del estado accionable / "en curso". */
+@media (prefers-reduced-motion: no-preference) {
+  .pt-pase {
+    animation: pt-pase-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .pt-medallion--brand::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 999px;
+    border: 2px solid var(--pt-accent-2, #7a4ce6);
+    animation: pt-ring 2.2s ease-out infinite;
+  }
+  .pt-state-chip--en_curso .pt-state-chip__dot {
+    animation: pt-blink 1.6s ease-in-out infinite;
+  }
+}
+@keyframes pt-pase-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pt-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  70% { transform: scale(1.45); opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes pt-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }

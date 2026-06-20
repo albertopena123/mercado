@@ -26,8 +26,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = await verifySession(token);
+  // Resuelve el token igual que getCurrentUser: los clientes móviles no llevan
+  // cookie y se autentican con `Authorization: Bearer …`, así que el proxy debe
+  // considerar el bearer o redirigiría a /login una petición móvil válida. El
+  // bearer tiene precedencia para que una cookie obsoleta no pise el header.
+  const authz = request.headers.get("authorization");
+  const bearer =
+    authz && /^bearer\s+/i.test(authz)
+      ? authz.replace(/^bearer\s+/i, "").trim()
+      : null;
+  const cookieToken = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = await verifySession(bearer || cookieToken);
 
   if (!session) {
     const url = request.nextUrl.clone();

@@ -58,6 +58,10 @@ next-env.d.ts
 /private-uploads/empleados/*
 !/private-uploads/empleados/.gitkeep
 
+# Local file storage for escaneos firmados de transferencias (served via auth API route)
+/private-uploads/transferencias/*
+!/private-uploads/transferencias/.gitkeep
+
 # Playwright MCP scratch (browser snapshots + console logs from agent sessions)
 /.playwright-mcp/
 
@@ -71,5 +75,8 @@ next-env.d.ts
 # Audit working notes (not committed)
 /.audit-findings.md
 
-# Padrón / scratch JSON exportado del Excel (contiene DNIs — no commitear)
-/prisma/_*.json
+# Padrón / scratch exportado del Excel + scripts scratch (pueden contener DNIs — no commitear)
+/prisma/_*
+
+# Scratch temporal de sesiones de agente (extractos de PDF, diagnósticos, etc.)
+/tmp_*

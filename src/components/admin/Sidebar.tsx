@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Icon } from "./Icon";
 import { SIDEBAR_NAV } from "./data";
 
@@ -26,10 +26,13 @@ export function Sidebar({ collapsed, mobileOpen = false }: Props) {
     )?.id ?? null;
 
   const [openId, setOpenId] = useState<string | null>(parentOfActive);
-
-  useEffect(() => {
+  // Abrir el grupo padre de la ruta activa cuando cambia la ruta. Se ajusta
+  // durante el render (patrón recomendado por React) en vez de en un useEffect.
+  const [prevParent, setPrevParent] = useState(parentOfActive);
+  if (prevParent !== parentOfActive) {
+    setPrevParent(parentOfActive);
     if (parentOfActive) setOpenId(parentOfActive);
-  }, [parentOfActive]);
+  }
 
   return (
     <aside

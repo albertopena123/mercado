@@ -6,16 +6,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast";
 import { fechaLargaTS, horaLima } from "@/lib/fecha";
 import { ConfirmDialog } from "../../socios/ConfirmDialog";
+import { EditMultasModal } from "./EditMultasModal";
 import {
   setAsistencia,
   deleteAsamblea,
   marcarTodosAsistencia,
   checkInByDni,
+  aplicarMultasAsamblea,
+  exportAsistenciaXlsx,
+  setEstadoAsamblea,
 } from "../actions";
-import type { EstadoAsistencia } from "@/generated/prisma/client";
+import type {
+  EstadoAsistencia,
+  EstadoAsamblea,
+} from "@/generated/prisma/client";
 import type { AsambleaDetail, AsistenciaRow, PermFlags } from "../types";
 
 type CheckLog = {
@@ -25,11 +33,11 @@ type CheckLog = {
   estado?: "presente" | "tardanza";
 };
 
-const SEG: { v: EstadoAsistencia; label: string }[] = [
-  { v: "presente", label: "Presente" },
-  { v: "tardanza", label: "Tard." },
-  { v: "justificado", label: "Justif." },
-  { v: "ausente", label: "Ausente" },
+const SEG: { v: EstadoAsistencia; label: string; aria: string }[] = [
+  { v: "presente", label: "Presente", aria: "Presente" },
+  { v: "tardanza", label: "Tard.", aria: "Tardanza" },
+  { v: "justificado", label: "Justif.", aria: "Justificado" },
+  { v: "ausente", label: "Ausente", aria: "Ausente" },
 ];
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -51,12 +59,22 @@ export function AsambleaDetailClient({
     initial.asistencias,
   );
   const [filter, setFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [, startTransition] = useTransition();
   const [bulkPending, setBulkPending] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [bulkConfirm, setBulkConfirm] = useState<EstadoAsistencia | null>(null);
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [confirmMultas, setConfirmMultas] = useState(false);
+  const [multasPending, setMultasPending] = useState(false);
+  const [editingMultas, setEditingMultas] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [estado, setEstado] = useState<EstadoAsamblea>(initial.estado);
+  const [pendingEstado, setPendingEstado] = useState<EstadoAsamblea | null>(null);
+  const [confirmEstado, setConfirmEstado] = useState<EstadoAsamblea | null>(null);
+  const estadoPending = pendingEstado !== null;
 
   // Reconciliar con el servidor cuando llegan props nuevas (tras router.refresh):
   // permite converger con check-ins hechos desde otro dispositivo.
@@ -64,6 +82,34 @@ export function AsambleaDetailClient({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAsistencias(initial.asistencias);
   }, [initial.asistencias]);
+
+  // Mantener el estado local de la asamblea en sincronía con el servidor.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEstado(initial.estado);
+  }, [initial.estado]);
+
+  async function cambiarEstado(next: EstadoAsamblea) {
+    if (estadoPending || next === estado) return;
+    setPendingEstado(next);
+    const res = await setEstadoAsamblea(initial.id, next);
+    if (!res.ok) {
+      setPendingEstado(null);
+      toast.error(res.error);
+      return;
+    }
+    setEstado(next);
+    setPendingEstado(null);
+    setConfirmEstado(null);
+    toast.success(
+      next === "en_curso" && estado === "cerrada"
+        ? "Asamblea reabierta."
+        : next === "en_curso"
+          ? "Registro de asistencia abierto. Los socios ya pueden marcar."
+          : "Asamblea cerrada. La asistencia quedó finalizada.",
+    );
+    router.refresh();
+  }
 
   // Modo puerta (check-in por DNI)
   const [dni, setDni] = useState("");
@@ -134,6 +180,14 @@ export function AsambleaDetailClient({
   const hasQuorum =
     initial.quorumMinimo != null ? pct >= initial.quorumMinimo : null;
 
+  // Multas: montos definidos en la asamblea + preview de cuánto se cargaría
+  // según la asistencia actual (presentes y justificados no pagan).
+  const mt = initial.multaTardanza ?? 0;
+  const mi = initial.multaInasistencia ?? 0;
+  const tieneMultas = mt > 0 || mi > 0;
+  const multaTotal =
+    (mt > 0 ? counts.tardanza : 0) * mt + (mi > 0 ? counts.ausente : 0) * mi;
+
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return asistencias;
@@ -143,6 +197,15 @@ export function AsambleaDetailClient({
         a.socioCodigo.toLowerCase().includes(q),
     );
   }, [asistencias, filter]);
+
+  // Paginación client-side (10/pág por defecto). currentPage va acotado por si
+  // el filtro reduce los resultados por debajo de la página actual.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
 
   async function marcarTodos(estado: EstadoAsistencia) {
     if (!perms.canAttendance || bulkPending) return;
@@ -189,6 +252,64 @@ export function AsambleaDetailClient({
     });
   }
 
+  const handleAplicarMultas = async () => {
+    if (multasPending) return;
+    setMultasPending(true);
+    const res = await aplicarMultasAsamblea(initial.id);
+    setMultasPending(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    const d = res.data!;
+    const nuevas = d.tardanzas + d.ausentes;
+    toast.success(
+      nuevas > 0
+        ? `Multas cargadas: ${d.tardanzas} tardanza(s) + ${d.ausentes} ausente(s) = S/ ${d.total.toFixed(2)}${
+            d.yaExistentes ? ` · ${d.yaExistentes} ya estaban` : ""
+          }`
+        : `Sin multas nuevas — las ${d.yaExistentes} ya estaban cargadas.`,
+    );
+    setConfirmMultas(false);
+    router.refresh();
+  };
+
+  const handleExportAsistencia = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const res = await exportAsistenciaXlsx(initial.id);
+    if (!res.ok) {
+      toast.error(res.error);
+      setExporting(false);
+      return;
+    }
+    const d = res.data!;
+    if (d.count === 0) {
+      toast.error(
+        "Aún no hay asistentes (presente o tardanza) para la hoja de firmas.",
+      );
+      setExporting(false);
+      return;
+    }
+    // base64 → bytes → Blob .xlsx (igual que el export de socios).
+    const bin = atob(d.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = d.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Hoja de firmas generada (${d.count} asistentes).`);
+    setExporting(false);
+  };
+
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -219,17 +340,82 @@ export function AsambleaDetailClient({
             {fechaLargaTS(initial.fecha)}{" "}
             · <span style={{ textTransform: "capitalize" }}>{initial.tipo}</span>{" "}
             ·{" "}
-            <span className={`asm-badge asm-badge--${initial.estado}`}>
-              {ESTADO_LABEL[initial.estado]}
+            <span className={`asm-badge asm-badge--${estado}`}>
+              {ESTADO_LABEL[estado]}
             </span>
             {initial.lugar ? ` · ${initial.lugar}` : ""}
+            {tieneMultas
+              ? ` · Multas: ${mt > 0 ? `tardanza S/ ${mt.toFixed(2)}` : ""}${
+                  mt > 0 && mi > 0 ? " · " : ""
+                }${mi > 0 ? `inasistencia S/ ${mi.toFixed(2)}` : ""}${
+                  initial.multasAplicadasEn ? " (aplicadas)" : ""
+                }`
+              : ""}
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <Link href={`/asambleas/${initial.id}/qr`} className="btn btn--ghost">
-            <Icon name="apps" size={16} />
-            <span>QR de asistencia</span>
-          </Link>
+          {perms.canAttendance && estado === "programada" && (
+            <button
+              className="btn btn--primary"
+              onClick={() => cambiarEstado("en_curso")}
+              disabled={estadoPending}
+              title="Abre el registro de asistencia: los socios ya pueden marcar al escanear el QR, aunque aún no llegue la hora de inicio"
+            >
+              <Icon name="check" size={16} />
+              <span>{estadoPending ? "Abriendo…" : "Iniciar asistencia"}</span>
+            </button>
+          )}
+          {perms.canAttendance && estado === "en_curso" && (
+            <button
+              className="btn btn--ghost"
+              onClick={() => setConfirmEstado("cerrada")}
+              disabled={estadoPending}
+              title="Cierra la asamblea y finaliza la asistencia (ya no se admiten más registros)"
+            >
+              <Icon name="lock" size={16} />
+              <span>{estadoPending ? "Cerrando…" : "Cerrar asamblea"}</span>
+            </button>
+          )}
+          {perms.canAttendance && estado === "cerrada" && (
+            <button
+              className="btn btn--ghost"
+              onClick={() => setConfirmEstado("en_curso")}
+              disabled={estadoPending}
+              title="Reabre el registro de asistencia (corrección)"
+            >
+              <Icon name="clock" size={16} />
+              <span>{estadoPending ? "Reabriendo…" : "Reabrir"}</span>
+            </button>
+          )}
+          {perms.canAttendance && (
+            <Link href={`/asambleas/${initial.id}/qr`} className="btn btn--ghost">
+              <Icon name="apps" size={16} />
+              <span>QR de asistencia</span>
+            </Link>
+          )}
+          {perms.canWrite && (
+            <button
+              className="btn btn--ghost"
+              onClick={() => setEditingMultas(true)}
+              title="Definir o editar los montos de multa por tardanza e inasistencia"
+            >
+              <Icon name="settings" size={16} />
+              <span>{tieneMultas ? "Editar multas" : "Definir multas"}</span>
+            </button>
+          )}
+          {tieneMultas && perms.canAttendance && (
+            <button
+              className="btn btn--ghost"
+              onClick={() => setConfirmMultas(true)}
+              disabled={multasPending}
+              title="Cargar como deuda las multas por tardanza e inasistencia"
+            >
+              <Icon name="card" size={16} />
+              <span>
+                {initial.multasAplicadasEn ? "Reaplicar multas" : "Aplicar multas"}
+              </span>
+            </button>
+          )}
           {perms.canDelete && (
             <button
               className="btn btn--ghost"
@@ -394,8 +580,23 @@ export function AsambleaDetailClient({
           className="socios-toolbar__search"
           placeholder="Filtrar socio por nombre o código…"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            setPage(1);
+          }}
         />
+        {total > 0 && (
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={handleExportAsistencia}
+            disabled={exporting}
+            title="Descargar la hoja de firmas de los asistidos (Excel), ordenada por llegada"
+          >
+            <Icon name="download" size={15} />
+            <span>{exporting ? "Generando…" : "Hoja de firmas"}</span>
+          </button>
+        )}
         {perms.canAttendance && total > 0 && (
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -426,43 +627,79 @@ export function AsambleaDetailClient({
             socios activos en el padrón.
           </p>
         </div>
-      ) : (
-        <div className="asis-list">
-          {filtered.map((row) => (
-            <div className="asis-row" key={row.id}>
-              <div className="asis-row__info">
-                <div className="asis-row__name">{row.socioNombre}</div>
-                <div className="asis-row__codigo">{row.socioCodigo}</div>
-              </div>
-              <div className="asis-seg">
-                {SEG.map((s) => (
-                  <button
-                    key={s.v}
-                    type="button"
-                    className={row.estado === s.v ? `is-on--${s.v}` : ""}
-                    onClick={() => mark(row, s.v)}
-                    disabled={!perms.canAttendance || savingIds.has(row.id)}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="asis-row" style={{ color: "var(--text-muted)" }}>
-              Sin coincidencias para “{filter}”.
-            </div>
-          )}
+      ) : filtered.length === 0 ? (
+        <div className="socios-empty">
+          <p>Sin coincidencias para “{filter}”.</p>
         </div>
+      ) : (
+        <>
+          <div className="asis-list">
+            <div className="asis-head">
+              <span className="asis-head__num">#</span>
+              <span className="asis-head__socio">Socio</span>
+              <span className="asis-head__estado">Estado</span>
+            </div>
+            {paged.map((row, i) => (
+              <div className="asis-row" key={row.id}>
+                <span className="asis-row__num">
+                  {(currentPage - 1) * pageSize + i + 1}
+                </span>
+                <div className="asis-row__info">
+                  <div className="asis-row__name">{row.socioNombre}</div>
+                  <div className="asis-row__codigo">{row.socioCodigo}</div>
+                </div>
+                <div
+                  className="asis-seg"
+                  role="group"
+                  aria-label={`Estado de ${row.socioNombre}`}
+                >
+                  {SEG.map((s) => (
+                    <button
+                      key={s.v}
+                      type="button"
+                      className={row.estado === s.v ? `is-on--${s.v}` : ""}
+                      aria-pressed={row.estado === s.v}
+                      aria-label={s.aria}
+                      onClick={() => mark(row, s.v)}
+                      disabled={!perms.canAttendance || savingIds.has(row.id)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <Pagination
+            total={filtered.length}
+            page={currentPage}
+            pageSize={pageSize}
+            noun="socio"
+            pageSizes={[10, 25, 50, 100]}
+            onPage={(p) => setPage(p)}
+            onPageSize={(s) => {
+              setPageSize(s);
+              setPage(1);
+            }}
+          />
+        </>
       )}
 
       {bulkConfirm && (
         <ConfirmDialog
           title="Marcar asistencia"
-          description={`¿Marcar a los ${total} socios como ${
-            bulkConfirm === "presente" ? "presentes" : "ausentes"
-          }?`}
+          description={
+            <>
+              ¿Marcar a los <b>{total}</b> socios como{" "}
+              {bulkConfirm === "presente" ? "presentes" : "ausentes"}?
+              {filter.trim() !== "" && (
+                <div style={{ marginTop: 8, color: "#b45309", fontSize: 13 }}>
+                  Se aplica a <b>todos</b> los {total} socios, no solo a los{" "}
+                  {filtered.length} del filtro actual.
+                </div>
+              )}
+            </>
+          }
           confirmLabel="Marcar"
           busy={bulkPending}
           onConfirm={async () => {
@@ -471,6 +708,87 @@ export function AsambleaDetailClient({
             setBulkConfirm(null);
           }}
           onClose={() => !bulkPending && setBulkConfirm(null)}
+        />
+      )}
+
+      {confirmEstado && (
+        <ConfirmDialog
+          title={
+            confirmEstado === "cerrada" ? "Cerrar asamblea" : "Reabrir asamblea"
+          }
+          description={
+            confirmEstado === "cerrada" ? (
+              <>
+                Se finaliza la asistencia: los socios y la puerta ya no podrán
+                registrar más asistencias. Podrás reabrirla después si necesitas
+                corregir.
+              </>
+            ) : (
+              <>
+                Reabrir vuelve a admitir registros de asistencia en una asamblea
+                ya cerrada. Esto puede <b>alterar el quórum y las multas</b> si
+                ya se aplicaron. Úsalo solo para corregir.
+              </>
+            )
+          }
+          confirmLabel={confirmEstado === "cerrada" ? "Cerrar" : "Reabrir"}
+          tone={confirmEstado === "en_curso" ? "danger" : undefined}
+          busy={estadoPending}
+          onConfirm={() => cambiarEstado(confirmEstado)}
+          onClose={() => !estadoPending && setConfirmEstado(null)}
+        />
+      )}
+
+      {confirmMultas && (
+        <ConfirmDialog
+          title="Aplicar multas de la asamblea"
+          description={
+            <>
+              Se cargará como <b>deuda</b>:
+              {mt > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  · {counts.tardanza} en tardanza × S/ {mt.toFixed(2)} = S/{" "}
+                  {(counts.tardanza * mt).toFixed(2)}
+                </div>
+              )}
+              {mi > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  · {counts.ausente} ausente(s) × S/ {mi.toFixed(2)} = S/{" "}
+                  {(counts.ausente * mi).toFixed(2)}
+                </div>
+              )}
+              <div style={{ marginTop: 8, fontWeight: 700 }}>
+                Total: S/ {multaTotal.toFixed(2)}
+              </div>
+              <div
+                style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}
+              >
+                Presentes y justificados no pagan.
+                {initial.multasAplicadasEn
+                  ? " Ya se aplicaron antes — no se duplican las existentes."
+                  : ""}
+              </div>
+            </>
+          }
+          confirmLabel="Aplicar multas"
+          busy={multasPending}
+          onConfirm={handleAplicarMultas}
+          onClose={() => !multasPending && setConfirmMultas(false)}
+        />
+      )}
+
+      {editingMultas && (
+        <EditMultasModal
+          asambleaId={initial.id}
+          initialTardanza={initial.multaTardanza}
+          initialInasistencia={initial.multaInasistencia}
+          yaAplicadas={initial.multasAplicadasEn != null}
+          onClose={() => setEditingMultas(false)}
+          onSaved={() => {
+            setEditingMultas(false);
+            toast.success("Multas actualizadas.");
+            router.refresh();
+          }}
         />
       )}
 

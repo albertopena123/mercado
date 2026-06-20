@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { avatarColor, initialsFor } from "@/lib/ui/avatar";
@@ -99,9 +99,13 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
 
-  // Mounted gate for hydration-safe date rendering
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Mounted gate for hydration-safe date rendering. useSyncExternalStore evita el
+  // setState-en-effect: devuelve false en SSR/hidratación y true ya en cliente.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   // Filter + search the list
   const filtered = useMemo(() => {
@@ -129,20 +133,27 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     return filtered[0] ?? rows[0] ?? null;
   }, [roleId, rows, filtered]);
 
-  // Reset inline edits when switching role
-  useEffect(() => {
+  // Reset inline edits when switching role. Se ajusta DURANTE el render (patrón
+  // recomendado por React para derivar estado) en vez de en un useEffect.
+  const [prevActiveId, setPrevActiveId] = useState(active?.id);
+  if (prevActiveId !== active?.id) {
+    setPrevActiveId(active?.id);
     setPendingPerms(null);
     setEditingMeta(false);
     setPermSearch("");
-  }, [active?.id]);
+  }
 
-  // Sync draft meta with active role
-  useEffect(() => {
+  // Sync draft meta with active role (también durante el render, sin efecto: así
+  // se re-sincroniza cuando cambia id, nombre o descripción del rol activo).
+  const activeMetaSig = `${active?.id ?? ""}|${active?.name ?? ""}|${active?.description ?? ""}`;
+  const [prevActiveMetaSig, setPrevActiveMetaSig] = useState(activeMetaSig);
+  if (prevActiveMetaSig !== activeMetaSig) {
+    setPrevActiveMetaSig(activeMetaSig);
     if (active) {
       setDraftName(active.name);
       setDraftDesc(active.description ?? "");
     }
-  }, [active?.id, active?.name, active?.description]);
+  }
 
   const totals = useMemo(
     () => ({

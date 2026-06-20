@@ -20,6 +20,15 @@ const LABEL: Record<EstadoSocio, string> = {
   fallecido: "Fallecido",
 };
 
+// Transiciones permitidas (espejo del servidor en actions.ts). fallecido es
+// terminal; desde retirado solo se reactiva.
+const TRANSICIONES: Record<EstadoSocio, EstadoSocio[]> = {
+  activo: ["suspendido", "retirado", "fallecido"],
+  suspendido: ["activo", "retirado", "fallecido"],
+  retirado: ["activo"],
+  fallecido: [],
+};
+
 export function ChangeEstadoModal({
   socioId,
   current,
@@ -31,8 +40,9 @@ export function ChangeEstadoModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const allowed = OPTS.filter((o) => TRANSICIONES[current].includes(o.v));
   const [toEstado, setToEstado] = useState<EstadoSocio>(
-    OPTS.find((o) => o.v !== current)!.v,
+    allowed[0]?.v ?? current,
   );
   const [motivo, setMotivo] = useState("");
   const [topError, setTopError] = useState<string | null>(null);
@@ -41,7 +51,7 @@ export function ChangeEstadoModal({
 
   useEscClose(true, onClose, pending);
 
-  const valid = motivo.trim().length >= 5;
+  const valid = motivo.trim().length >= 5 && allowed.length > 0;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -96,22 +106,29 @@ export function ChangeEstadoModal({
             <input value={LABEL[current]} disabled />
           </label>
 
-          <label className="field">
-            <span className="field__label">
-              Nuevo estado<span className="field__req">*</span>
-            </span>
-            <select
-              value={toEstado}
-              onChange={(e) => setToEstado(e.target.value as EstadoSocio)}
-              disabled={pending}
-            >
-              {OPTS.filter((o) => o.v !== current).map((o) => (
-                <option key={o.v} value={o.v}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {allowed.length > 0 ? (
+            <label className="field">
+              <span className="field__label">
+                Nuevo estado<span className="field__req">*</span>
+              </span>
+              <select
+                value={toEstado}
+                onChange={(e) => setToEstado(e.target.value as EstadoSocio)}
+                disabled={pending}
+              >
+                {allowed.map((o) => (
+                  <option key={o.v} value={o.v}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="modal__intro" style={{ color: "var(--text-muted)" }}>
+              «{LABEL[current]}» es un estado final: no hay transiciones
+              disponibles.
+            </p>
+          )}
 
           <label className="field">
             <span className="field__label">

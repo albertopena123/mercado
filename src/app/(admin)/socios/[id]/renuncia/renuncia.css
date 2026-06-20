@@ -1,0 +1,34 @@
+/* La carta de renuncia reutiliza la hoja .constancia (card + reglas @media
+   print) pero sin la marca de agua del escudo: es una carta personal que firma
+   el socio, no un documento institucional sellado. */
+.renuncia.constancia::before {
+  display: none;
+}
+
+.renuncia__body {
+  text-align: justify;
+}
+.renuncia__fecha {
+  text-align: left;
+  margin-bottom: 20px !important;
+}
+
+.renuncia__firma {
+  margin-top: 64px;
+  text-align: center;
+}
+.renuncia__firma-line {
+  width: 300px;
+  max-width: 80%;
+  margin: 0 auto 6px;
+  border-top: 1px solid #1a1a1a;
+}
+.renuncia__firma-name {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.renuncia__firma-doc {
+  font-size: 13px;
+  color: #333;
+  margin-top: 2px;
+}

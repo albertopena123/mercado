@@ -122,6 +122,9 @@ export function buildXlsx(
   sheetName: string,
   headers: string[],
   rows: Cell[][],
+  // Anchos opcionales por columna (en "caracteres" de Excel). Si se omite, Excel
+  // usa el ancho por defecto. Útil p. ej. para una columna de firma ancha.
+  colWidths?: number[],
 ): Buffer {
   const safeName = escXml(sheetName).slice(0, 31) || "Hoja1";
   const allRows = [headers, ...rows];
@@ -134,9 +137,20 @@ export function buildXlsx(
     })
     .join("");
 
+  const colsXml =
+    colWidths && colWidths.length
+      ? `<cols>${colWidths
+          .map(
+            (w, i) =>
+              `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`,
+          )
+          .join("")}</cols>`
+      : "";
+
   const sheet =
     XML +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    colsXml +
     `<sheetData>${rowsXml}</sheetData></worksheet>`;
 
   const contentTypes =

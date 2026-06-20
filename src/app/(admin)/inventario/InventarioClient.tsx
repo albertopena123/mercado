@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
@@ -45,7 +45,13 @@ export function InventarioClient({
 
   const [qInput, setQInput] = useState(filters.q);
   // Mantiene el input sincronizado si los filtros cambian desde fuera (Limpiar).
-  useEffect(() => setQInput(filters.q), [filters.q]);
+  // Se ajusta DURANTE el render (patrón recomendado por React para derivar estado
+  // de props) en vez de en un useEffect, evitando renders en cascada.
+  const [prevFilterQ, setPrevFilterQ] = useState(filters.q);
+  if (prevFilterQ !== filters.q) {
+    setPrevFilterQ(filters.q);
+    setQInput(filters.q);
+  }
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editBien, setEditBien] = useState<BienRow | null>(null);

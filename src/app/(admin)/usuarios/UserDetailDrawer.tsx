@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { avatarColor, initialsFor } from "@/lib/ui/avatar";
 import {
@@ -80,13 +80,21 @@ export function UserDetailDrawer({
     confirmingDelete;
   useEscClose(true, onClose, busy);
 
-  // H8: hydration-safe dates — only render relative after mount.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // H8: hydration-safe dates — render relative solo tras montar. useSyncExternalStore
+  // evita el setState-en-effect: false en SSR/hidratación, true ya en cliente.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
-  // H5: only resync when the *user identity* changes. Pending edits survive
-  // a router.refresh() triggered by sibling mutations.
-  useEffect(() => {
+  // H5: re-sincroniza SOLO cuando cambia la identidad del usuario. Se hace
+  // durante el render (patrón recomendado por React) en vez de en un useEffect;
+  // las ediciones pendientes sobreviven a un router.refresh() porque user.id no
+  // cambia.
+  const [prevUserId, setPrevUserId] = useState(user.id);
+  if (prevUserId !== user.id) {
+    setPrevUserId(user.id);
     setName(user.name);
     setRoleIds(user.roles.map((r) => r.id));
     setNameDirty(false);
@@ -96,8 +104,7 @@ export function UserDetailDrawer({
     setProfileError(null);
     setRolesError(null);
     setSecurityError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.id]);
+  }
 
   const canEdit = perms.canWrite;
   const canAssignRoles = perms.canAssignRoles;

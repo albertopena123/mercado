@@ -67,6 +67,45 @@ export async function getMisCuotas(socioId: string): Promise<MisCuotas> {
   };
 }
 
+/* ───────────────────────── Comprobantes de pago ───────────────────────── */
+export type MiComprobante = {
+  id: string;
+  folio: string;
+  monto: number;
+  metodoPago: string | null;
+  detalle: string;
+  emitidoEn: string;
+  anulada: boolean;
+};
+
+export async function getMisComprobantes(
+  socioId: string,
+): Promise<MiComprobante[]> {
+  const rows = await prisma.comprobante.findMany({
+    where: { socioId },
+    orderBy: { emitidoEn: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      folio: true,
+      monto: true,
+      metodoPago: true,
+      detalle: true,
+      emitidoEn: true,
+      anulada: true,
+    },
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    folio: c.folio,
+    monto: toNumber(c.monto),
+    metodoPago: c.metodoPago,
+    detalle: c.detalle,
+    emitidoEn: c.emitidoEn.toISOString(),
+    anulada: c.anulada,
+  }));
+}
+
 /* ───────────────────────── Puestos ───────────────────────── */
 export type MiPuesto = {
   id: string;

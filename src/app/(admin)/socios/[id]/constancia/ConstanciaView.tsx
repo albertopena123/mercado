@@ -6,9 +6,17 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { formatSoles } from "@/lib/money";
-import { fechaLarga, fechaLargaTS, fechaHora, hoyLarga } from "@/lib/fecha";
+import { fechaLargaTS, fechaHora, hoyLarga } from "@/lib/fecha";
+import { ORG } from "@/lib/org";
 import { emitirConstancia } from "./actions";
-import { VIGENCIA_DIAS, type EmitResult } from "./shared";
+import {
+  VIGENCIA_DIAS,
+  TIPO_CONSTANCIA_LABEL,
+  type EmitResult,
+  type TipoConstancia,
+} from "./shared";
+import { DIMENSION_LABEL } from "@/lib/puestos/giro";
+import type { DimensionPuesto } from "@/generated/prisma/client";
 
 type Data = {
   nombreCompleto: string;
@@ -19,43 +27,59 @@ type Data = {
   estadoLabel: string;
   fechaIngreso: string;
   direccion: string | null;
-  puestos: { codigo: string; giro: string | null }[];
+  puestos: { codigo: string; giro: string | null; dimension: DimensionPuesto }[];
   deuda: number;
 };
 
 export function ConstanciaView({
   socioId,
   data,
-  habil,
+  activo,
   motivoBloqueo,
+  inasistencias,
 }: {
   socioId: string;
   data: Data;
-  habil: boolean;
+  activo: boolean;
   motivoBloqueo: string | null;
+  // Inasistencias injustificadas a asambleas concluidas (bloquean la de no adeudo).
+  inasistencias: number;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [emitida, setEmitida] = useState<EmitResult | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
+  const [tipo, setTipo] = useState<TipoConstancia>("socio_habil");
 
   const hoy = hoyLarga();
-  const ingreso = fechaLarga(data.fechaIngreso);
+  const noAdeudo = tipo === "no_adeudo";
+  // La de socio (membresía) se emite a cualquier socio activo, aunque tenga
+  // deuda. La de no adeudo exige además estar sin deuda Y al día en asambleas
+  // (sin inasistencias injustificadas a asambleas concluidas).
+  const noAdeudoBloqueado = noAdeudo && (data.deuda > 0 || inasistencias > 0);
+
+  const puestosTxt = (sep: string) =>
+    data.puestos
+      .map((p) => `${p.codigo}, de dimensiones ${DIMENSION_LABEL[p.dimension]}`)
+      .join(sep);
 
   async function onEmitir() {
+    if (noAdeudoBloqueado) return;
     setEmitiendo(true);
-    const res = await emitirConstancia(socioId);
+    const res = await emitirConstancia(socioId, tipo);
     setEmitiendo(false);
     if (!res.ok) {
       toast.error(res.error);
       return;
     }
     setEmitida(res.data!);
-    toast.success(`Constancia emitida · Folio ${res.data!.folio}`);
+    toast.success(
+      `${TIPO_CONSTANCIA_LABEL[tipo]} emitida · Folio ${res.data!.folio}`,
+    );
   }
 
-  // Socio no hábil: no se emite la constancia, se muestra el motivo.
-  if (!habil) {
+  // Socio no activo: ninguna constancia es emitible.
+  if (!activo) {
     return (
       <div className="constancia-page">
         <div className="constancia-toolbar no-print">
@@ -78,26 +102,9 @@ export function ConstanciaView({
           <h2>No se puede emitir la constancia</h2>
           <p>{motivoBloqueo}</p>
           <p className="constancia-bloqueo__sub">
-            La <b>constancia de socio hábil</b> solo se emite cuando el socio
-            está activo y al día en sus cuotas.
+            Solo se puede emitir una constancia a socios <b>activos</b>.
           </p>
-          {data.deuda > 0 && (
-            <div className="constancia-bloqueo__deuda">
-              Deuda pendiente: <b>{formatSoles(data.deuda)}</b>
-            </div>
-          )}
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            {data.deuda > 0 && (
-              <button
-                className="btn--cta"
-                onClick={() =>
-                  router.push(`/cuotas?q=${encodeURIComponent(data.codigo)}`)
-                }
-              >
-                <Icon name="chart" size={16} />
-                <span>Ir a cuotas del socio</span>
-              </button>
-            )}
             <button className="btn btn--ghost" onClick={() => router.refresh()}>
               Reintentar
             </button>
@@ -130,7 +137,7 @@ export function ConstanciaView({
           <button
             className="btn--cta"
             onClick={onEmitir}
-            disabled={emitiendo}
+            disabled={emitiendo || noAdeudoBloqueado}
           >
             <Icon name="check" size={16} />
             <span>{emitiendo ? "Emitiendo…" : "Emitir constancia"}</span>
@@ -139,12 +146,88 @@ export function ConstanciaView({
       </div>
 
       {!emitida && (
+        <div
+          className="no-print"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}
+          >
+            Tipo de constancia:
+          </span>
+          {(
+            [
+              ["socio_habil", "Socio (membresía)"],
+              ["no_adeudo", "No adeudo"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setTipo(v)}
+              className={tipo === v ? "btn--cta" : "btn btn--ghost"}
+              style={{ padding: "6px 16px" }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!emitida && noAdeudoBloqueado && (
+        <div
+          className="constancia-aviso no-print"
+          style={{
+            background: "#fef2f2",
+            color: "#991b1b",
+            borderColor: "#fecaca",
+          }}
+        >
+          <Icon name="info" size={16} />
+          <span>
+            No se puede emitir la <b>constancia de no adeudo</b> porque el socio:
+            {data.deuda > 0 && (
+              <>
+                {" "}
+                mantiene una deuda de <b>{formatSoles(data.deuda)}</b>
+                {inasistencias > 0 ? ";" : "."}
+              </>
+            )}
+            {inasistencias > 0 && (
+              <>
+                {" "}
+                registra <b>{inasistencias}</b> inasistencia(s) injustificada(s) a
+                asambleas (regularícelas justificándolas).
+              </>
+            )}{" "}
+            Sí puedes emitir la <b>constancia de socio</b> (membresía).
+          </span>
+        </div>
+      )}
+
+      {!emitida && !noAdeudoBloqueado && (
         <div className="constancia-aviso no-print">
           <Icon name="info" size={16} />
           <span>
-            Vista previa. Al <b>emitir</b> se registra la constancia y se generan
-            su <b>código de verificación</b> y el <b>QR</b> para validarla en
-            línea.
+            Vista previa de la <b>{TIPO_CONSTANCIA_LABEL[tipo].toLowerCase()}</b>.
+            Al <b>emitir</b> se registra y se generan su{" "}
+            <b>código de verificación</b> y el <b>QR</b> para validarla en línea.
+          </span>
+        </div>
+      )}
+
+      {!emitida && !noAdeudoBloqueado && inasistencias > 0 && (
+        <div className="constancia-aviso no-print">
+          <Icon name="info" size={16} />
+          <span>
+            Nota: el socio registra <b>{inasistencias}</b> inasistencia(s)
+            injustificada(s) a asambleas concluidas.
           </span>
         </div>
       )}
@@ -152,86 +235,128 @@ export function ConstanciaView({
       <article
         className={`constancia${emitida ? "" : " constancia--preview"}`}
       >
-        <header className="constancia__header">
+        <div className="constancia__banner">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className="constancia__logo"
-            src="/logos_sistema/logo_peru.png"
-            alt="Escudo del Perú"
+            src="/logos_sistema/logo_header.png"
+            alt="Gran Feria Mayorista Internacional MDD"
           />
-          <div className="constancia__header-text">
-            <p className="constancia__org">
-              Asociación de Comerciantes del Mercado Milagros
-            </p>
-            <p className="constancia__org-sub">Junta Directiva · Secretaría</p>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="constancia__logo"
-            src="/logos_sistema/logo_madrededios.png"
-            alt="Logo de Madre de Dios"
-          />
-        </header>
+        </div>
 
-        <h1 className="constancia__title">Constancia de Socio</h1>
-        {emitida && (
-          <p className="constancia__folio">N.° {emitida.folio}</p>
-        )}
+        <div className="constancia__membrete">
+          <p className="constancia__lema">“{ORG.lemaAnio}”</p>
+          <p className="constancia__partida">Partida N.° {ORG.partida}</p>
+        </div>
+
+        <h1 className="constancia__title">
+          {noAdeudo ? "Constancia de No Adeudo" : "Constancia de Socio"}
+        </h1>
+        {emitida && <p className="constancia__folio">N.° {emitida.folio}</p>}
 
         <div className="constancia__body">
-          <p>
-            Por medio del presente documento, la Junta Directiva de la
-            Asociación de Comerciantes del Mercado Milagros deja constancia que:
-          </p>
+          {noAdeudo ? (
+            <>
+              <p>
+                El(la) Tesorero(a) de la <b>{ORG.nombre}</b> <b>HACE CONSTAR</b>{" "}
+                que:
+              </p>
 
-          <p>
-            El(la) Sr(a). <b>{data.nombreCompleto}</b>, identificado(a) con{" "}
-            {data.tipoDocumento} N.° <b>{data.numeroDocumento}</b>, se encuentra
-            registrado(a) en el padrón de socios bajo el código{" "}
-            <b>{data.codigo}</b>, en condición de{" "}
-            <span className="constancia__estado">ACTIVO</span> desde el {ingreso}
-            .
-          </p>
+              <p>
+                El(la) Sr(a). <b>{data.nombreCompleto}</b>, identificado(a) con{" "}
+                {data.tipoDocumento} N.° <b>{data.numeroDocumento}</b>, socio(a)
+                activo(a) de la {ORG.nombre}, código <b>{data.codigo}</b>
+                {data.puestos.length > 0 ? (
+                  <>
+                    ,{" "}
+                    {data.puestos.length === 1
+                      ? "titular del puesto "
+                      : "titular de los puestos "}
+                    {puestosTxt("; ")}
+                  </>
+                ) : null}
+                , se encuentra al día en el cumplimiento de sus obligaciones
+                económicas con nuestra institución, por lo que{" "}
+                <span className="constancia__deuda--ok">
+                  no registra deuda alguna
+                </span>{" "}
+                a la fecha, por concepto de cuotas ordinarias, extraordinarias u
+                otros compromisos económicos exigibles hasta la fecha de emisión
+                de la presente constancia.
+              </p>
 
-          {data.puestos.length > 0 && (
-            <p>
-              {data.puestos.length === 1
-                ? "Conduce el puesto "
-                : "Conduce los puestos "}
-              {data.puestos
-                .map((p) => `${p.codigo}${p.giro ? ` (${p.giro})` : ""}`)
-                .join(", ")}{" "}
-              dentro de las instalaciones del mercado.
-            </p>
+              <p>
+                Se expide la presente <b>Constancia de No Adeudo</b> a solicitud
+                del(la) interesado(a), para los fines que estime convenientes.
+              </p>
+
+              <p className="constancia__fecha">
+                {ORG.ciudad}, {hoy}.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                El que suscribe, presidente de la <b>{ORG.nombre}</b>,{" "}
+                <b>HACE CONSTAR</b> que:
+              </p>
+
+              <p>
+                El(la) Sr(a). <b>{data.nombreCompleto}</b>, identificado(a) con{" "}
+                {data.tipoDocumento} N.° <b>{data.numeroDocumento}</b>, es{" "}
+                <span className="constancia__estado">socio(a) activo(a)</span> de
+                la {ORG.nombre}
+                {data.puestos.length > 0 ? (
+                  <>
+                    ,{" "}
+                    {data.puestos.length === 1
+                      ? "titular del puesto "
+                      : "titular de los puestos "}
+                    {puestosTxt("; ")}
+                  </>
+                ) : null}
+                , desde los inicios de la fundación de nuestra institución.
+              </p>
+
+              <p>
+                Se le expide la presente constancia a solicitud del(la)
+                interesado(a) para los fines pertinentes.
+              </p>
+
+              <p className="constancia__fecha">
+                {ORG.ciudad}, {hoy}.
+              </p>
+            </>
           )}
-
-          <p>
-            A la fecha de emisión, el(la) socio(a){" "}
-            <span className="constancia__deuda--ok">
-              se encuentra al día en el pago de sus cuotas
-            </span>
-            , por lo que ostenta la condición de <b>SOCIO HÁBIL</b>.
-          </p>
-
-          <p>
-            Se expide la presente constancia a solicitud del interesado(a) para
-            los fines que estime conveniente.
-          </p>
-
-          <p className="constancia__fecha">Madre de Dios, {hoy}.</p>
         </div>
 
         <div className="constancia__firmas">
-          <div className="constancia__firma">
-            <div className="constancia__firma-line" />
-            <div className="constancia__firma-label">Presidencia</div>
-            <div className="constancia__firma-sub">Junta Directiva</div>
-          </div>
-          <div className="constancia__firma">
-            <div className="constancia__firma-line" />
-            <div className="constancia__firma-label">Secretaría</div>
-            <div className="constancia__firma-sub">Junta Directiva</div>
-          </div>
+          {noAdeudo ? (
+            <>
+              <div className="constancia__firma">
+                <div className="constancia__firma-line" />
+                <div className="constancia__firma-label">Tesorería</div>
+                <div className="constancia__firma-sub">Junta Directiva</div>
+              </div>
+              <div className="constancia__firma">
+                <div className="constancia__firma-line" />
+                <div className="constancia__firma-label">Presidencia</div>
+                <div className="constancia__firma-sub">Junta Directiva</div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="constancia__firma">
+                <div className="constancia__firma-line" />
+                <div className="constancia__firma-label">Presidencia</div>
+                <div className="constancia__firma-sub">Junta Directiva</div>
+              </div>
+              <div className="constancia__firma">
+                <div className="constancia__firma-line" />
+                <div className="constancia__firma-label">Secretaría</div>
+                <div className="constancia__firma-sub">Junta Directiva</div>
+              </div>
+            </>
+          )}
         </div>
 
         {emitida && (
@@ -260,9 +385,7 @@ export function ConstanciaView({
               <p className="constancia-verif__row">
                 <span>Válida hasta</span>
                 <b>
-                  {emitida.validoHasta
-                    ? fechaLargaTS(emitida.validoHasta)
-                    : "—"}
+                  {emitida.validoHasta ? fechaLargaTS(emitida.validoHasta) : "—"}
                 </b>
               </p>
               <p className="constancia-verif__note">
@@ -276,6 +399,10 @@ export function ConstanciaView({
             </div>
           </footer>
         )}
+
+        <div className="constancia__domicilio">
+          Domicilio: {ORG.domicilio} · Celular: {ORG.celular}
+        </div>
       </article>
     </div>
   );

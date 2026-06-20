@@ -52,10 +52,18 @@ export type SocioCuotas = {
   cuotas: CuotaRow[];
 };
 
+export type ComprobanteRef = {
+  id: string;
+  folio: string;
+  codigo: string;
+};
+
 export type PagoPorMontoResult = {
   pagadas: number;
   saldoAFavor: number;
   montoAplicado: number;
+  comprobante: ComprobanteRef | null;
+  movimientoCajaId: string | null;
 };
 
 export type GenerarCuotasInput = {
@@ -69,6 +77,7 @@ export type RegistrarPagoInput = {
   monto?: number;
   metodoPago?: string;
   fecha?: string;
+  nroOperacion?: string;
 };
 
 export type PermFlags = {

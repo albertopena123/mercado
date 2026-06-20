@@ -34,6 +34,10 @@ export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const nextParam = params.get("next");
+  // Solo se honra ?next si es una ruta interna (mismo origen): debe empezar con
+  // un único "/" y no ser "//…" ni una URL con esquema. Evita el open-redirect
+  // (un atacante podría mandar /login?next=https://evil.com).
+  const safeNext = nextParam && /^\/(?!\/)/.test(nextParam) ? nextParam : null;
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -66,7 +70,7 @@ export function LoginForm() {
       const data = (await res.json().catch(() => null)) as
         | { redirect?: string }
         | null;
-      router.replace(nextParam || data?.redirect || "/usuarios");
+      router.replace(safeNext || data?.redirect || "/usuarios");
       router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor.");

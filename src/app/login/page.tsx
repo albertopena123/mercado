@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth/server";
@@ -25,7 +26,7 @@ export default async function LoginPage() {
   return (
     <main className="login">
       {/* Volver a la página principal del sitio público */}
-      <a className="login__back" href="/">
+      <Link className="login__back" href="/">
         <svg
           width="18"
           height="18"
@@ -40,7 +41,7 @@ export default async function LoginPage() {
           <path d="M15 6l-6 6 6 6" />
         </svg>
         <span>Volver al inicio</span>
-      </a>
+      </Link>
 
       {/* ===== Panel de marca (izquierda) ================================ */}
       <section className="login__aside" aria-hidden="true">

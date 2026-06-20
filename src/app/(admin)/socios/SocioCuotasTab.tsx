@@ -6,6 +6,7 @@ import { Icon } from "@/components/admin/Icon";
 import { formatSoles } from "@/lib/money";
 import { getCuotasBySocio } from "../cuotas/actions";
 import { PagoPorMontoModal } from "../cuotas/PagoPorMontoModal";
+import { esAutovaluo } from "@/lib/cuotas/autovaluo";
 import type { SocioCuotas } from "../cuotas/types";
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -53,6 +54,10 @@ export function SocioCuotasTab({
     .filter((c) => c.estado === "pendiente")
     .map((c) => ({ id: c.id, periodo: c.periodo, monto: c.monto }))
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
+  // El autovalúo no se paga "por monto" (necesita su N.° de recibo individual).
+  const tieneAutovaluo = data.cuotas.some(
+    (c) => c.estado === "pendiente" && esAutovaluo(c.concepto),
+  );
 
   return (
     <div>
@@ -141,6 +146,7 @@ export function SocioCuotasTab({
           deuda={data.deuda}
           saldoAFavor={data.saldoAFavor}
           pendientes={pendientes}
+          tieneAutovaluo={tieneAutovaluo}
           onClose={() => setPayOpen(false)}
           onDone={(msg) => {
             setPayOpen(false);

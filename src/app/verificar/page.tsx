@@ -1,4 +1,5 @@
 import "./verificar.css";
+import { ORG } from "@/lib/org";
 import { VerificarForm } from "./VerificarForm";
 
 export const metadata = { title: "Verificar constancia" };
@@ -8,9 +9,7 @@ export default function Page() {
     <main className="verif">
       <div className="verif__card">
         <div className="verif__org">
-          <p className="verif__org-name">
-            Asociación de Comerciantes del Mercado Milagros
-          </p>
+          <p className="verif__org-name">{ORG.nombreLegal}</p>
           <p className="verif__org-sub">
             Verificación de autenticidad de constancia
           </p>

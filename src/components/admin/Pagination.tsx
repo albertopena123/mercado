@@ -13,6 +13,7 @@ export function Pagination({
   pageSize,
   pending = false,
   noun = "registro",
+  pageSizes = [25, 50, 100],
   onPage,
   onPageSize,
 }: {
@@ -21,6 +22,7 @@ export function Pagination({
   pageSize: number;
   pending?: boolean;
   noun?: string;
+  pageSizes?: number[];
   onPage: (page: number) => void;
   onPageSize: (size: number) => void;
 }) {
@@ -42,9 +44,11 @@ export function Pagination({
             onChange={(e) => onPageSize(Number(e.target.value))}
             disabled={pending}
           >
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
+            {pageSizes.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </label>
         <div className="pagination__nav">

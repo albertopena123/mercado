@@ -146,6 +146,37 @@
   color: var(--text-muted);
 }
 
+/* Encabezado tipo tabla + numeración de filas */
+.asis-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.asis-head__num {
+  width: 28px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.asis-head__socio {
+  flex: 1;
+}
+.asis-row__num {
+  width: 28px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Segmented control P/A/J/T */
 .asis-seg {
   display: inline-flex;
@@ -191,6 +222,14 @@
 .asis-seg button.is-on--tardanza {
   background: #dbeafe;
   color: #1e40af;
+}
+/* Foco de teclado: outline inset (el outline normal lo recorta el
+   overflow:hidden del contenedor .asis-seg). */
+.asis-seg button:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  position: relative;
+  z-index: 1;
 }
 
 /* Check-in en la puerta */
@@ -279,5 +318,14 @@
 @media (max-width: 640px) {
   .asis-row {
     flex-wrap: wrap;
+  }
+  .asis-head {
+    display: none;
+  }
+  /* El control de estado cae a una segunda línea: lo separo y lo indento
+     bajo el nombre (pasando la columna del número) para que se lea claro. */
+  .asis-seg {
+    margin-top: 8px;
+    margin-left: 40px;
   }
 }
