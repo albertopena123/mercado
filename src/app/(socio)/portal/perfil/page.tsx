@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSocio } from "@/lib/portal/socio";
-import { getMisPuestos } from "@/lib/portal/data";
+import { getMisPuestos, getMiSolicitudActiva } from "@/lib/portal/data";
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 import { Icon } from "@/components/admin/Icon";
 import { PasswordForm } from "./PasswordForm";
@@ -19,6 +19,7 @@ const ESTADO_SOCIO_LABEL: Record<EstadoSocio, string> = {
 export default async function PerfilPage() {
   const { socio } = await requireSocio();
   const puestos = await getMisPuestos(socio.id);
+  const solicitud = await getMiSolicitudActiva(socio.id);
 
   return (
     <>
@@ -71,6 +72,20 @@ export default async function PerfilPage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="pt-panel">
+        <h2>Actualizar mis datos</h2>
+        {solicitud.estado === "pendiente" ? (
+          <p className="pt-empty">Tienes una solicitud en revisión.</p>
+        ) : (
+          <p className="pt-empty">
+            ¿Cambiaron tus datos o te falta tu DNI? Actualízalos para revisión.
+          </p>
+        )}
+        <Link href="/portal/perfil/actualizar" className="pt-btn">
+          {solicitud.estado === "pendiente" ? "Ver mi solicitud" : "Actualizar mis datos"}
+        </Link>
       </section>
 
       <section className="pt-panel">
