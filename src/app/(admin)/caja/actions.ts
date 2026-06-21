@@ -43,6 +43,17 @@ function clampSize(n?: number): number {
   return n && PAGE_SIZES.includes(n) ? n : PAGE_SIZE;
 }
 
+// Whitelists de enums (derivadas de las etiquetas, fuente única) para validar el
+// valor que llega del cliente en vez de delegar solo en que Prisma lo rechace.
+const CATEGORIA_SET = new Set(
+  Object.keys(CATEGORIA_LABEL) as CategoriaMovimiento[],
+);
+const COMPROBANTE_SET = new Set(
+  Object.keys(COMPROBANTE_LABEL) as TipoComprobante[],
+);
+// Fecha de CALENDARIO estricta: exactamente "yyyy-mm-dd".
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 class Denied extends Error {
   constructor(message: string) {
     super(message);
@@ -277,6 +288,7 @@ function validate(
   if (isCreate || input.categoria !== undefined) {
     const c = input.categoria;
     if (!c) fe.categoria = "Elige una categoría.";
+    else if (!CATEGORIA_SET.has(c)) fe.categoria = "Categoría inválida.";
     else {
       out.categoria = c;
       // La categoría debe corresponder al tipo (ingreso/egreso).
@@ -298,17 +310,19 @@ function validate(
   }
   if (input.fecha !== undefined) {
     if (input.fecha === null || input.fecha === "") out.fecha = undefined;
-    else {
-      const d = new Date(input.fecha);
-      if (isNaN(d.getTime())) fe.fecha = "Fecha inválida.";
-      else out.fecha = input.fecha;
-    }
+    // Solo "yyyy-mm-dd": evita que parseFecha caiga silenciosamente a hoy ante
+    // una cadena no canónica (o que se cuele un instante no-UTC).
+    else if (!ISO_DATE.test(input.fecha)) fe.fecha = "Fecha inválida (AAAA-MM-DD).";
+    else out.fecha = input.fecha;
   }
   if (input.metodoPago !== undefined)
     out.metodoPago = String(input.metodoPago).trim() || undefined;
   if (input.socioId !== undefined) out.socioId = input.socioId || null;
-  if (input.comprobanteTipo !== undefined)
-    out.comprobanteTipo = input.comprobanteTipo;
+  if (input.comprobanteTipo !== undefined) {
+    if (!COMPROBANTE_SET.has(input.comprobanteTipo))
+      fe.comprobanteTipo = "Tipo de comprobante inválido.";
+    else out.comprobanteTipo = input.comprobanteTipo;
+  }
   if (input.comprobanteNumero !== undefined)
     out.comprobanteNumero = String(input.comprobanteNumero).trim() || undefined;
 

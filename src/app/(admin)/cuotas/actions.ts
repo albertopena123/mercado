@@ -297,6 +297,9 @@ export async function pagarPorMonto(
     metodoPago?: string;
     fecha?: string;
     nroOperacion?: string;
+    // Clave de idempotencia (UUID del cliente, una por apertura del modal):
+    // evita que un doble-submit acredite dos veces el saldo a favor.
+    idempotencyKey?: string;
   },
 ): Promise<ActionResult<PagoPorMontoResult>> {
   try {
@@ -314,6 +317,26 @@ export async function pagarPorMonto(
       // socio: sin esto, dos pagos simultáneos leen el mismo saldoAFavor y el
       // último en escribir pisa al otro (lost update → dinero perdido).
       await tx.$queryRaw`SELECT id FROM "Socio" WHERE id = ${socioId} FOR UPDATE`;
+
+      // Idempotencia anti doble-submit: la primera llamada con esta clave inserta
+      // la fila; una segunda con la MISMA clave choca con el @id y aborta sin
+      // re-aplicar (evita duplicar el crédito de saldo a favor cuando el monto va
+      // a saldo). Va DENTRO de la tx: si el pago falla por otra causa, la clave
+      // también se revierte y un reintento legítimo con la misma clave funciona.
+      if (input.idempotencyKey) {
+        try {
+          await tx.pagoIdempotencia.create({
+            data: { key: input.idempotencyKey, socioId },
+          });
+        } catch (e) {
+          if (
+            e instanceof Prisma.PrismaClientKnownRequestError &&
+            e.code === "P2002"
+          )
+            throw new Denied("Este pago ya fue registrado (se evitó un doble envío).");
+          throw e;
+        }
+      }
       const socio = await tx.socio.findUnique({
         where: { id: socioId },
         select: {
@@ -633,7 +656,7 @@ export async function aplicarDeudaASocios(
         socioId: s.id,
         periodo: periodo!,
         concepto: concepto!,
-        monto,
+        monto: Math.round(monto * 100) / 100,
         vencimiento,
         createdById: me.id,
       })),
@@ -700,7 +723,7 @@ export async function generarCuotasPeriodo(
         socioId: s.id,
         periodo,
         concepto,
-        monto,
+        monto: Math.round(monto * 100) / 100,
         vencimiento,
         createdById: me.id,
       })),

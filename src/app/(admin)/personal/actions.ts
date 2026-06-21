@@ -17,6 +17,7 @@ import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
 } from "@/lib/socios/document";
+import { EMAIL_RE } from "@/lib/socios/update";
 import {
   lookupDniUnamad,
   type DniLookupResult,
@@ -52,7 +53,6 @@ const PAGE_SIZES = [25, 50, 100];
 function clampSize(n?: number): number {
   return n && PAGE_SIZES.includes(n) ? n : PAGE_SIZE;
 }
-const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 // Fecha de calendario estricta: debe ser exactamente "yyyy-mm-dd" (lo único que
 // inicioDiaUTC interpreta sin caer silenciosamente a hoy).
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;

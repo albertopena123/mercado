@@ -817,6 +817,19 @@ export async function changeEstadoSocio(
     }
 
     await prisma.$transaction(async (tx) => {
+      // Al retirar o registrar fallecimiento se liberan los puestos del socio.
+      // Bloquear sus filas Puesto vigentes ANTES de leer/escribir, para
+      // serializar contra assignPuesto/formalizarTransferencia/efectivizarRenuncia
+      // (que también toman SELECT ... FOR UPDATE sobre Puesto). Sin esto, una
+      // reasignación concurrente podía quedar pisada a "vacio" (estado
+      // inconsistente: puesto vacío con asignación activa). Igual patrón que
+      // efectivizarRenuncia.
+      if (toEstado === "retirado" || toEstado === "fallecido") {
+        await tx.$queryRaw`SELECT p.id FROM "Puesto" p
+          JOIN "PuestoAsignacion" pa ON pa."puestoId" = p.id
+          WHERE pa."socioId" = ${id} AND pa.hasta IS NULL
+          FOR UPDATE OF p`;
+      }
       const cur = await tx.socio.findUnique({
         where: { id },
         select: { estado: true },

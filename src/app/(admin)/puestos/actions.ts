@@ -427,7 +427,28 @@ export async function updatePuesto(
       searchKey: buildSearchKey({ codigo, bloque, giro }),
       updatedBy: { connect: { id: me.id } },
     };
-    if (normalized.estado) data.estado = normalized.estado;
+    if (normalized.estado) {
+      // Coherencia estado↔ocupación: no permitir estados imposibles. "vacio" con
+      // un socio asignado o "activo" sin asignación rompen la invariante (el
+      // estado se deriva de la ocupación vía assign/unassign, no a mano).
+      if (normalized.estado === "vacio" || normalized.estado === "activo") {
+        const activa = await prisma.puestoAsignacion.findFirst({
+          where: { puestoId: id, hasta: null },
+          select: { id: true },
+        });
+        if (normalized.estado === "vacio" && activa)
+          return fail(
+            "No puedes marcar el puesto como “vacío”: tiene un socio asignado. Libéralo primero.",
+            { estado: "Tiene un socio asignado." },
+          );
+        if (normalized.estado === "activo" && !activa)
+          return fail(
+            "No puedes marcar el puesto como “activo”: no tiene socio asignado. Asígnalo primero.",
+            { estado: "No tiene socio asignado." },
+          );
+      }
+      data.estado = normalized.estado;
+    }
     if ("observaciones" in normalized)
       data.observaciones = normalized.observaciones ?? null;
 
@@ -585,6 +606,10 @@ export async function unassignPuesto(
         motivo: "Mínimo 3 caracteres.",
       });
     await prisma.$transaction(async (tx) => {
+      // Bloquea la fila del puesto para serializar contra assignPuesto /
+      // formalizarTransferencia / efectivizarRenuncia (mismo lock), evitando
+      // reabrir un puesto que otra transacción acaba de reasignar.
+      await tx.$queryRaw`SELECT id FROM "Puesto" WHERE id = ${puestoId} FOR UPDATE`;
       const closed = await tx.puestoAsignacion.updateMany({
         where: { puestoId, hasta: null },
         data: { hasta: new Date(), motivo: m },

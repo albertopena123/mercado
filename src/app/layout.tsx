@@ -40,6 +40,10 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        {/* El root layout del App Router es el lugar correcto para la hoja de
+            fuentes global; la regla apunta al patrón antiguo de pages/_document, y
+            next/font no hospeda "Google Sans". */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Text:wght@400;500;600&family=Roboto:wght@400;500;700&display=swap"
           rel="stylesheet"

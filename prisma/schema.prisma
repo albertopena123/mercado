@@ -1029,3 +1029,19 @@ model MovimientoBien {
 
   @@index([bienId, createdAt])
 }
+
+// ─────────────────────────── Idempotencia de pagos ───────────────────────────
+//
+// Clave de idempotencia para el pago por monto (pagarPorMonto): evita que un
+// doble-submit acredite dos veces el saldo a favor. El cliente genera un UUID por
+// apertura del modal de pago y la acción lo inserta DENTRO de la misma
+// transacción del pago; una segunda llamada con la misma clave choca con el @id
+// (PK) y se rechaza sin re-aplicar. Si el pago falla por otra causa, la fila se
+// revierte con la tx y un reintento legítimo con la misma clave funciona.
+model PagoIdempotencia {
+  key       String   @id
+  socioId   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

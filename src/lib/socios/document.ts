@@ -9,6 +9,15 @@ export function esDocumentoPendiente(numeroDocumento: string): boolean {
   return numeroDocumento.startsWith(DOC_PENDIENTE_PREFIX);
 }
 
+// Lista canónica de tipos de documento (espejo del enum TipoDocumento). Fuente
+// única para validar contra whitelist el valor que llega del cliente, en vez de
+// confiar solo en que Prisma rechace el enum inválido.
+export const TIPOS_DOCUMENTO = ["DNI", "CE", "PASAPORTE", "RUC"] as const;
+
+export function esTipoDocumentoValido(v: unknown): v is TipoDocumento {
+  return typeof v === "string" && (TIPOS_DOCUMENTO as readonly string[]).includes(v);
+}
+
 export function validateNumeroDocumento(
   tipo: TipoDocumento,
   numero: string,

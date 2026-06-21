@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
@@ -46,6 +46,11 @@ export function PagoPorMontoModal({
     comprobanteId: string | null;
     movimientoCajaId: string | null;
   } | null>(null);
+  // Clave de idempotencia: estable mientras viva esta apertura del modal. Un
+  // doble-clic o un reintento tras error usan la MISMA clave, así el servidor no
+  // duplica el crédito de saldo a favor. Se acuña al primer envío (no en render,
+  // para no romper la pureza).
+  const idemKey = useRef<string | null>(null);
 
   useEscClose(true, onClose, submitting);
 
@@ -67,11 +72,13 @@ export function PagoPorMontoModal({
     if (submitting) return;
     setSubmitting(true);
     setError(null);
+    if (!idemKey.current) idemKey.current = crypto.randomUUID();
     const res = await pagarPorMonto(socioId, {
       monto: Number(monto) || 0,
       metodoPago: metodo,
       fecha,
       nroOperacion: nroOperacion.trim() || undefined,
+      idempotencyKey: idemKey.current,
     });
     setSubmitting(false);
     if (!res.ok) {

@@ -12,6 +12,7 @@ import { nextCodigoFromList } from "@/lib/socios/codigo";
 import { buildSocioSearchKey, normalizeToken } from "@/lib/socios/normalize";
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 import { lookupDniUnamad, type DniLookupResult } from "@/lib/socios/dni-lookup";
+import { esTipoDocumentoValido } from "@/lib/socios/document";
 import { validateUpload, sniffMime, SNIFF_BYTES } from "@/lib/socios/limits";
 import {
   writeDocumento,
@@ -305,6 +306,9 @@ export async function createTransferencia(
       return fail(
         `Ya existe un expediente en borrador (${yaBorrador.codigo}) para este puesto. Formalízalo o anúlalo antes de crear otro.`,
       );
+
+    if (!esTipoDocumentoValido(input.adqTipoDocumento))
+      fe.adqTipoDocumento = "Tipo de documento inválido.";
 
     const adqDoc = (input.adqNumeroDocumento ?? "").trim();
     if (input.adqTipoDocumento === "DNI" && !/^\d{8}$/.test(adqDoc))

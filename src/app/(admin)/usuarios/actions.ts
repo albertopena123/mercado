@@ -11,9 +11,9 @@ import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
 } from "@/lib/socios/document";
+import { EMAIL_RE } from "@/lib/socios/update";
 import type { ActionResult, LinkableSocio } from "./types";
 
-const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const NAME_MIN = 2;
 const NAME_MAX = 80;
 const PASSWORD_MIN = 6;

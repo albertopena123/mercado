@@ -6,12 +6,17 @@ import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
   esDocumentoPendiente,
+  esTipoDocumentoValido,
 } from "@/lib/socios/document";
 import { buildSocioSearchKey } from "@/lib/socios/normalize";
 import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
 import type { CreateSocioInput } from "@/app/(admin)/socios/types";
 
 export const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Fecha de CALENDARIO estricta: exactamente "yyyy-mm-dd" (lo único que
+// inicioDiaUTC ancla a medianoche UTC sin caer silenciosamente a hoy).
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SEXOS = new Set(["M", "F"]);
 
 type FieldErrors = Record<string, string>;
 
@@ -24,6 +29,8 @@ export function validateSocioInput(
 
   if (isCreate || input.tipoDocumento !== undefined) {
     if (!input.tipoDocumento) fe.tipoDocumento = "Selecciona el tipo de documento.";
+    else if (!esTipoDocumentoValido(input.tipoDocumento))
+      fe.tipoDocumento = "Tipo de documento inválido.";
     else out.tipoDocumento = input.tipoDocumento;
   }
 
@@ -65,20 +72,26 @@ export function validateSocioInput(
   const hoyUTC = inicioDiaUTC(hoyISOPeru()).getTime();
 
   if (isCreate || input.fechaIngreso !== undefined) {
-    const fi = input.fechaIngreso ?? "";
-    const d = fi ? new Date(fi) : null;
-    if (!d || isNaN(d.getTime())) fe.fechaIngreso = "Fecha de ingreso inválida.";
-    else if (d.getTime() > hoyUTC)
-      fe.fechaIngreso = "La fecha de ingreso no puede ser futura.";
-    else out.fechaIngreso = d.toISOString();
+    const fi = (input.fechaIngreso ?? "").trim();
+    if (!ISO_DATE.test(fi))
+      fe.fechaIngreso = "Fecha de ingreso inválida (AAAA-MM-DD).";
+    else {
+      const d = inicioDiaUTC(fi);
+      if (d.getTime() > hoyUTC)
+        fe.fechaIngreso = "La fecha de ingreso no puede ser futura.";
+      else out.fechaIngreso = d.toISOString();
+    }
   }
 
-  if (input.fechaNacimiento !== undefined && input.fechaNacimiento !== "") {
-    const d = new Date(input.fechaNacimiento);
-    if (isNaN(d.getTime())) fe.fechaNacimiento = "Fecha de nacimiento inválida.";
-    else if (d.getTime() > hoyUTC)
-      fe.fechaNacimiento = "Fecha de nacimiento futura.";
-    else out.fechaNacimiento = d.toISOString();
+  if (input.fechaNacimiento !== undefined && input.fechaNacimiento.trim() !== "") {
+    const fn = input.fechaNacimiento.trim();
+    if (!ISO_DATE.test(fn))
+      fe.fechaNacimiento = "Fecha de nacimiento inválida (AAAA-MM-DD).";
+    else {
+      const d = inicioDiaUTC(fn);
+      if (d.getTime() > hoyUTC) fe.fechaNacimiento = "Fecha de nacimiento futura.";
+      else out.fechaNacimiento = d.toISOString();
+    }
   } else if (input.fechaNacimiento === "") {
     out.fechaNacimiento = undefined;
   }
@@ -91,8 +104,14 @@ export function validateSocioInput(
     out.email = undefined;
   }
 
+  if (input.sexo !== undefined) {
+    const sx = String(input.sexo).trim();
+    if (!sx) out.sexo = undefined;
+    else if (!SEXOS.has(sx)) fe.sexo = "Sexo inválido.";
+    else out.sexo = sx as "M" | "F";
+  }
+
   for (const k of [
-    "sexo",
     "estadoCivil",
     "telefono",
     "direccion",
