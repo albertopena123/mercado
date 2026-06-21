@@ -31,7 +31,8 @@ model User {
   sociosUpdated   Socio[]          @relation("SocioUpdatedBy")
   socioAdjuntos   SocioAdjunto[]   @relation("SocioAdjuntoUploader")
   socioEstadoLogs SocioEstadoLog[] @relation("SocioEstadoLogBy")
-  solicitudesRevisadas SolicitudActualizacionDatos[] @relation("SolicitudRevisadaPor")
+  solicitudesRevisadas         SolicitudActualizacionDatos[]    @relation("SolicitudRevisadaPor")
+  registrosPublicosRevisados   SolicitudRegistroPublico[]       @relation("RegistroPublicoRevisor")
 
   puestosCreated        Puesto[]           @relation("PuestoCreatedBy")
   puestosUpdated        Puesto[]           @relation("PuestoUpdatedBy")
@@ -212,6 +213,7 @@ model Socio {
   directivos                     Directivo[]
   renuncias                      Renuncia[]
   solicitudesActualizacion       SolicitudActualizacionDatos[]
+  registrosPublicos              SolicitudRegistroPublico[]     @relation("RegistroPublicoSocio")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -276,6 +278,32 @@ model SolicitudActualizacionDatos {
 
   @@index([socioId])
   @@index([estado])
+}
+
+// Solicitud de registro hecha por un visitante anónimo desde el portal público.
+// Permite que alguien que aún no es socio registrado solicite ser vinculado al
+// padrón. Un índice parcial único garantiza máximo UNA pendiente por número de
+// documento (ver migración).
+model SolicitudRegistroPublico {
+  id              String        @id @default(cuid())
+  tipoDocumento   TipoDocumento @default(DNI)
+  numeroDocumento String
+  nombreCompleto  String
+  telefono        String
+  email           String?
+  estado          EstadoSolicitudActualizacion @default(pendiente)
+  socioVinculadoId String?
+  motivoRechazo   String?
+  ip              String?
+  creadoEn        DateTime  @default(now())
+  revisadoPorId   String?
+  revisadoEn      DateTime?
+
+  socioVinculado Socio? @relation("RegistroPublicoSocio", fields: [socioVinculadoId], references: [id], onDelete: SetNull)
+  revisadoPor    User?  @relation("RegistroPublicoRevisor", fields: [revisadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([estado])
+  @@index([numeroDocumento])
 }
 
 // ─────────────────────────── Órganos directivos ───────────────────────────
