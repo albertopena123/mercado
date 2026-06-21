@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSocioActual } from "@/lib/portal/socio";
 import { isQrTokenValid } from "@/lib/asambleas/qrToken";
+import { Prisma, type TipoDocumento } from "@/generated/prisma/client";
+import { lookupDniUnamad, type DniLookupResult } from "@/lib/socios/dni-lookup";
+import { validateSocioInput } from "@/lib/socios/update";
+import type { ActionResult, CreateSocioInput } from "@/app/(admin)/socios/types";
 
 export type CheckinResult =
   | { ok: true; estado: "presente" | "tardanza"; yaRegistrado: boolean }
@@ -127,5 +131,130 @@ export async function checkInSocio(
     console.error("checkInSocio", e);
     return { ok: false, error: "No se pudo registrar tu asistencia." };
   }
+}
+
+export async function lookupDniPortal(
+  dni: string,
+): Promise<ActionResult<DniLookupResult>> {
+  const r = await getSocioActual();
+  if (!r) return { ok: false, error: "Debes iniciar sesión como socio." };
+  const clean = (dni ?? "").trim();
+  if (!/^\d{8}$/.test(clean))
+    return { ok: false, error: "El DNI debe tener exactamente 8 dígitos." };
+  let data: DniLookupResult | null;
+  try {
+    data = await lookupDniUnamad(clean);
+  } catch (e) {
+    console.error("lookupDniPortal fetch", e);
+    const err = e as { name?: string };
+    if (err?.name === "AbortError")
+      return { ok: false, error: "La consulta al servicio de DNI tardó demasiado." };
+    return { ok: false, error: "No se pudo consultar el servicio de DNI." };
+  }
+  if (!data) return { ok: false, error: "No se encontró información para este DNI." };
+  return { ok: true, data };
+}
+
+export type PerfilSelfInput = {
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  apellidoPaterno: string;
+  apellidoMaterno?: string;
+  nombres: string;
+  fechaNacimiento?: string;
+  sexo?: "M" | "F";
+  estadoCivil?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  distrito?: string;
+  provincia?: string;
+  departamento?: string;
+};
+
+// Solo los campos de la whitelist del autoservicio (defensa contra inyección de
+// campos como estado/numeroPadron).
+const SELF_FIELDS = [
+  "tipoDocumento",
+  "numeroDocumento",
+  "apellidoPaterno",
+  "apellidoMaterno",
+  "nombres",
+  "fechaNacimiento",
+  "sexo",
+  "estadoCivil",
+  "telefono",
+  "email",
+  "direccion",
+  "distrito",
+  "provincia",
+  "departamento",
+] as const;
+
+export async function crearSolicitudActualizacion(
+  input: PerfilSelfInput,
+): Promise<ActionResult<{ id: string }>> {
+  const r = await getSocioActual();
+  if (!r) return { ok: false, error: "Debes iniciar sesión como socio." };
+
+  // Filtrar a la whitelist antes de validar.
+  const clean: Partial<CreateSocioInput> = {};
+  for (const k of SELF_FIELDS) {
+    const v = (input as Record<string, unknown>)[k];
+    if (v !== undefined) (clean as Record<string, unknown>)[k] = v;
+  }
+
+  const { fieldErrors, normalized } = validateSocioInput(clean, false);
+  if (Object.keys(fieldErrors).length > 0)
+    return { ok: false, error: "Revisa los campos marcados.", fieldErrors };
+
+  // Debe quedar al menos un cambio significativo (evita solicitudes vacías).
+  if (Object.keys(normalized).length === 0)
+    return { ok: false, error: "No hay datos para enviar." };
+
+  const yaPendiente = await prisma.solicitudActualizacionDatos.findFirst({
+    where: { socioId: r.socio.id, estado: "pendiente" },
+    select: { id: true },
+  });
+  if (yaPendiente)
+    return {
+      ok: false,
+      error: "Ya tienes una solicitud pendiente de revisión.",
+    };
+
+  try {
+    const s = await prisma.solicitudActualizacionDatos.create({
+      data: {
+        socioId: r.socio.id,
+        datos: normalized as Prisma.InputJsonValue,
+        estado: "pendiente",
+      },
+      select: { id: true },
+    });
+    revalidatePath("/portal/perfil");
+    revalidatePath("/portal/perfil/actualizar");
+    return { ok: true, data: { id: s.id } };
+  } catch (e) {
+    // El índice parcial único puede chocar si hubo carrera de doble-submit.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    )
+      return { ok: false, error: "Ya tienes una solicitud pendiente de revisión." };
+    console.error("crearSolicitudActualizacion", e);
+    return { ok: false, error: "No se pudo enviar la solicitud." };
+  }
+}
+
+export async function cancelarMiSolicitud(): Promise<ActionResult> {
+  const r = await getSocioActual();
+  if (!r) return { ok: false, error: "Debes iniciar sesión como socio." };
+  // Solo borra la pendiente del PROPIO socio (deleteMany acotado por socioId).
+  await prisma.solicitudActualizacionDatos.deleteMany({
+    where: { socioId: r.socio.id, estado: "pendiente" },
+  });
+  revalidatePath("/portal/perfil");
+  revalidatePath("/portal/perfil/actualizar");
+  return { ok: true };
 }
 
