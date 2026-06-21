@@ -4,8 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lookupDniUnamad } from "@/lib/socios/dni-lookup";
 import { rateCheck, getClientIp } from "@/lib/rate-limit";
-
-const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+import { EMAIL_RE } from "@/lib/socios/update";
 
 export type RegistroPublicoInput = {
   numeroDocumento: string;
