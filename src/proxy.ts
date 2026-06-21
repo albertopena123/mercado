@@ -12,6 +12,10 @@ export async function proxy(request: NextRequest) {
     // no tiene sesión, así que /verificar y /verificar/<codigo> son públicas.
     pathname === "/verificar" ||
     pathname.startsWith("/verificar/") ||
+    // Formulario público de registro: un visitante sin sesión debe poder
+    // abrirlo y enviarlo (la server action POSTea a la misma ruta), o quedaría
+    // redirigido a /login y la feature de auto-registro sería inalcanzable.
+    pathname === "/formulario" ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/_next/") ||
     // Activos SEO públicos por diseño (sin datos sensibles): los buscadores
