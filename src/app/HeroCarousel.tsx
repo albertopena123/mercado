@@ -6,11 +6,11 @@ import { useEffect, useState } from "react";
    faceta del mercado: identidad, comerciantes y atención. */
 const SLIDES = [
   {
-    eyebrow: "El mercado N.º 1 de Madre de Dios",
-    head: "El corazón comercial de ",
+    eyebrow: "El mercado mayorista N.º 1 de Madre de Dios",
+    head: "Gran Feria Mayorista Internacional de ",
     hl: "Madre de Dios",
     lead:
-      "Productos frescos todos los días, comerciantes formales y una gestión moderna y transparente.",
+      "El gran mercado mayorista y minorista de Puerto Maldonado: productos frescos todos los días, comerciantes formales y precios de feria.",
     primary: { label: "Conoce el mercado", href: "#mercado" },
     secondary: { label: "Acceder al sistema", href: "/login" },
   },

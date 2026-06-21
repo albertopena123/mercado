@@ -27,8 +27,8 @@ export function SocioShell({
       <div className="pt">
         <header className="pt-top">
           <Link href="/portal" className="pt-brand">
-            <span className="pt-brand__logo">M</span>
-            <span className="pt-brand__name">Mercado Milagros</span>
+            <span className="pt-brand__logo">GF</span>
+            <span className="pt-brand__name">Gran Feria Mayorista Internacional</span>
           </Link>
           <div className="pt-top__right">
             <span className="pt-user" title={socio.codigo}>
@@ -42,7 +42,7 @@ export function SocioShell({
         </header>
         <main className="pt-main">{children}</main>
         <footer className="pt-foot">
-          Mercado Milagros · Portal del socio
+          Gran Feria Mayorista Internacional · Portal del socio
         </footer>
       </div>
     </ToastProvider>

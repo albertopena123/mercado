@@ -4,7 +4,7 @@ import { getMisComunicados } from "@/lib/portal/data";
 import { TIPO_ANUNCIO_LABEL } from "@/lib/anuncios/labels";
 import { Icon } from "@/components/admin/Icon";
 
-export const metadata = { title: "Comunicados · Mercado Milagros" };
+export const metadata = { title: "Comunicados · Gran Feria Mayorista Internacional" };
 export const dynamic = "force-dynamic";
 
 export default async function ComunicadosPage() {
@@ -20,7 +20,7 @@ export default async function ComunicadosPage() {
 
       <div className="pt-hello">
         <h1>Comunicados</h1>
-        <p>Anuncios y comunicados del Mercado Milagros.</p>
+        <p>Anuncios y comunicados de la Gran Feria Mayorista Internacional.</p>
       </div>
 
       {items.length === 0 ? (

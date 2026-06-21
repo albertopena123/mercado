@@ -5,7 +5,7 @@ import { Icon } from "@/components/admin/Icon";
 import { fechaHora } from "@/lib/fecha";
 import type { EstadoAsistencia } from "@/generated/prisma/client";
 
-export const metadata = { title: "Reuniones · Mercado Milagros" };
+export const metadata = { title: "Reuniones · Gran Feria Mayorista Internacional" };
 export const dynamic = "force-dynamic";
 
 const ASIS_LABEL: Record<EstadoAsistencia, string> = {

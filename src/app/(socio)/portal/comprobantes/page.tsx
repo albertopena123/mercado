@@ -5,7 +5,7 @@ import { formatSoles } from "@/lib/money";
 import { fechaTS } from "@/lib/fecha";
 import { Icon } from "@/components/admin/Icon";
 
-export const metadata = { title: "Mis comprobantes · Mercado Milagros" };
+export const metadata = { title: "Mis comprobantes · Gran Feria Mayorista Internacional" };
 export const dynamic = "force-dynamic";
 
 const METODO_LABEL: Record<string, string> = {

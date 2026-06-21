@@ -1,5 +1,5 @@
 /* ===========================================================================
-   Datos de contacto y ubicación del Mercado Milagros.
+   Datos de contacto y ubicación de la Gran Feria Mayorista Internacional.
    Un único lugar para el número de WhatsApp, las coordenadas y los enlaces de
    Google Maps, consumido tanto por la landing (server) como por el widget
    flotante (client).
@@ -12,14 +12,14 @@ export const WHATSAPP_NUMBER = "51982000000"; // ← placeholder editable
 
 /** Mensaje pre-cargado al abrir el chat de WhatsApp. */
 export const WHATSAPP_MESSAGE =
-  "¡Hola! Vi la página del Mercado Milagros y me gustaría más información.";
+  "¡Hola! Vi la página de la Gran Feria Mayorista Internacional y me gustaría más información.";
 
 /* Coordenadas exactas del mercado (tomadas de Google Maps). */
 export const MAP_LAT = -12.5958574;
 export const MAP_LNG = -69.2017827;
 
 /** Texto de ubicación mostrado al usuario. */
-export const ADDRESS = "Mercado Milagros · Puerto Maldonado, Madre de Dios";
+export const ADDRESS = "Gran Feria Mayorista Internacional · Puerto Maldonado, Madre de Dios";
 
 /** Chat directo de WhatsApp con el mensaje pre-cargado. */
 export const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(

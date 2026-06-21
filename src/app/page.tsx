@@ -1,15 +1,59 @@
 import "./landing.css";
+import type { Metadata } from "next";
 import { LandingHeader } from "./LandingHeader";
 import { HeroCarousel } from "./HeroCarousel";
 import { FloatingActions } from "./FloatingActions";
 import { AnunciosSection } from "./AnunciosSection";
-import { ADDRESS, directionsUrl, mapsPlaceUrl, mapEmbedUrl, whatsappUrl } from "./contact";
+import {
+  ADDRESS,
+  directionsUrl,
+  mapsPlaceUrl,
+  mapEmbedUrl,
+  whatsappUrl,
+  MAP_LAT,
+  MAP_LNG,
+} from "./contact";
 
-export const metadata = {
-  title: "Mercado Milagros — El corazón comercial de Madre de Dios",
+export const metadata: Metadata = {
+  title:
+    "Gran Feria Mayorista Internacional de Madre de Dios — Mercado de Puerto Maldonado",
   description:
-    "Conoce el Mercado Milagros: comerciantes formales, productos frescos todos los días y una gestión moderna y transparente al servicio de Madre de Dios.",
+    "La Gran Feria Mayorista Internacional de Madre de Dios es el mercado mayorista y minorista más grande de Puerto Maldonado: productos frescos todos los días, más de 120 comerciantes formales y precios de feria. Abierto todos los días de 6 a. m. a 6 p. m.",
+  keywords: [
+    "Gran Feria Mayorista Internacional Madre de Dios",
+    "feria mayorista Puerto Maldonado",
+    "mercado Puerto Maldonado",
+    "Puerto Maldonado mercado",
+    "mercado mayorista Madre de Dios",
+    "mercado Madre de Dios",
+    "feria mayorista internacional",
+    "mercado central Puerto Maldonado",
+    "comerciantes Puerto Maldonado",
+    "productos frescos Puerto Maldonado",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Gran Feria Mayorista Internacional Madre de Dios",
+    title:
+      "Gran Feria Mayorista Internacional de Madre de Dios — Puerto Maldonado",
+    description:
+      "El mercado mayorista y minorista más grande de Puerto Maldonado. Productos frescos, +120 comerciantes formales y precios de feria, todos los días de 6 a. m. a 6 p. m.",
+    locale: "es_PE",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gran Feria Mayorista Internacional de Madre de Dios",
+    description:
+      "El mercado mayorista y minorista más grande de Puerto Maldonado, Madre de Dios.",
+  },
 };
+
+/* Datos estructurados (JSON-LD) para Google: ficha de negocio local + sitio +
+   preguntas frecuentes. Ayudan a aparecer en búsquedas locales y a obtener
+   resultados enriquecidos (FAQ) en Google. */
+const SITE_URL = "https://granferiamayorista.com";
 
 /* ---------- Iconos en línea (trazo) ------------------------------------- */
 const stroke = {
@@ -171,7 +215,7 @@ function MarketScene() {
   );
 
   return (
-    <svg className="lp-scene" viewBox="0 0 560 460" role="img" aria-label="Ilustración del Mercado Milagros: puestos con toldos, luces y productos frescos">
+    <svg className="lp-scene" viewBox="0 0 560 460" role="img" aria-label="Ilustración de la Gran Feria Mayorista Internacional: puestos con toldos, luces y productos frescos">
       <defs>
         <pattern id="lp-st-pry" width="34" height="34" patternUnits="userSpaceOnUse">
           <rect width="34" height="34" fill="#4d9bff" />
@@ -240,7 +284,7 @@ const CATS = [
 const STEPS = [
   { t: "Solicita tu puesto", d: "Acércate a la administración del mercado con tu DNI y completa la ficha de solicitud de comerciante." },
   { t: "Formaliza tu actividad", d: "Te orientamos para registrar tu negocio y cumplir con los requisitos sanitarios y municipales." },
-  { t: "Empieza a vender", d: "Recibe tu puesto asignado, tu credencial digital y forma parte de la comunidad del Mercado Milagros." },
+  { t: "Empieza a vender", d: "Recibe tu puesto asignado, tu credencial digital y forma parte de la comunidad de la Gran Feria Mayorista Internacional." },
 ];
 
 const QUOTES = [
@@ -250,15 +294,92 @@ const QUOTES = [
 ];
 
 const FAQ = [
-  { q: "¿Cuál es el horario de atención?", a: "El Mercado Milagros atiende todos los días de 6:00 a. m. a 6:00 p. m., incluyendo feriados. Algunos puestos de comida extienden su horario." },
+  { q: "¿Cuál es el horario de atención?", a: "La Gran Feria Mayorista Internacional atiende todos los días de 6:00 a. m. a 6:00 p. m., incluyendo feriados. Algunos puestos de comida extienden su horario." },
   { q: "¿Dónde está ubicado el mercado?", a: "Nos encontramos en el corazón de Puerto Maldonado, Madre de Dios. Cuenta con accesos para transporte público y zona de carga y descarga." },
   { q: "¿Cómo puedo obtener un puesto?", a: "Acércate a la oficina de administración con tu DNI. Revisamos la disponibilidad de puestos y te guiamos en el proceso de formalización." },
   { q: "¿Qué es la consola de administración?", a: "Es el sistema digital con el que gestionamos comerciantes, puestos, permisos y pagos de forma transparente. El acceso es exclusivo para personal autorizado." },
 ];
 
 export default function LandingPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": ["ShoppingCenter", "GroceryStore"],
+        "@id": `${SITE_URL}/#negocio`,
+        name: "Gran Feria Mayorista Internacional de Madre de Dios",
+        alternateName: [
+          "Gran Feria Mayorista Internacional",
+          "Mercado Mayorista de Puerto Maldonado",
+          "Mercado Milagros",
+        ],
+        description:
+          "Mercado mayorista y minorista más grande de Puerto Maldonado, Madre de Dios: frutas, verduras, carnes, abarrotes y comidas, con más de 120 comerciantes formales.",
+        url: SITE_URL,
+        image: `${SITE_URL}/opengraph-image`,
+        priceRange: "$",
+        currenciesAccepted: "PEN",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "Puerto Maldonado",
+          addressLocality: "Puerto Maldonado",
+          addressRegion: "Madre de Dios",
+          addressCountry: "PE",
+        },
+        geo: {
+          "@type": "GeoCoordinates",
+          latitude: MAP_LAT,
+          longitude: MAP_LNG,
+        },
+        hasMap: mapsPlaceUrl,
+        areaServed: {
+          "@type": "AdministrativeArea",
+          name: "Madre de Dios, Perú",
+        },
+        openingHoursSpecification: [
+          {
+            "@type": "OpeningHoursSpecification",
+            dayOfWeek: [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+              "Sunday",
+            ],
+            opens: "06:00",
+            closes: "18:00",
+          },
+        ],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "Gran Feria Mayorista Internacional de Madre de Dios",
+        inLanguage: "es-PE",
+        publisher: { "@id": `${SITE_URL}/#negocio` },
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${SITE_URL}/#faq`,
+        mainEntity: FAQ.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
+
   return (
     <div className="lp">
+      {/* Datos estructurados para buscadores (negocio local + FAQ) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* ===================== HEADER ===================== */}
       <LandingHeader />
 
@@ -306,7 +427,7 @@ export default function LandingPage() {
           <div className="lp__container">
             <div className="lp-quick__head">
               <h2>¿Qué quieres hacer hoy?</h2>
-              <p>Encuentra rápido lo que buscas en el Mercado Milagros.</p>
+              <p>Encuentra rápido lo que buscas en la Gran Feria Mayorista Internacional.</p>
             </div>
             <div className="lp-quick__grid">
               {[
@@ -354,7 +475,7 @@ export default function LandingPage() {
         <section className="lp-section" id="mercado">
           <div className="lp__container">
             <div className="lp-section__head lp-reveal">
-              <span className="lp-eyebrow">Por qué el Mercado Milagros</span>
+              <span className="lp-eyebrow">Por qué la Gran Feria Mayorista Internacional</span>
               <h2>Un mercado moderno, humano y de confianza</h2>
               <p>
                 Combinamos la tradición del mercado de barrio con herramientas
@@ -501,7 +622,7 @@ export default function LandingPage() {
           <div className="lp__container">
             <div className="lp-section__head lp-reveal">
               <span className="lp-eyebrow">¿Eres comerciante?</span>
-              <h2>Únete al Mercado Milagros en 3 pasos</h2>
+              <h2>Únete a la Gran Feria Mayorista Internacional en 3 pasos</h2>
               <p>Formaliza tu negocio y accede a un espacio seguro, ordenado y con miles de clientes.</p>
             </div>
             <div className="lp-steps lp-reveal">
@@ -593,7 +714,7 @@ export default function LandingPage() {
               <div className="lp-loc__map">
                 <iframe
                   src={mapEmbedUrl}
-                  title="Mapa de ubicación del Mercado Milagros en Puerto Maldonado"
+                  title="Mapa de ubicación de la Gran Feria Mayorista Internacional en Puerto Maldonado"
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                   allowFullScreen
@@ -612,7 +733,7 @@ export default function LandingPage() {
             <div className="lp-section__head lp-reveal">
               <span className="lp-eyebrow">Resuelve tus dudas</span>
               <h2>Preguntas frecuentes</h2>
-              <p>Todo lo que necesitas saber antes de visitar el Mercado Milagros en Puerto Maldonado.</p>
+              <p>Todo lo que necesitas saber antes de visitar la Gran Feria Mayorista Internacional en Puerto Maldonado.</p>
             </div>
             <div className="lp-faq lp-reveal">
               {FAQ.map((f) => (
@@ -629,7 +750,7 @@ export default function LandingPage() {
         <section className="lp-cta">
           <div className="lp__container">
             <div className="lp-cta__box lp-reveal">
-              <h2>Vive la experiencia del Mercado Milagros</h2>
+              <h2>Vive la experiencia de la Gran Feria Mayorista Internacional</h2>
               <p>
                 Ven a comprar fresco y apoyar a los comerciantes de tu región.
                 ¿Eres personal autorizado? Ingresa a la consola de administración.
@@ -649,9 +770,9 @@ export default function LandingPage() {
           <div className="lp-footer__grid">
             <div className="lp-footer__brand">
               <div className="lp-brand">
-                <span className="lp-brand__mark">M</span>
+                <span className="lp-brand__mark">GF</span>
                 <span>
-                  <span className="lp-brand__name">Mercado Milagros</span>
+                  <span className="lp-brand__name">Gran Feria Mayorista Internacional</span>
                   <span className="lp-brand__sub">Madre de Dios · Perú</span>
                 </span>
               </div>
@@ -697,7 +818,7 @@ export default function LandingPage() {
           </div>
 
           <div className="lp-footer__bottom">
-            <span>© 2026 Mercado Milagros · Madre de Dios, Perú. Todos los derechos reservados.</span>
+            <span>© 2026 Gran Feria Mayorista Internacional · Madre de Dios, Perú. Todos los derechos reservados.</span>
             <span>Hecho con orgullo para nuestra comunidad.</span>
           </div>
         </div>

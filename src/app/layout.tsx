@@ -2,9 +2,28 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Admin · UNAMAD",
+  metadataBase: new URL("https://granferiamayorista.com"),
+  title:
+    "Gran Feria Mayorista Internacional de Madre de Dios — Puerto Maldonado",
   description:
-    "Consola de administración de la Universidad Nacional Amazónica de Madre de Dios",
+    "Mercado mayorista y minorista más grande de Puerto Maldonado, Madre de Dios. Productos frescos, +120 comerciantes formales y precios de feria, todos los días de 6 a. m. a 6 p. m.",
+  applicationName: "Gran Feria Mayorista Internacional",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Gran Feria Mayorista Internacional Madre de Dios",
+    locale: "es_PE",
+  },
 };
 
 export default function RootLayout({

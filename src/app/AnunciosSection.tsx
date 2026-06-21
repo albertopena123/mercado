@@ -37,7 +37,7 @@ export async function AnunciosSection() {
         <div className="lp-section__head lp-reveal">
           <span className="lp-eyebrow">Novedades</span>
           <h2>Anuncios y comunicados</h2>
-          <p>Entérate de las últimas noticias del Mercado Milagros.</p>
+          <p>Entérate de las últimas noticias de la Gran Feria Mayorista Internacional.</p>
         </div>
         <div className="lp-anuncios lp-reveal">
           {anuncios.map((a) => (

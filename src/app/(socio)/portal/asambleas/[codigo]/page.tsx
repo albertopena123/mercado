@@ -8,7 +8,7 @@ import { isQrTokenValid } from "@/lib/asambleas/qrToken";
 import { CheckinButton } from "./CheckinButton";
 import { QrScanner } from "./QrScanner";
 
-export const metadata = { title: "Asistencia · Mercado Milagros" };
+export const metadata = { title: "Asistencia · Gran Feria Mayorista Internacional" };
 export const dynamic = "force-dynamic";
 
 const ESTADO_ASM: Record<string, string> = {

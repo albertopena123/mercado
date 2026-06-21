@@ -4,7 +4,7 @@ import { getMiResumen } from "@/lib/portal/data";
 import { formatSoles } from "@/lib/money";
 import { Icon } from "@/components/admin/Icon";
 
-export const metadata = { title: "Mi portal · Mercado Milagros" };
+export const metadata = { title: "Mi portal · Gran Feria Mayorista Internacional" };
 export const dynamic = "force-dynamic";
 
 export default async function PortalHome() {

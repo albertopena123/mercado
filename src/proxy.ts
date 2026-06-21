@@ -14,6 +14,13 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/verificar/") ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/_next/") ||
+    // Activos SEO públicos por diseño (sin datos sensibles): los buscadores
+    // deben poder leerlos sin sesión, o quedarían redirigidos a /login.
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.startsWith("/opengraph-image") ||
+    pathname.startsWith("/twitter-image") ||
     pathname === "/favicon.ico";
 
   // Las rutas públicas pasan directo. NO redirigimos /login → /usuarios aquí:
