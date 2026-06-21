@@ -1,6 +1,7 @@
 "use client";
 
 import "./socios.css";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/admin/Icon";
@@ -35,11 +36,13 @@ export function SociosClient({
   stats,
   perms,
   filters,
+  solicitudesPendientes,
 }: {
   initial: ListSociosResult;
   stats: SocioStats;
   perms: PermFlags;
   filters: { q: string; estado?: EstadoSocio; tipoDocumento?: TipoDocumento };
+  solicitudesPendientes?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,6 +129,12 @@ export function SociosClient({
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link href="/socios/solicitudes" className="btn btn--ghost sol-pendientes-link">
+            Solicitudes
+            {!!solicitudesPendientes && (
+              <span className="badge badge--amber">{solicitudesPendientes}</span>
+            )}
+          </Link>
           <button
             className="btn btn--ghost"
             onClick={handleExport}

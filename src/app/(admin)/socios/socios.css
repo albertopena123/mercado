@@ -1065,3 +1065,123 @@
   color: var(--text-muted);
   padding: 36px 16px;
 }
+
+/* ─────────── Solicitudes de actualización ─────────── */
+
+/* Entry chip in the socios header toolbar */
+.sol-pendientes-link {
+  white-space: nowrap;
+}
+
+/* List of solicitud cards */
+.sol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Individual solicitud card */
+.sol-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sol-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sol-card__meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.sol-card__empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Diff table (actual → propuesto) */
+.sol-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.sol-diff th,
+.sol-diff td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.sol-diff thead th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+}
+
+.sol-diff tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sol-diff__field {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  width: 120px;
+}
+
+.sol-diff__old {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.sol-diff__new {
+  color: var(--text);
+}
+
+/* Action row */
+.sol-card__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Reject inline form */
+.sol-card__reject {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sol-card__reject-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sol-card__reject-input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.sol-card__reject-actions {
+  display: flex;
+  gap: 8px;
+}
