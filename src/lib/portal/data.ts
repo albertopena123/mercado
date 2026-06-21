@@ -11,7 +11,10 @@ import type {
   Giro,
   DimensionPuesto,
   EstadoPuesto,
+  Sexo,
+  TipoDocumento,
 } from "@/generated/prisma/client";
+import { esDocumentoPendiente } from "@/lib/socios/document";
 
 /* ───────────────────────── Cuotas / deuda ───────────────────────── */
 export type MiCuota = {
@@ -268,4 +271,94 @@ export async function getMiResumen(socioId: string): Promise<MiResumen> {
     puestos,
     reuniones,
   };
+}
+
+/* ───────────────────────── Datos personales del socio ───────────────────────── */
+export type MisDatosActuales = {
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string | null;
+  nombres: string;
+  fechaNacimiento: string | null; // yyyy-mm-dd
+  sexo: Sexo | null;
+  estadoCivil: string | null;
+  telefono: string | null;
+  email: string | null;
+  direccion: string | null;
+  distrito: string | null;
+  provincia: string | null;
+  departamento: string | null;
+  documentoPendiente: boolean; // SIN-DNI-#### → invita a regularizar
+};
+
+export async function getMisDatosCompletos(
+  socioId: string,
+): Promise<MisDatosActuales> {
+  const s = await prisma.socio.findUniqueOrThrow({
+    where: { id: socioId },
+    select: {
+      tipoDocumento: true,
+      numeroDocumento: true,
+      apellidoPaterno: true,
+      apellidoMaterno: true,
+      nombres: true,
+      fechaNacimiento: true,
+      sexo: true,
+      estadoCivil: true,
+      telefono: true,
+      email: true,
+      direccion: true,
+      distrito: true,
+      provincia: true,
+      departamento: true,
+    },
+  });
+  return {
+    ...s,
+    fechaNacimiento: s.fechaNacimiento
+      ? s.fechaNacimiento.toISOString().slice(0, 10)
+      : null,
+    documentoPendiente: esDocumentoPendiente(s.numeroDocumento),
+  };
+}
+
+export type EstadoMiSolicitud =
+  | { estado: "ninguna" }
+  | { estado: "pendiente"; id: string; creadoEn: string }
+  | {
+      estado: "rechazada";
+      id: string;
+      motivoRechazo: string | null;
+      revisadoEn: string | null;
+    };
+
+export async function getMiSolicitudActiva(
+  socioId: string,
+): Promise<EstadoMiSolicitud> {
+  // La pendiente manda; si no hay, mostramos la última rechazada (con motivo)
+  // para que el socio sepa por qué y pueda reenviar.
+  const pendiente = await prisma.solicitudActualizacionDatos.findFirst({
+    where: { socioId, estado: "pendiente" },
+    select: { id: true, creadoEn: true },
+  });
+  if (pendiente)
+    return {
+      estado: "pendiente",
+      id: pendiente.id,
+      creadoEn: pendiente.creadoEn.toISOString(),
+    };
+  const rechazada = await prisma.solicitudActualizacionDatos.findFirst({
+    where: { socioId, estado: "rechazada" },
+    orderBy: { revisadoEn: "desc" },
+    select: { id: true, motivoRechazo: true, revisadoEn: true },
+  });
+  if (rechazada)
+    return {
+      estado: "rechazada",
+      id: rechazada.id,
+      motivoRechazo: rechazada.motivoRechazo,
+      revisadoEn: rechazada.revisadoEn?.toISOString() ?? null,
+    };
+  return { estado: "ninguna" };
 }
