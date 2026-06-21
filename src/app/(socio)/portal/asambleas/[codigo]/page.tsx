@@ -6,6 +6,7 @@ import { Icon, type IconName } from "@/components/admin/Icon";
 import { fechaHora, ahoraMs } from "@/lib/fecha";
 import { isQrTokenValid } from "@/lib/asambleas/qrToken";
 import { CheckinButton } from "./CheckinButton";
+import { QrScanner } from "./QrScanner";
 
 export const metadata = { title: "Asistencia · Mercado Milagros" };
 export const dynamic = "force-dynamic";
@@ -163,12 +164,18 @@ export default async function CheckinPage({
     );
   } else {
     // En lista y abierto, pero sin token vivo: hay que escanear el QR de la
-    // pantalla (no se puede marcar desde casa con la URL).
+    // pantalla (no se puede marcar desde casa con la URL). Desde el celular se
+    // puede abrir la cámara aquí mismo (o usar la cámara nativa como respaldo).
     tone = "info";
     icon = "qr";
     title = "Escanea el código de la reunión";
     text =
-      "Para registrar tu asistencia, escanea el código QR que se muestra en la pantalla de la reunión. Cambia cada minuto, por eso debes estar presente.";
+      "Apunta al código QR que se muestra en la pantalla de la reunión. Cambia cada minuto, por eso debes estar presente.";
+    action = (
+      <div className="pt-pase__action">
+        <QrScanner codigo={codigo} />
+      </div>
+    );
   }
 
   const estado = asamblea.estado;

@@ -346,6 +346,79 @@
   transform: translateY(1px);
   box-shadow: 0 6px 14px rgba(81, 40, 180, 0.28);
 }
+/* Botón secundario del portal (p. ej. "Cancelar" del escáner). */
+.pt-btn--ghost {
+  background: #fff;
+  color: var(--pt-accent, #5128b4);
+  border: 1px solid var(--border, #e7e3f3);
+  box-shadow: none;
+}
+.pt-btn--ghost:hover:not(:disabled) {
+  background: var(--bg-sunken, #f6f7fb);
+}
+
+/* ── Escáner de QR (cámara in-app del socio) ── */
+.pt-scan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.pt-scan__viewport {
+  position: relative;
+  width: 260px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0b0b12;
+  box-shadow: 0 10px 26px rgba(33, 16, 84, 0.18);
+}
+.pt-scan__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pt-scan__frame {
+  position: absolute;
+  inset: 16%;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+.pt-scan__tip {
+  font-size: 13px;
+  color: var(--text-muted, #5c5872);
+  margin: 0;
+}
+.pt-scan__hint {
+  font-size: 12.5px;
+  color: #b45309;
+  margin: 0;
+  max-width: 32ch;
+}
+.pt-scan__fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #5c5872);
+  max-width: 34ch;
+  margin: 0 auto;
+}
+.pt-scan__fallback svg {
+  flex: none;
+  color: var(--pt-accent, #5128b4);
+}
+.pt-scan__status {
+  font-size: 14px;
+  color: var(--text-muted, #5c5872);
+  margin: 0;
+}
 
 .pt-empty {
   text-align: center;
