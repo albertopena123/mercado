@@ -37,12 +37,14 @@ export function SociosClient({
   perms,
   filters,
   solicitudesPendientes,
+  registrosPublicos,
 }: {
   initial: ListSociosResult;
   stats: SocioStats;
   perms: PermFlags;
   filters: { q: string; estado?: EstadoSocio; tipoDocumento?: TipoDocumento };
   solicitudesPendientes?: number;
+  registrosPublicos?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -134,6 +136,14 @@ export function SociosClient({
               Solicitudes
               {!!solicitudesPendientes && (
                 <span className="badge badge--amber">{solicitudesPendientes}</span>
+              )}
+            </Link>
+          )}
+          {perms.canWrite && (
+            <Link href="/socios/registros" className="btn btn--ghost reg-pendientes-link">
+              Registros
+              {!!registrosPublicos && (
+                <span className="badge badge--amber">{registrosPublicos}</span>
               )}
             </Link>
           )}

@@ -1,6 +1,7 @@
 import { requirePermission } from "@/lib/auth/server";
 import { listSocios, getSocioStats } from "./actions";
 import { contarSolicitudesPendientes } from "./solicitudes/actions";
+import { contarRegistrosPublicos } from "./registros/actions";
 import { SociosClient } from "./SociosClient";
 import type { EstadoSocio, TipoDocumento } from "@/generated/prisma/client";
 import type { PermFlags, SortKey, SortDir, SocioStats } from "./types";
@@ -46,11 +47,13 @@ export default async function Page({
       : "nombre";
   const dir: SortDir = sp.dir === "desc" ? "desc" : "asc";
 
-  const [res, statsRes, solicitudesPendientes] = await Promise.all([
-    listSocios({ q: sp.q, estado, tipoDocumento, page, pageSize, sort, dir }),
-    getSocioStats(),
-    contarSolicitudesPendientes(),
-  ]);
+  const [res, statsRes, solicitudesPendientes, registrosPublicos] =
+    await Promise.all([
+      listSocios({ q: sp.q, estado, tipoDocumento, page, pageSize, sort, dir }),
+      getSocioStats(),
+      contarSolicitudesPendientes(),
+      contarRegistrosPublicos(),
+    ]);
   if (!res.ok) throw new Error(res.error);
 
   const stats: SocioStats = statsRes.ok
@@ -72,6 +75,7 @@ export default async function Page({
       perms={perms}
       filters={{ q: sp.q ?? "", estado, tipoDocumento }}
       solicitudesPendientes={solicitudesPendientes}
+      registrosPublicos={registrosPublicos}
     />
   );
 }
