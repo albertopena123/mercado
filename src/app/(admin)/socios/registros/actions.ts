@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/server";
 import { validateSocioInput, buildSocioUpdateData } from "@/lib/socios/update";
+import { normalizeToken } from "@/lib/socios/normalize";
 import type { ActionResult, CreateSocioInput } from "@/app/(admin)/socios/types";
 
 // Sentinel error thrown inside the transaction when the updateMany guard finds
@@ -72,16 +73,22 @@ export async function buscarSociosParaMatch(
   const me = await requireReview();
   if (!me) return { ok: false, error: "No tienes permisos para esta acción." };
 
-  const term = (q ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+  // Tokenizar + normalizar (mismo criterio que listSocios). searchKey ordena
+  // apellidos ANTES que nombres, así que un `contains` de la frase completa
+  // fallaría con "julia mondragon" (nombre+apellido). En cambio exigimos que
+  // CADA palabra esté presente: el orden no importa y "Mondragón" matchea con
+  // "mondragon".
+  const tokens = (q ?? "")
+    .split(/\s+/)
+    .filter((t) => t.length > 0)
+    .map(normalizeToken);
 
-  if (term.length < 2) return { ok: true, data: [] };
+  if (tokens.length === 0 || tokens.join("").length < 2) {
+    return { ok: true, data: [] };
+  }
 
   const rows = await prisma.socio.findMany({
-    where: { searchKey: { contains: term } },
+    where: { AND: tokens.map((token) => ({ searchKey: { contains: token } })) },
     orderBy: { apellidoPaterno: "asc" },
     take: 10,
     select: {
