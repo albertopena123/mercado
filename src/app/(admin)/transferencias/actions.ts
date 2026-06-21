@@ -89,13 +89,27 @@ export async function listTransferencias(
     if (params.estado) where.estado = params.estado;
     const q = params.q?.trim();
     if (q) {
-      where.OR = [
-        { codigo: { contains: q, mode: "insensitive" } },
-        { adqApellidoPaterno: { contains: q, mode: "insensitive" } },
-        { adqNombres: { contains: q, mode: "insensitive" } },
-        { transferente: { searchKey: { contains: normalizeToken(q) } } },
-        { puesto: { codigo: { contains: q, mode: "insensitive" } } },
-      ];
+      // Búsqueda multi-palabra: cada token debe aparecer (AND entre tokens) en
+      // algún campo (OR entre campos). Antes se usaba el query COMPLETO como un
+      // único `contains` por campo, así que un nombre de varias palabras —
+      // repartido entre nombres y apellidos del adquiriente, o contra el
+      // searchKey del transferente— no cabía en ningún campo y devolvía 0
+      // resultados. Ahora el orden de las palabras deja de importar.
+      const tokens = q.split(/\s+/).filter((t) => t.length > 0);
+      if (tokens.length > 0) {
+        where.AND = tokens.map((tok) => ({
+          OR: [
+            { codigo: { contains: tok, mode: "insensitive" } },
+            { adqNumeroDocumento: { contains: tok, mode: "insensitive" } },
+            { adqApellidoPaterno: { contains: tok, mode: "insensitive" } },
+            { adqApellidoMaterno: { contains: tok, mode: "insensitive" } },
+            { adqNombres: { contains: tok, mode: "insensitive" } },
+            // El transferente es un Socio con searchKey normalizado (sin tildes).
+            { transferente: { searchKey: { contains: normalizeToken(tok) } } },
+            { puesto: { codigo: { contains: tok, mode: "insensitive" } } },
+          ],
+        }));
+      }
     }
 
     const [total, rows] = await Promise.all([

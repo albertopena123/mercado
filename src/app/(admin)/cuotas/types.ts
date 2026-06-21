@@ -1,4 +1,4 @@
-import type { EstadoCuota } from "@/generated/prisma/client";
+import type { EstadoCuota, EstadoSocio } from "@/generated/prisma/client";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -64,6 +64,31 @@ export type PagoPorMontoResult = {
   montoAplicado: number;
   comprobante: ComprobanteRef | null;
   movimientoCajaId: string | null;
+};
+
+// Resultado de pagar un conjunto de cuotas elegidas (un solo comprobante).
+export type PagoMultipleResult = {
+  pagadas: number;
+  montoTotal: number;
+  comprobante: ComprobanteRef | null;
+  movimientoCajaId: string | null;
+};
+
+// Socio en el selector de "Aplicar deuda a socios" (datos mínimos).
+export type SocioPick = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  documento: string;
+  estado: EstadoSocio;
+};
+
+export type AplicarDeudaInput = {
+  socioIds: string[];
+  concepto: string;
+  periodo: string; // libre: "2025", "2026-06", "histórico"…
+  monto: number;
+  vencimiento?: string;
 };
 
 export type GenerarCuotasInput = {

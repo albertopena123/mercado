@@ -25,6 +25,9 @@ import type {
   GenerarCuotasInput,
   RegistrarPagoInput,
   PagoPorMontoResult,
+  PagoMultipleResult,
+  SocioPick,
+  AplicarDeudaInput,
   ComprobanteRef,
 } from "./types";
 
@@ -213,15 +216,22 @@ export async function listCuotas(
     if (params.periodo) where.periodo = params.periodo;
     const q = params.q?.trim();
     if (q) {
-      where.socio = {
-        OR: [
-          { apellidoPaterno: { contains: q, mode: "insensitive" } },
-          { apellidoMaterno: { contains: q, mode: "insensitive" } },
-          { nombres: { contains: q, mode: "insensitive" } },
-          { numeroDocumento: { contains: q, mode: "insensitive" } },
-          { codigo: { contains: q, mode: "insensitive" } },
-        ],
-      };
+      // Tokeniza + normaliza (minúsculas, sin tildes) y exige que cada token
+      // aparezca en el searchKey del socio (concatenación normalizada de código,
+      // documento, n.° de padrón y nombre completo). Igual criterio que
+      // listSocios: así "juan carlos curi" matchea aunque el nombre se reparta
+      // entre `nombres` y los apellidos y sin importar el orden ni los acentos.
+      // (Antes se hacía un único `contains` del query COMPLETO por campo, así que
+      // un nombre de varias palabras no cabía en ningún campo → 0 resultados.)
+      const tokens = q
+        .split(/\s+/)
+        .filter((t) => t.length > 0)
+        .map(normalizeToken);
+      if (tokens.length > 0) {
+        where.socio = {
+          AND: tokens.map((token) => ({ searchKey: { contains: token } })),
+        };
+      }
     }
 
     const [total, rows] = await Promise.all([
@@ -415,6 +425,231 @@ export async function pagarPorMonto(
     if (e instanceof Denied) return fail(e.message);
     console.error("pagarPorMonto", e);
     return fail("No se pudo registrar el pago.");
+  }
+}
+
+// Paga un conjunto de cuotas ELEGIDAS de un mismo socio en una sola operación:
+// las marca pagadas, reconoce UN ingreso a caja por el total y emite UN
+// comprobante con el detalle de todas. A diferencia de pagarPorMonto (que aplica
+// el dinero a las más antiguas automáticamente), aquí el cajero decide qué
+// deudas se saldan. El autovalúo se excluye: cada recibo exige su N.° de
+// operación único, así que se sigue pagando individualmente con «Pagar».
+export async function pagarCuotasSeleccionadas(
+  socioId: string,
+  cuotaIds: string[],
+  input: { metodoPago?: string; fecha?: string; nroOperacion?: string },
+): Promise<ActionResult<PagoMultipleResult>> {
+  try {
+    const me = await authorize("cuotas.pay");
+    const ids = Array.from(
+      new Set((cuotaIds ?? []).filter((x): x is string => typeof x === "string" && x.length > 0)),
+    );
+    if (ids.length === 0) return fail("Selecciona al menos una cuota.");
+    const metodoPago = input.metodoPago?.trim() || "efectivo";
+    const nroOperacion = input.nroOperacion?.trim() || null;
+    // pagadoEn es fecha de calendario (medianoche UTC), como el resto del módulo.
+    const fecha = inicioDiaUTC(input.fecha);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Serializa con otros pagos del mismo socio (igual que pagarPorMonto).
+      await tx.$queryRaw`SELECT id FROM "Socio" WHERE id = ${socioId} FOR UPDATE`;
+      const socio = await tx.socio.findUnique({
+        where: { id: socioId },
+        select: {
+          codigo: true,
+          numeroDocumento: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+          nombres: true,
+        },
+      });
+      if (!socio) throw new Denied("Socio no encontrado.");
+
+      // Solo cuotas de ESTE socio, de la selección y aún pendientes (evita pagar
+      // cuotas de otro socio o ya saldadas/anuladas por una operación concurrente).
+      const cuotas = await tx.cuota.findMany({
+        where: { id: { in: ids }, socioId, estado: "pendiente" },
+        orderBy: [{ periodo: "asc" }],
+        select: { id: true, periodo: true, concepto: true, monto: true },
+      });
+      if (cuotas.length === 0)
+        throw new Denied("Las cuotas seleccionadas ya no están pendientes.");
+      if (cuotas.some((c) => esAutovaluo(c.concepto)))
+        throw new Denied(
+          "Quita las cuotas de autovalúo de la selección: se pagan individualmente con «Pagar» para registrar el N.° de su recibo.",
+        );
+
+      let recaudado = 0;
+      const saldadas: { periodo: string; concepto: string; monto: number }[] = [];
+      for (const c of cuotas) {
+        const m = toNumber(c.monto);
+        // Transición condicional pendiente → pagada: si otra operación ya la pagó
+        // o anuló entre la lectura y aquí, no la recontamos.
+        const upd = await tx.cuota.updateMany({
+          where: { id: c.id, estado: "pendiente" },
+          data: {
+            estado: "pagada",
+            pagadoEn: fecha,
+            pagadoMonto: m,
+            metodoPago,
+            byUserId: me.id,
+          },
+        });
+        if (upd.count === 0) continue;
+        recaudado = Math.round((recaudado + m) * 100) / 100;
+        saldadas.push({ periodo: c.periodo, concepto: c.concepto, monto: m });
+      }
+      if (saldadas.length === 0)
+        throw new Denied("Las cuotas seleccionadas ya no están pendientes.");
+
+      const movId = await registrarIngresoCuota(tx, {
+        monto: recaudado,
+        socioId,
+        concepto: `Pago de ${saldadas.length} cuota(s) · ${socioNombre(socio)}`,
+        fecha,
+        metodoPago,
+        nroOperacion,
+        registradoPorId: me.id,
+      });
+
+      return { socio, saldadas, recaudado, movId };
+    });
+
+    // Emite UN comprobante con el detalle de todas las cuotas saldadas (sin saldo
+    // a favor: se paga el monto exacto de lo seleccionado).
+    const comprobante = result.movId
+      ? await emitirComprobanteSocio({
+          socioId,
+          socio: result.socio,
+          monto: result.recaudado,
+          detalle: buildDetallePago(result.saldadas, 0),
+          metodoPago,
+          nroOperacion,
+          fecha,
+          movimientoCajaId: result.movId,
+          emitidoPorId: me.id,
+        })
+      : null;
+
+    refresh();
+    return ok({
+      pagadas: result.saldadas.length,
+      montoTotal: result.recaudado,
+      comprobante,
+      movimientoCajaId: result.movId,
+    });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("pagarCuotasSeleccionadas", e);
+    return fail("No se pudo registrar el pago.");
+  }
+}
+
+// Busca socios para el selector de "Aplicar deuda a socios". Tokeniza y normaliza
+// el texto (igual criterio que listSocios) y matchea contra searchKey, así el
+// orden de las palabras y los acentos no importan. Top 50 por apellido.
+export async function buscarSociosParaDeuda(
+  q: string,
+): Promise<ActionResult<SocioPick[]>> {
+  try {
+    await authorize("cuotas.write");
+    const tokens = (q ?? "")
+      .split(/\s+/)
+      .filter((t) => t.length > 0)
+      .map(normalizeToken);
+    const where: Prisma.SocioWhereInput =
+      tokens.length > 0
+        ? { AND: tokens.map((t) => ({ searchKey: { contains: t } })) }
+        : {};
+    const socios = await prisma.socio.findMany({
+      where,
+      orderBy: [{ apellidoPaterno: "asc" }, { nombres: "asc" }],
+      take: 50,
+      select: {
+        id: true,
+        codigo: true,
+        numeroDocumento: true,
+        apellidoPaterno: true,
+        apellidoMaterno: true,
+        nombres: true,
+        estado: true,
+      },
+    });
+    return ok(
+      socios.map((s) => ({
+        id: s.id,
+        codigo: s.codigo,
+        nombre: socioNombre(s),
+        documento: s.numeroDocumento,
+        estado: s.estado,
+      })),
+    );
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("buscarSociosParaDeuda", e);
+    return fail("No se pudo buscar socios.");
+  }
+}
+
+// Aplica una deuda (cuota pendiente) a un conjunto ELEGIDO de socios. A diferencia
+// de generarCuotasPeriodo (que cobra a todos los socios activos), aquí el cargo va
+// solo a los socios seleccionados — para multas, derramas o conceptos puntuales.
+// Idempotente: la unique (socioId, periodo, concepto) evita recargar a quien ya la
+// tiene; esos se reportan como "omitidas".
+export async function aplicarDeudaASocios(
+  input: AplicarDeudaInput,
+): Promise<ActionResult<{ creadas: number; omitidas: number; invalidos: number }>> {
+  try {
+    const me = await authorize("cuotas.write");
+    const socioIds = Array.from(
+      new Set((input.socioIds ?? []).filter((x): x is string => typeof x === "string" && x.length > 0)),
+    );
+    const concepto = input.concepto?.trim();
+    const periodo = input.periodo?.trim();
+    const monto = Number(input.monto);
+    const fe: Record<string, string> = {};
+    if (socioIds.length === 0) fe.socios = "Selecciona al menos un socio.";
+    if (!concepto) fe.concepto = "Indica el concepto de la deuda.";
+    if (!periodo) fe.periodo = "Indica el periodo (p. ej. 2025, 2026-06).";
+    if (isNaN(monto) || monto <= 0) fe.monto = "Monto inválido.";
+    if (Object.keys(fe).length > 0) return fail("Revisa los campos marcados.", fe);
+
+    // vencimiento es fecha de calendario (medianoche UTC), como en generarCuotas.
+    const vencimiento = input.vencimiento ? inicioDiaUTC(input.vencimiento) : null;
+
+    // Descarta IDs que no correspondan a un socio real (p. ej. un socio borrado
+    // mientras el modal estaba abierto). Esos se reportan como "invalidos" para
+    // que el operador sepa que parte de su selección no recibió el cargo.
+    const existentes = await prisma.socio.findMany({
+      where: { id: { in: socioIds } },
+      select: { id: true },
+    });
+    const invalidos = socioIds.length - existentes.length;
+    if (existentes.length === 0)
+      return fail("Ningún socio válido en la selección.");
+
+    const result = await prisma.cuota.createMany({
+      data: existentes.map((s) => ({
+        socioId: s.id,
+        periodo: periodo!,
+        concepto: concepto!,
+        monto,
+        vencimiento,
+        createdById: me.id,
+      })),
+      skipDuplicates: true,
+    });
+
+    refresh();
+    return ok({
+      creadas: result.count,
+      omitidas: existentes.length - result.count,
+      invalidos,
+    });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("aplicarDeudaASocios", e);
+    return fail("No se pudo aplicar la deuda.");
   }
 }
 

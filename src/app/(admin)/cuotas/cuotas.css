@@ -80,3 +80,135 @@
 .deuda-banner--debe .deuda-banner__value {
   color: #991b1b;
 }
+
+/* ── Selección múltiple de cuotas (pago combinado) ── */
+.socios-table tr.is-selected td {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.cuo-selbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-soft));
+}
+.cuo-selbar__info {
+  font-size: 13.5px;
+}
+.cuo-selbar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Lista de cuotas a pagar (dentro del modal de pago combinado) */
+.cuo-sel-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0 4px;
+}
+.cuo-sel-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+}
+.cuo-sel-list__item + .cuo-sel-list__item {
+  border-top: 1px solid var(--border);
+}
+.cuo-sel-list__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Aplicar deuda a socios: buscador, picker y chips ── */
+.cuo-search {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cuo-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cuo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+.cuo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-soft));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  font-size: 12.5px;
+  max-width: 100%;
+}
+.cuo-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.cuo-chip__x:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+.cuo-picker {
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cuo-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.cuo-picker__item + .cuo-picker__item {
+  border-top: 1px solid var(--border);
+}
+.cuo-picker__item:hover {
+  background: var(--bg-soft);
+}
+.cuo-picker__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cuo-picker__name {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.cuo-picker__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cuo-picker__estado {
+  color: #b45309;
+}

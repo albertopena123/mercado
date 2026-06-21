@@ -6,6 +6,7 @@ import { Icon } from "@/components/admin/Icon";
 import { formatSoles } from "@/lib/money";
 import { getCuotasBySocio } from "../cuotas/actions";
 import { PagoPorMontoModal } from "../cuotas/PagoPorMontoModal";
+import { PagarSeleccionModal } from "../cuotas/PagarSeleccionModal";
 import { esAutovaluo } from "@/lib/cuotas/autovaluo";
 import type { SocioCuotas } from "../cuotas/types";
 
@@ -25,6 +26,8 @@ export function SocioCuotasTab({
   const [data, setData] = useState<SocioCuotas | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  const [paySelOpen, setPaySelOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [flash, setFlash] = useState<string | null>(null);
 
   async function load() {
@@ -58,6 +61,24 @@ export function SocioCuotasTab({
   const tieneAutovaluo = data.cuotas.some(
     (c) => c.estado === "pendiente" && esAutovaluo(c.concepto),
   );
+
+  // Selección múltiple: pagar varias cuotas elegidas en un solo comprobante.
+  // El autovalúo se excluye (se paga individualmente con su N.° de recibo). Se
+  // exige pendiente: si una cuota seleccionada se salda por otro flujo (p. ej.
+  // "Pagar por monto"), al recargar deja de estar pendiente y sale sola de la
+  // barra/total sin depender de limpiar el Set.
+  const selRows = data.cuotas.filter(
+    (c) => selected.has(c.id) && c.estado === "pendiente" && !esAutovaluo(c.concepto),
+  );
+  const selTotal =
+    Math.round(selRows.reduce((a, c) => a + c.monto, 0) * 100) / 100;
+  const toggleSel = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <div>
@@ -103,6 +124,22 @@ export function SocioCuotasTab({
         </div>
       )}
 
+      {selRows.length > 0 && (
+        <div className="cuo-selbar" role="region" aria-label="Pago de cuotas seleccionadas">
+          <div className="cuo-selbar__info">
+            <b>{selRows.length}</b> cuota(s) · Total <b>{formatSoles(selTotal)}</b>
+          </div>
+          <div className="cuo-selbar__actions">
+            <button className="btn btn--ghost" onClick={() => setSelected(new Set())}>
+              Quitar selección
+            </button>
+            <button className="btn btn--primary" onClick={() => setPaySelOpen(true)}>
+              Pagar seleccionadas
+            </button>
+          </div>
+        </div>
+      )}
+
       {data.cuotas.length === 0 ? (
         <p style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
           Este socio no tiene cuotas registradas.
@@ -111,6 +148,11 @@ export function SocioCuotasTab({
         <table className="socios-table" style={{ marginTop: 4 }}>
           <thead>
             <tr>
+              {data.canPay && (
+                <th style={{ width: 36 }}>
+                  <span className="soc-th" style={{ cursor: "default" }} aria-label="Seleccionar" />
+                </th>
+              )}
               <th><span className="soc-th" style={{ cursor: "default" }}>Periodo</span></th>
               <th><span className="soc-th" style={{ cursor: "default" }}>Monto</span></th>
               <th><span className="soc-th" style={{ cursor: "default" }}>Estado</span></th>
@@ -118,7 +160,26 @@ export function SocioCuotasTab({
           </thead>
           <tbody>
             {data.cuotas.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} className={selected.has(c.id) ? "is-selected" : undefined}>
+                {data.canPay && (
+                  <td style={{ width: 36, textAlign: "center" }}>
+                    {c.estado === "pendiente" && !esAutovaluo(c.concepto) ? (
+                      <input
+                        type="checkbox"
+                        checked={selected.has(c.id)}
+                        onChange={() => toggleSel(c.id)}
+                        aria-label={`Seleccionar cuota ${c.periodo}`}
+                      />
+                    ) : c.estado === "pendiente" && esAutovaluo(c.concepto) ? (
+                      <span
+                        title="El autovalúo se paga individualmente (su N.° de recibo)"
+                        style={{ color: "var(--text-muted)", display: "inline-flex" }}
+                      >
+                        <Icon name="lock" size={14} />
+                      </span>
+                    ) : null}
+                  </td>
+                )}
                 <td>
                   <span className="soc-codigo">{c.periodo}</span>
                   <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
@@ -150,6 +211,27 @@ export function SocioCuotasTab({
           onClose={() => setPayOpen(false)}
           onDone={(msg) => {
             setPayOpen(false);
+            setSelected(new Set());
+            setFlash(msg);
+            load();
+          }}
+        />
+      )}
+
+      {paySelOpen && (
+        <PagarSeleccionModal
+          socioId={socioId}
+          socioNombre={socioNombre}
+          cuotas={selRows.map((c) => ({
+            id: c.id,
+            periodo: c.periodo,
+            concepto: c.concepto,
+            monto: c.monto,
+          }))}
+          onClose={() => setPaySelOpen(false)}
+          onDone={(msg) => {
+            setPaySelOpen(false);
+            setSelected(new Set());
             setFlash(msg);
             load();
           }}
