@@ -18,8 +18,10 @@ const ESTADO_SOCIO_LABEL: Record<EstadoSocio, string> = {
 
 export default async function PerfilPage() {
   const { socio } = await requireSocio();
-  const puestos = await getMisPuestos(socio.id);
-  const solicitud = await getMiSolicitudActiva(socio.id);
+  const [puestos, solicitud] = await Promise.all([
+    getMisPuestos(socio.id),
+    getMiSolicitudActiva(socio.id),
+  ]);
 
   return (
     <>
