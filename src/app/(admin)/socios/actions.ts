@@ -2,16 +2,12 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { Prisma, type EstadoSocio } from "@/generated/prisma/client";
+import { Prisma, type EstadoSocio, type TipoDocumento } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { hashPassword } from "@/lib/auth/password";
-import {
-  validateNumeroDocumento,
-  normalizeNumeroDocumento,
-  esDocumentoPendiente,
-} from "@/lib/socios/document";
+import { esDocumentoPendiente } from "@/lib/socios/document";
 import { nextCodigoFromList } from "@/lib/socios/codigo";
 import { buildXlsx } from "@/lib/xlsx";
 import {
@@ -23,7 +19,6 @@ import {
   type DniLookupResult,
 } from "@/lib/socios/dni-lookup";
 import { toNumber } from "@/lib/money";
-import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
 import { CATEGORIA_LABEL } from "@/lib/caja/labels";
 import {
   writeAdjunto,
@@ -46,13 +41,16 @@ import type {
   SocioRow,
   SocioDetail,
 } from "./types";
+import {
+  validateSocioInput,
+  buildSocioUpdateData,
+} from "@/lib/socios/update";
 
 const PAGE_SIZE = 25;
 const PAGE_SIZES = [25, 50, 100];
 function clampSize(n?: number): number {
   return n && PAGE_SIZES.includes(n) ? n : PAGE_SIZE;
 }
-const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const MOTIVO_MIN = 5;
 
 class Denied extends Error {
@@ -88,113 +86,6 @@ function isP2002(e: unknown): boolean {
     e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"
   );
 }
-
-type FieldErrors = Record<string, string>;
-
-function validateSocioInput(
-  input: Partial<CreateSocioInput>,
-  isCreate: boolean,
-): { fieldErrors: FieldErrors; normalized: Partial<CreateSocioInput> } {
-  const fe: FieldErrors = {};
-  const out: Partial<CreateSocioInput> = {};
-
-  if (isCreate || input.tipoDocumento !== undefined) {
-    if (!input.tipoDocumento) fe.tipoDocumento = "Selecciona el tipo de documento.";
-    else out.tipoDocumento = input.tipoDocumento;
-  }
-
-  if (isCreate || input.numeroDocumento !== undefined) {
-    const tipo = input.tipoDocumento ?? out.tipoDocumento;
-    const num = (input.numeroDocumento ?? "").trim();
-    if (!num) fe.numeroDocumento = "Número de documento requerido.";
-    // Documento placeholder de socio SIN DNI (SIN-DNI-####): se acepta tal cual.
-    // No es un DNI real, así que no debe pasar la validación de formato — si no,
-    // no se podría editar (p. ej. ponerle su Nº de padrón) a esos socios.
-    else if (esDocumentoPendiente(num)) out.numeroDocumento = num;
-    else if (tipo && !validateNumeroDocumento(tipo, num))
-      fe.numeroDocumento = "Formato inválido para el tipo de documento.";
-    else if (tipo) out.numeroDocumento = normalizeNumeroDocumento(tipo, num);
-  }
-
-  // Nº de padrón: opcional. null/0/"" → se borra; entero positivo razonable.
-  if (input.numeroPadron !== undefined) {
-    const v = input.numeroPadron;
-    if (v === null || v === 0) out.numeroPadron = null;
-    else if (!Number.isInteger(v) || v < 0 || v > 100000)
-      fe.numeroPadron = "Nº de padrón inválido (entero positivo).";
-    else out.numeroPadron = v;
-  }
-
-  if (isCreate || input.apellidoPaterno !== undefined) {
-    const ap = (input.apellidoPaterno ?? "").trim();
-    if (!ap) fe.apellidoPaterno = "Apellido paterno requerido.";
-    else out.apellidoPaterno = ap;
-  }
-
-  if (isCreate || input.nombres !== undefined) {
-    const nom = (input.nombres ?? "").trim();
-    if (!nom) fe.nombres = "Nombres requeridos.";
-    else out.nombres = nom;
-  }
-
-  if (input.apellidoMaterno !== undefined) {
-    const v = input.apellidoMaterno.trim();
-    out.apellidoMaterno = v || undefined;
-  }
-
-  // Fechas de calendario: "futuro" se mide contra HOY en Perú (UTC-5), no contra
-  // Date.now() (UTC). Si no, en las noches de Perú (ya día siguiente en UTC) se
-  // colaba como válida una fecha de mañana.
-  const hoyUTC = inicioDiaUTC(hoyISOPeru()).getTime();
-
-  if (isCreate || input.fechaIngreso !== undefined) {
-    const fi = input.fechaIngreso ?? "";
-    const d = fi ? new Date(fi) : null;
-    if (!d || isNaN(d.getTime())) fe.fechaIngreso = "Fecha de ingreso inválida.";
-    else if (d.getTime() > hoyUTC)
-      fe.fechaIngreso = "La fecha de ingreso no puede ser futura.";
-    else out.fechaIngreso = d.toISOString();
-  }
-
-  if (input.fechaNacimiento !== undefined && input.fechaNacimiento !== "") {
-    const d = new Date(input.fechaNacimiento);
-    if (isNaN(d.getTime())) fe.fechaNacimiento = "Fecha de nacimiento inválida.";
-    else if (d.getTime() > hoyUTC)
-      fe.fechaNacimiento = "Fecha de nacimiento futura.";
-    else out.fechaNacimiento = d.toISOString();
-  } else if (input.fechaNacimiento === "") {
-    out.fechaNacimiento = undefined;
-  }
-
-  if (input.email !== undefined && input.email.trim() !== "") {
-    const em = input.email.trim().toLowerCase();
-    if (!EMAIL_RE.test(em)) fe.email = "Correo no válido.";
-    else out.email = em;
-  } else if (input.email !== undefined) {
-    out.email = undefined;
-  }
-
-  for (const k of [
-    "sexo",
-    "estadoCivil",
-    "telefono",
-    "direccion",
-    "distrito",
-    "provincia",
-    "departamento",
-    "observaciones",
-  ] as const) {
-    const v = input[k];
-    if (v !== undefined) {
-      const t = String(v).trim();
-      (out as Record<string, string | undefined>)[k] = t || undefined;
-    }
-  }
-
-  return { fieldErrors: fe, normalized: out };
-}
-
-import type { TipoDocumento } from "@/generated/prisma/client";
 
 function toSocioRow(s: {
   id: string;
@@ -821,65 +712,14 @@ export async function updateSocio(
       return fail("Revisa los campos marcados.", fieldErrors);
     }
 
-    const data: Prisma.SocioUpdateInput = {
-      updatedBy: { connect: { id: me.id } },
-    };
-    if (normalized.tipoDocumento) data.tipoDocumento = normalized.tipoDocumento;
-    if (normalized.numeroDocumento)
-      data.numeroDocumento = normalized.numeroDocumento;
-    if (normalized.apellidoPaterno)
-      data.apellidoPaterno = normalized.apellidoPaterno;
-    if ("apellidoMaterno" in normalized)
-      data.apellidoMaterno = normalized.apellidoMaterno ?? null;
-    if (normalized.nombres) data.nombres = normalized.nombres;
-    if (normalized.fechaNacimiento !== undefined)
-      data.fechaNacimiento = normalized.fechaNacimiento
-        ? new Date(normalized.fechaNacimiento)
-        : null;
-    if ("sexo" in normalized) data.sexo = normalized.sexo ?? null;
-    if ("estadoCivil" in normalized)
-      data.estadoCivil = normalized.estadoCivil ?? null;
-    if ("telefono" in normalized) data.telefono = normalized.telefono ?? null;
-    if ("email" in normalized) data.email = normalized.email ?? null;
-    if ("direccion" in normalized) data.direccion = normalized.direccion ?? null;
-    if ("distrito" in normalized) data.distrito = normalized.distrito ?? null;
-    if ("provincia" in normalized) data.provincia = normalized.provincia ?? null;
-    if ("departamento" in normalized)
-      data.departamento = normalized.departamento ?? null;
-    if (normalized.fechaIngreso)
-      data.fechaIngreso = new Date(normalized.fechaIngreso);
-    if ("observaciones" in normalized)
-      data.observaciones = normalized.observaciones ?? null;
-    if ("numeroPadron" in normalized)
-      data.numeroPadron = normalized.numeroPadron ?? null;
-
-    // Recomputar searchKey con el estado final (existing + patch aplicado)
-    const finalAM =
-      "apellidoMaterno" in normalized
-        ? normalized.apellidoMaterno ?? null
-        : existing.apellidoMaterno;
-    const finalPadron =
-      "numeroPadron" in normalized
-        ? normalized.numeroPadron ?? null
-        : existing.numeroPadron;
-    data.searchKey = buildSocioSearchKey({
-      codigo: existing.codigo,
-      numeroDocumento: normalized.numeroDocumento ?? existing.numeroDocumento,
-      numeroPadron: finalPadron,
-      apellidoPaterno:
-        normalized.apellidoPaterno ?? existing.apellidoPaterno,
-      apellidoMaterno: finalAM,
-      nombres: normalized.nombres ?? existing.nombres,
-    });
+    const { data, docCambia } = buildSocioUpdateData(normalized, existing);
+    data.updatedBy = { connect: { id: me.id } };
 
     try {
       await prisma.$transaction(async (tx) => {
         await tx.socio.update({ where: { id }, data });
         // Enfoque A: el documento se denormaliza en User. Si el socio tiene
         // cuenta y cambió su documento, propagamos el cambio al usuario.
-        const docCambia =
-          normalized.tipoDocumento !== undefined ||
-          normalized.numeroDocumento !== undefined;
         if (existing.userId && docCambia) {
           await tx.user.update({
             where: { id: existing.userId },
