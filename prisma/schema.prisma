@@ -31,6 +31,7 @@ model User {
   sociosUpdated   Socio[]          @relation("SocioUpdatedBy")
   socioAdjuntos   SocioAdjunto[]   @relation("SocioAdjuntoUploader")
   socioEstadoLogs SocioEstadoLog[] @relation("SocioEstadoLogBy")
+  solicitudesRevisadas SolicitudActualizacionDatos[] @relation("SolicitudRevisadaPor")
 
   puestosCreated        Puesto[]           @relation("PuestoCreatedBy")
   puestosUpdated        Puesto[]           @relation("PuestoUpdatedBy")
@@ -210,6 +211,7 @@ model Socio {
   transferenciasComoAdquiriente  Transferencia[]    @relation("AdquirienteSocio")
   directivos                     Directivo[]
   renuncias                      Renuncia[]
+  solicitudesActualizacion       SolicitudActualizacionDatos[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -246,6 +248,34 @@ model SocioEstadoLog {
   byUser User? @relation("SocioEstadoLogBy", fields: [byUserId], references: [id], onDelete: SetNull)
 
   @@index([socioId])
+}
+
+enum EstadoSolicitudActualizacion {
+  pendiente
+  aprobada
+  rechazada
+}
+
+// Solicitud de actualización de datos hecha por el propio socio desde el portal.
+// `datos` es el snapshot JSON de los valores propuestos (solo campos de la
+// whitelist del autoservicio). El admin la revisa y al APROBAR se aplica al
+// padrón por la misma ruta validada que updateSocio. Un índice parcial único
+// (ver migración) garantiza máximo UNA pendiente por socio.
+model SolicitudActualizacionDatos {
+  id            String                       @id @default(cuid())
+  socioId       String
+  datos         Json
+  estado        EstadoSolicitudActualizacion @default(pendiente)
+  motivoRechazo String?
+  creadoEn      DateTime                     @default(now())
+  revisadoPorId String?
+  revisadoEn    DateTime?
+
+  socio       Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  revisadoPor User? @relation("SolicitudRevisadaPor", fields: [revisadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([estado])
 }
 
 // ─────────────────────────── Órganos directivos ───────────────────────────
