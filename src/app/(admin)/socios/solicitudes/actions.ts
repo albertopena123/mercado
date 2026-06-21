@@ -282,6 +282,7 @@ export async function rechazarSolicitud(
     };
   }
 
+  revalidatePath("/socios");
   revalidatePath("/socios/solicitudes");
   return { ok: true };
 }

@@ -129,12 +129,14 @@ export function SociosClient({
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Link href="/socios/solicitudes" className="btn btn--ghost sol-pendientes-link">
-            Solicitudes
-            {!!solicitudesPendientes && (
-              <span className="badge badge--amber">{solicitudesPendientes}</span>
-            )}
-          </Link>
+          {perms.canWrite && (
+            <Link href="/socios/solicitudes" className="btn btn--ghost sol-pendientes-link">
+              Solicitudes
+              {!!solicitudesPendientes && (
+                <span className="badge badge--amber">{solicitudesPendientes}</span>
+              )}
+            </Link>
+          )}
           <button
             className="btn btn--ghost"
             onClick={handleExport}
