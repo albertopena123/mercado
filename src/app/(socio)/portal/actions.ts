@@ -249,12 +249,18 @@ export async function crearSolicitudActualizacion(
 export async function cancelarMiSolicitud(): Promise<ActionResult> {
   const r = await getSocioActual();
   if (!r) return { ok: false, error: "Debes iniciar sesión como socio." };
-  // Solo borra la pendiente del PROPIO socio (deleteMany acotado por socioId).
-  await prisma.solicitudActualizacionDatos.deleteMany({
-    where: { socioId: r.socio.id, estado: "pendiente" },
-  });
-  revalidatePath("/portal/perfil");
-  revalidatePath("/portal/perfil/actualizar");
-  return { ok: true };
+
+  try {
+    // Solo borra la pendiente del PROPIO socio (deleteMany acotado por socioId).
+    await prisma.solicitudActualizacionDatos.deleteMany({
+      where: { socioId: r.socio.id, estado: "pendiente" },
+    });
+    revalidatePath("/portal/perfil");
+    revalidatePath("/portal/perfil/actualizar");
+    return { ok: true };
+  } catch (e) {
+    console.error("cancelarMiSolicitud", e);
+    return { ok: false, error: "No se pudo cancelar la solicitud." };
+  }
 }
 

@@ -18,8 +18,8 @@ export function FormularioPublico() {
   const lookedRef = useRef("");
   const autoNombreRef = useRef("");
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  // Debounced DNI lookup: calls setState inside effect intentionally; stale-guard via reqIdRef.
+  // Lookup de DNI con debounce: hace setState dentro del efecto a propósito;
+  // el guard de carrera es reqIdRef.
   useEffect(() => {
     const d = dni.trim();
     // Al cambiar el DNI respecto al último consultado, limpia de INMEDIATO el
@@ -60,7 +60,6 @@ export function FormularioPublico() {
     }, 450);
     return () => clearTimeout(t);
   }, [dni]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function submit(e: FormEvent) {
     e.preventDefault();

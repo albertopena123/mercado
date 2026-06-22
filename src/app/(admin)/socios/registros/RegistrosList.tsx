@@ -28,6 +28,7 @@ function RegistroCard({ registro }: { registro: RegistroPublicoRow }) {
   const [motivo, setMotivo] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchReqRef = useRef(0);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -47,12 +48,15 @@ function RegistroCard({ registro }: { registro: RegistroPublicoRow }) {
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const sid = ++searchReqRef.current;
       const res = await buscarSociosParaMatch(value.trim());
+      if (sid !== searchReqRef.current) return;
       if (res.ok) setResults(res.data!);
     }, 300);
   }
 
   function selectSocio(socio: SocioMatch) {
+    searchReqRef.current++;
     setChosen(socio);
     setResults([]);
     setSearchTerm(socio.nombre);
@@ -122,6 +126,7 @@ function RegistroCard({ registro }: { registro: RegistroPublicoRow }) {
               type="button"
               className="btn btn--ghost"
               onClick={() => {
+                searchReqRef.current++;
                 setChosen(null);
                 setSearchTerm("");
                 setResults([]);

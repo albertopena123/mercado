@@ -159,6 +159,17 @@ export async function aprobarRegistroPublico(
     });
     if (!existing) return { ok: false, error: "Socio no encontrado." };
 
+    // Guard: this form only regularises DNI submissions. If the matched socio
+    // already holds a CE or Pasaporte identity, approving would silently
+    // overwrite their real document — abort instead.
+    if (existing.tipoDocumento !== "DNI") {
+      return {
+        ok: false,
+        error:
+          "El socio emparejado tiene un tipo de documento distinto (CE/Pasaporte). Verifícalo manualmente; este formulario solo regulariza DNI.",
+      };
+    }
+
     // Build patch: only DNI + telefono + email (NOT name fields).
     const patch: Partial<CreateSocioInput> = {
       tipoDocumento: "DNI",
@@ -251,26 +262,31 @@ export async function rechazarRegistroPublico(
     return { ok: false, error: "Indica un motivo (mínimo 5 caracteres)." };
   }
 
-  const upd = await prisma.solicitudRegistroPublico.updateMany({
-    where: { id, estado: "pendiente" },
-    data: {
-      estado: "rechazada",
-      motivoRechazo: m,
-      revisadoPorId: me.id,
-      revisadoEn: new Date(),
-    },
-  });
+  try {
+    const upd = await prisma.solicitudRegistroPublico.updateMany({
+      where: { id, estado: "pendiente" },
+      data: {
+        estado: "rechazada",
+        motivoRechazo: m,
+        revisadoPorId: me.id,
+        revisadoEn: new Date(),
+      },
+    });
 
-  if (upd.count === 0) {
-    return {
-      ok: false,
-      error: "El registro no existe o ya fue resuelto.",
-    };
+    if (upd.count === 0) {
+      return {
+        ok: false,
+        error: "El registro no existe o ya fue resuelto.",
+      };
+    }
+
+    revalidatePath("/socios");
+    revalidatePath("/socios/registros");
+    return { ok: true };
+  } catch (e) {
+    console.error("rechazarRegistroPublico", e);
+    return { ok: false, error: "No se pudo rechazar el registro." };
   }
-
-  revalidatePath("/socios");
-  revalidatePath("/socios/registros");
-  return { ok: true };
 }
 
 export async function contarRegistrosPublicos(): Promise<number> {

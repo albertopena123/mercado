@@ -50,6 +50,7 @@ function toForm(d: MisDatosActuales): Form {
 }
 
 export function ActualizarDatosForm({ datos, tienePendiente }: Props) {
+  const { documentoPendiente } = datos;
   const toast = useToast();
   const router = useRouter();
   const [form, setForm] = useState<Form>(() => toForm(datos));
@@ -72,8 +73,30 @@ export function ActualizarDatosForm({ datos, tienePendiente }: Props) {
   useEffect(() => {
     if (form.tipoDocumento !== "DNI") return;
     const dni = form.numeroDocumento.trim();
+
+    // Bug 2 fix: cuando el DNI tipado difiere del último consultado, limpia de
+    // inmediato los campos AUTO-LLENADOS (preserva ediciones manuales) para que
+    // no quede visible la info del DNI anterior mientras el socio teclea el nuevo.
+    // IMPORTANTE: capturamos prevSnap ANTES de resetear el ref; el updater de
+    // setForm corre DIFERIDO y si comparara contra autoRef.current ya estaría vacío.
+    if (dni !== lookedUpRef.current) {
+      const prevSnap = { ...autoRef.current };
+      if (Object.keys(prevSnap).length > 0) {
+        autoRef.current = {};
+        setForm((f) => {
+          const cleared = { ...f };
+          (Object.keys(prevSnap) as (keyof Form)[]).forEach((k) => {
+            if (cleared[k] === prevSnap[k]) {
+              cleared[k] = "" as string;
+            }
+          });
+          return cleared;
+        });
+      }
+      lookedUpRef.current = "";
+    }
+
     if (!/^\d{8}$/.test(dni)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetear estado de lookup cuando el DNI deja de ser válido es intencional y no causa cascada
       setDniState("idle");
       return;
     }
@@ -100,10 +123,15 @@ export function ActualizarDatosForm({ datos, tienePendiente }: Props) {
           estadoCivil: d.estadoCivil ?? "",
           direccion: d.direccion ?? "",
         };
+        // Bug 1 fix: capturamos prevSnap ANTES de llamar setForm. El updater
+        // funcional corre DIFERIDO; si leyera autoRef.current directamente ya
+        // tendría los nuevos valores y la comparación `cur === prevAuto`
+        // siempre fallaría → el segundo DNI nunca actualizaría el formulario.
+        const prevSnap = { ...autoRef.current };
         setForm((f) => {
           const merged = { ...f };
           (Object.keys(next) as (keyof Form)[]).forEach((k) => {
-            const prevAuto = autoRef.current[k];
+            const prevAuto = prevSnap[k];
             const cur = f[k];
             if (cur === "" || cur === prevAuto) {
               merged[k] = next[k] as string;
@@ -234,6 +262,12 @@ export function ActualizarDatosForm({ datos, tienePendiente }: Props) {
           </span>
         )}
         {fe.numeroDocumento && <span className="pt-field__err">{fe.numeroDocumento}</span>}
+        {/* Bug 3 fix: SIN-DNI UX — orienta al socio a ingresar su DNI real */}
+        {documentoPendiente && (
+          <small style={{ color: "var(--muted, #888)", display: "block", marginTop: "0.25rem" }}>
+            Tu documento aún no está registrado. Ingresa tu DNI real para regularizarlo.
+          </small>
+        )}
       </div>
 
       {txt("apellidoPaterno", "Apellido paterno")}

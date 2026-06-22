@@ -183,7 +183,30 @@ export async function aprobarSolicitud(id: string): Promise<ActionResult> {
     if (!existing) return { ok: false, error: "Socio no encontrado." };
 
     // Re-validate the proposed data at approval time.
-    const datos = (sol.datos ?? {}) as Partial<CreateSocioInput>;
+    // Re-filter to the self-service whitelist so that admin-only fields
+    // (e.g. numeroPadron, fechaIngreso, observaciones) stored in legacy
+    // records or via a direct DB insert can never be applied via approval.
+    const APPROVAL_ALLOWED_FIELDS = [
+      "tipoDocumento",
+      "numeroDocumento",
+      "apellidoPaterno",
+      "apellidoMaterno",
+      "nombres",
+      "fechaNacimiento",
+      "sexo",
+      "estadoCivil",
+      "telefono",
+      "email",
+      "direccion",
+      "distrito",
+      "provincia",
+      "departamento",
+    ] as const;
+    const raw = (sol.datos ?? {}) as Record<string, unknown>;
+    const datos: Partial<CreateSocioInput> = {};
+    for (const k of APPROVAL_ALLOWED_FIELDS) {
+      if (k in raw) (datos as Record<string, unknown>)[k] = raw[k];
+    }
     const merged: Partial<CreateSocioInput> = {
       tipoDocumento: datos.tipoDocumento ?? existing.tipoDocumento,
       ...datos,
@@ -265,24 +288,29 @@ export async function rechazarSolicitud(
     return { ok: false, error: "Indica un motivo (mínimo 5 caracteres)." };
   }
 
-  const upd = await prisma.solicitudActualizacionDatos.updateMany({
-    where: { id, estado: "pendiente" },
-    data: {
-      estado: "rechazada",
-      motivoRechazo: m,
-      revisadoPorId: me.id,
-      revisadoEn: new Date(),
-    },
-  });
+  try {
+    const upd = await prisma.solicitudActualizacionDatos.updateMany({
+      where: { id, estado: "pendiente" },
+      data: {
+        estado: "rechazada",
+        motivoRechazo: m,
+        revisadoPorId: me.id,
+        revisadoEn: new Date(),
+      },
+    });
 
-  if (upd.count === 0) {
-    return {
-      ok: false,
-      error: "La solicitud no existe o ya fue resuelta.",
-    };
+    if (upd.count === 0) {
+      return {
+        ok: false,
+        error: "La solicitud no existe o ya fue resuelta.",
+      };
+    }
+
+    revalidatePath("/socios");
+    revalidatePath("/socios/solicitudes");
+    return { ok: true };
+  } catch (e) {
+    console.error("rechazarSolicitud", e);
+    return { ok: false, error: "No se pudo rechazar la solicitud." };
   }
-
-  revalidatePath("/socios");
-  revalidatePath("/socios/solicitudes");
-  return { ok: true };
 }
