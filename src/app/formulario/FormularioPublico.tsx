@@ -22,6 +22,17 @@ export function FormularioPublico() {
   // Debounced DNI lookup: calls setState inside effect intentionally; stale-guard via reqIdRef.
   useEffect(() => {
     const d = dni.trim();
+    // Al cambiar el DNI respecto al último consultado, limpia de INMEDIATO el
+    // nombre AUTOLLENADO (conserva lo que el socio escribió a mano) para que no
+    // quede a la vista la info del DNI anterior mientras teclea el nuevo. Reinicia
+    // lookedRef para que incluso volver al DNI previo se vuelva a consultar.
+    if (d !== lookedRef.current) {
+      if (autoNombreRef.current) {
+        setNombre((cur) => (cur === autoNombreRef.current ? "" : cur));
+        autoNombreRef.current = "";
+      }
+      lookedRef.current = "";
+    }
     if (!/^\d{8}$/.test(d)) { setDniState("idle"); return; }
     if (d === lookedRef.current) return;
     const id = ++reqIdRef.current;
