@@ -27,9 +27,14 @@ export function FormularioPublico() {
     // quede a la vista la info del DNI anterior mientras teclea el nuevo. Reinicia
     // lookedRef para que incluso volver al DNI previo se vuelva a consultar.
     if (d !== lookedRef.current) {
-      if (autoNombreRef.current) {
-        setNombre((cur) => (cur === autoNombreRef.current ? "" : cur));
+      // IMPORTANTE: el updater de setNombre corre DIFERIDO. Si comparáramos
+      // dentro contra autoNombreRef.current después de resetearlo, leería ""
+      // y no limpiaría. Capturamos el valor anterior en `prevAuto` y comparamos
+      // contra esa copia.
+      const prevAuto = autoNombreRef.current;
+      if (prevAuto) {
         autoNombreRef.current = "";
+        setNombre((cur) => (cur === prevAuto ? "" : cur));
       }
       lookedRef.current = "";
     }
@@ -44,9 +49,13 @@ export function FormularioPublico() {
         if (!res.ok) { setDniState("error"); return; }
         lookedRef.current = d;
         setDniState("ok");
-        // Solo autollenar si el usuario no escribió su propio nombre.
-        setNombre((cur) => (cur === "" || cur === autoNombreRef.current ? res.nombre : cur));
+        // Sobrescribe solo si el campo está vacío o aún tiene el último
+        // autollenado (no lo que el socio escribió a mano). Capturamos el valor
+        // ANTERIOR del ref ANTES de actualizarlo (el updater corre diferido), si
+        // no la comparación leería el valor nuevo y nunca actualizaría.
+        const prevAuto = autoNombreRef.current;
         autoNombreRef.current = res.nombre;
+        setNombre((cur) => (cur === "" || cur === prevAuto ? res.nombre : cur));
       });
     }, 450);
     return () => clearTimeout(t);
