@@ -4,10 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://granferiamayorista.com"),
   title:
-    "Gran Feria Mayorista Internacional de Madre de Dios — Puerto Maldonado",
+    "Feria Mayorista Internacional Milagros — Puerto Maldonado, Madre de Dios",
   description:
-    "Mercado mayorista y minorista más grande de Puerto Maldonado, Madre de Dios. Productos frescos, +120 comerciantes formales y precios de feria, todos los días de 6 a. m. a 6 p. m.",
-  applicationName: "Gran Feria Mayorista Internacional",
+    "Feria Mayorista Internacional Milagros, el mercado mayorista y minorista más grande de Puerto Maldonado, Madre de Dios. Productos frescos, +120 comerciantes formales y precios de feria, todos los días de 6 a. m. a 6 p. m.",
+  applicationName: "Feria Mayorista Internacional Milagros",
   robots: {
     index: true,
     follow: true,
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "Gran Feria Mayorista Internacional Madre de Dios",
+    siteName: "Feria Mayorista Internacional Milagros",
     locale: "es_PE",
   },
 };

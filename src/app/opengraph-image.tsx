@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt =
-  "Gran Feria Mayorista Internacional de Madre de Dios — Puerto Maldonado";
+  "Feria Mayorista Internacional Milagros — Puerto Maldonado, Madre de Dios";
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -38,7 +38,7 @@ export default function OpengraphImage() {
               fontWeight: 700,
             }}
           >
-            GF
+            FM
           </div>
           <div
             style={{
@@ -54,11 +54,11 @@ export default function OpengraphImage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ fontSize: 74, fontWeight: 700, lineHeight: 1.05 }}>
-            Gran Feria Mayorista Internacional
+          <div style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.05 }}>
+            Feria Mayorista Internacional Milagros
           </div>
           <div style={{ fontSize: 38, fontWeight: 500, opacity: 0.95 }}>
-            El mercado mayorista y minorista de Puerto Maldonado
+            El mercado mayorista y minorista de Puerto Maldonado, Madre de Dios
           </div>
         </div>
 

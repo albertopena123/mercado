@@ -60,7 +60,7 @@ export function FloatingActions() {
         href={directionsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Cómo llegar a la Gran Feria Mayorista Internacional"
+        aria-label="Cómo llegar a la Feria Mayorista Internacional Milagros"
       >
         <span className="lp-fab__label">Cómo llegar</span>
         <NavArrow />

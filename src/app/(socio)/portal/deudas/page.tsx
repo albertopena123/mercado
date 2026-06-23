@@ -6,7 +6,7 @@ import { fechaCorta } from "@/lib/fecha";
 import { Icon } from "@/components/admin/Icon";
 import type { EstadoCuota } from "@/generated/prisma/client";
 
-export const metadata = { title: "Mis deudas · Gran Feria Mayorista Internacional" };
+export const metadata = { title: "Mis deudas · Feria Mayorista Internacional Milagros" };
 export const dynamic = "force-dynamic";
 
 const ESTADO_CUOTA_LABEL: Record<EstadoCuota, string> = {

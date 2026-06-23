@@ -83,16 +83,16 @@ export function LandingHeader() {
         <a
           href="#top"
           className="lp-brand"
-          aria-label="Gran Feria Mayorista Internacional, inicio"
+          aria-label="Feria Mayorista Internacional Milagros, inicio"
           onClick={() => {
             setActive("");
             close();
           }}
         >
-          <span className="lp-brand__mark">GF</span>
+          <span className="lp-brand__mark">FM</span>
           <span>
-            <span className="lp-brand__name">Gran Feria Mayorista Internacional</span>
-            <span className="lp-brand__sub">Madre de Dios · Perú</span>
+            <span className="lp-brand__name">Feria Mayorista Internacional Milagros</span>
+            <span className="lp-brand__sub">Puerto Maldonado · Madre de Dios · Perú</span>
           </span>
         </a>
 

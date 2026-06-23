@@ -4,7 +4,7 @@ import { getMisDatosCompletos, getMiSolicitudActiva } from "@/lib/portal/data";
 import { Icon } from "@/components/admin/Icon";
 import { ActualizarDatosForm } from "../ActualizarDatosForm";
 
-export const metadata = { title: "Actualizar mis datos · Gran Feria Mayorista Internacional" };
+export const metadata = { title: "Actualizar mis datos · Feria Mayorista Internacional Milagros" };
 export const dynamic = "force-dynamic";
 
 export default async function ActualizarDatosPage() {

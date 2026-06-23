@@ -6,7 +6,7 @@ import { Icon } from "@/components/admin/Icon";
 import { PasswordForm } from "./PasswordForm";
 import type { EstadoSocio } from "@/generated/prisma/client";
 
-export const metadata = { title: "Mi perfil · Gran Feria Mayorista Internacional" };
+export const metadata = { title: "Mi perfil · Feria Mayorista Internacional Milagros" };
 export const dynamic = "force-dynamic";
 
 const ESTADO_SOCIO_LABEL: Record<EstadoSocio, string> = {

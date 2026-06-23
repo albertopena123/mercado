@@ -1,78 +1,26 @@
 /* ─────────── Formulario público /formulario ─────────── */
 /* Mobile-first: abre desde WhatsApp en teléfono. Sin shell/sidebar. */
 
-/* Cabecera con la marca del sitio: da identidad y confianza al abrir desde
-   WhatsApp. Réplica visual del header principal (marca "GF" en el morado
-   institucional) con tokens globales. Pegajosa (no fija), no tapa el contenido. */
+/* Cabecera con el banner oficial de la Feria Mayorista Internacional Milagros.
+   El banner ya incluye el nombre y la dirección; se muestra a todo el ancho
+   (capado) y centrado. Da identidad y confianza al abrir el enlace desde WhatsApp. */
 .fp-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  background: #ffffff;
   border-bottom: 1px solid var(--border);
-}
-.fp-header__inner {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 0 16px;
-  height: 64px;
+  padding: 10px 12px;
   display: flex;
-  align-items: center;
+  justify-content: center;
 }
-.fp-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: var(--text);
-  min-width: 0;
-}
-.fp-brand__mark {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  font-family: "Google Sans", "Google Sans Text", sans-serif;
-  font-weight: 700;
-  font-size: 18px;
-  color: #fff;
-  background: #5128b4;
-  box-shadow: 0 6px 16px rgba(81, 40, 180, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-.fp-brand__text {
-  min-width: 0;
-}
-.fp-brand__name {
+.fp-logo {
   display: block;
-  font-family: "Google Sans", "Google Sans Text", sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-  color: var(--text);
-}
-.fp-brand__sub {
-  display: block;
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-@media (min-width: 480px) {
-  .fp-header__inner {
-    height: 72px;
-  }
-  .fp-brand__name {
-    font-size: 17px;
-  }
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  border-radius: 8px;
 }
 
 .fp-wrap {
-  min-height: calc(100dvh - 64px);
+  min-height: calc(100dvh - 130px);
   display: flex;
   align-items: flex-start;
   justify-content: center;

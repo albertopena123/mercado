@@ -7,10 +7,10 @@ import { useEffect, useState } from "react";
 const SLIDES = [
   {
     eyebrow: "El mercado mayorista N.º 1 de Madre de Dios",
-    head: "Gran Feria Mayorista Internacional de ",
-    hl: "Madre de Dios",
+    head: "Feria Mayorista Internacional ",
+    hl: "Milagros",
     lead:
-      "El gran mercado mayorista y minorista de Puerto Maldonado: productos frescos todos los días, comerciantes formales y precios de feria.",
+      "El gran mercado mayorista y minorista de Puerto Maldonado, Milagros, Madre de Dios: productos frescos todos los días, comerciantes formales y precios de feria.",
     primary: { label: "Conoce el mercado", href: "#mercado" },
     secondary: { label: "Acceder al sistema", href: "/login" },
   },

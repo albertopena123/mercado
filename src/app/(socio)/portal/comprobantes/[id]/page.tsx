@@ -3,7 +3,7 @@ import { requireSocio } from "@/lib/portal/socio";
 import { cargarComprobante } from "@/lib/comprobante/data";
 import { ComprobanteView } from "@/components/comprobante/ComprobanteView";
 
-export const metadata = { title: "Comprobante de pago · Gran Feria Mayorista Internacional" };
+export const metadata = { title: "Comprobante de pago · Feria Mayorista Internacional Milagros" };
 export const dynamic = "force-dynamic";
 
 export default async function Page({

@@ -8,7 +8,7 @@ import { LoginForm } from "./LoginForm";
 import "./login.css";
 
 export const metadata = {
-  title: "Iniciar sesión · Gran Feria Mayorista Internacional",
+  title: "Iniciar sesión · Feria Mayorista Internacional Milagros",
 };
 
 export default async function LoginPage() {
@@ -48,7 +48,7 @@ export default async function LoginPage() {
         <header className="login__aside-brand">
           <div className="login__mark">GF</div>
           <div className="login__wordmark">
-            <span className="login__wordmark-name">Gran Feria Mayorista Internacional</span>
+            <span className="login__wordmark-name">Feria Mayorista Internacional Milagros</span>
             <span className="login__wordmark-sub">Consola de administración</span>
           </div>
         </header>
@@ -61,7 +61,7 @@ export default async function LoginPage() {
           </h2>
           <p>
             Comerciantes, puestos y permisos en un solo lugar. Inicia sesión
-            para administrar la Gran Feria Mayorista Internacional.
+            para administrar la Feria Mayorista Internacional Milagros.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ export default async function LoginPage() {
           <div className="login__brand-mobile">
             <div className="login__mark">GF</div>
             <div className="login__wordmark">
-              <span className="login__wordmark-name">Gran Feria Mayorista Internacional</span>
+              <span className="login__wordmark-name">Feria Mayorista Internacional Milagros</span>
               <span className="login__wordmark-sub">Consola de administración</span>
             </div>
           </div>

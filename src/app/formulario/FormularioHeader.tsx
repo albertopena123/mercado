@@ -1,27 +1,17 @@
-import Link from "next/link";
-
-// Cabecera con la marca del sitio para el formulario público. Da identidad y
-// confianza a quien abre el link desde WhatsApp. Réplica visual del header
-// principal (marca "GF" morada + nombre), pero sin la navegación de la landing
-// (esos anclajes no existen aquí). El logo lleva al inicio del sitio.
+// Cabecera del formulario público: banner oficial de la Feria Mayorista
+// Internacional Milagros (incluye el nombre y la dirección). Da identidad y
+// confianza a quien abre el enlace desde WhatsApp.
 export function FormularioHeader() {
   return (
     <header className="fp-header">
-      <div className="fp-header__inner">
-        <Link
-          href="/"
-          className="fp-brand"
-          aria-label="Gran Feria Mayorista Internacional, ir al inicio"
-        >
-          <span className="fp-brand__mark">GF</span>
-          <span className="fp-brand__text">
-            <span className="fp-brand__name">
-              Gran Feria Mayorista Internacional
-            </span>
-            <span className="fp-brand__sub">Madre de Dios · Perú</span>
-          </span>
-        </Link>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="fp-logo"
+        src="/logo-feria-milagros.png"
+        alt="Feria Mayorista Internacional Milagros — Av. Circunvalación con Av. Los Próceres, Milagros, Puerto Maldonado, Madre de Dios"
+        width={1583}
+        height={308}
+      />
     </header>
   );
 }
