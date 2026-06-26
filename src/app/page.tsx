@@ -1,7 +1,6 @@
 import "./landing.css";
 import type { Metadata } from "next";
 import { LandingHeader } from "./LandingHeader";
-import { HeroCarousel } from "./HeroCarousel";
 import { FloatingActions } from "./FloatingActions";
 import { AnunciosSection } from "./AnunciosSection";
 import {
@@ -186,93 +185,6 @@ function IconArrow() {
   );
 }
 
-/* ---------- Ilustración del mercado (hero) ------------------------------ */
-function MarketScene() {
-  const stall = (x: number, fill: string) => (
-    <g transform={`translate(${x} 0)`}>
-      {/* postes */}
-      <rect x="6" y="150" width="6" height="150" rx="3" fill="#cdb48f" />
-      <rect x="138" y="150" width="6" height="150" rx="3" fill="#cdb48f" />
-      {/* toldo */}
-      <path
-        d="M-6 120 H156 V150 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 q-10 14 -20 0 Z"
-        fill={fill}
-      />
-      <path d="M-6 120 H156 V133 H-6 Z" fill="rgba(255,255,255,0.28)" />
-      {/* mostrador */}
-      <rect x="2" y="248" width="146" height="56" rx="8" fill="#e7d4b6" />
-      <rect x="2" y="248" width="146" height="14" rx="7" fill="#d8bf99" />
-      {/* cajones con productos */}
-      <rect x="16" y="262" width="50" height="30" rx="6" fill="#b98a52" />
-      <rect x="84" y="262" width="50" height="30" rx="6" fill="#b98a52" />
-    </g>
-  );
-
-  const produce = (cx: number, cy: number, colors: string[]) => (
-    <g>
-      {colors.map((c, i) => (
-        <circle key={i} cx={cx + (i % 3) * 13} cy={cy + (i > 2 ? 11 : 0)} r="7" fill={c} />
-      ))}
-    </g>
-  );
-
-  return (
-    <svg className="lp-scene" viewBox="0 0 560 460" role="img" aria-label="Ilustración de la Feria Mayorista Internacional Milagros: puestos con toldos, luces y productos frescos">
-      <defs>
-        <pattern id="lp-st-pry" width="34" height="34" patternUnits="userSpaceOnUse">
-          <rect width="34" height="34" fill="#4d9bff" />
-          <rect width="17" height="34" fill="#0b63d6" />
-        </pattern>
-        <pattern id="lp-st-amb" width="34" height="34" patternUnits="userSpaceOnUse">
-          <rect width="34" height="34" fill="#ffd27a" />
-          <rect width="17" height="34" fill="#f5a623" />
-        </pattern>
-        <pattern id="lp-st-grn" width="34" height="34" patternUnits="userSpaceOnUse">
-          <rect width="34" height="34" fill="#5fd3a0" />
-          <rect width="17" height="34" fill="#1aa66b" />
-        </pattern>
-      </defs>
-
-      <rect width="560" height="460" rx="24" fill="#eaf2fe" />
-
-      {/* sol */}
-      <circle cx="486" cy="74" r="40" fill="#ffd27a" opacity="0.55" />
-      <circle cx="486" cy="74" r="26" fill="#ffbf45" />
-
-      {/* luces colgantes */}
-      <path d="M10 60 Q280 110 550 64" fill="none" stroke="#c9bdf2" strokeWidth="2" />
-      {Array.from({ length: 11 }).map((_, i) => {
-        const x = 30 + i * 50;
-        const y = 64 + Math.sin(i) * 8 + 18;
-        const colors = ["#ff6b6b", "#ffd166", "#6dd3a0", "#7a8cff", "#ff9f43"];
-        return (
-          <g key={i} className="lp-scene__bulb">
-            <line x1={x} y1={y - 14} x2={x} y2={y - 6} stroke="#c9bdf2" strokeWidth="1.5" />
-            <circle cx={x} cy={y} r="5" fill={colors[i % colors.length]} />
-          </g>
-        );
-      })}
-
-      {/* piso */}
-      <rect x="0" y="360" width="560" height="100" rx="0" fill="#e1ecfb" />
-      <rect x="0" y="360" width="560" height="100" fill="#000" opacity="0.02" />
-
-      {/* puestos */}
-      {stall(40, "url(#lp-st-pry)")}
-      {stall(210, "url(#lp-st-amb)")}
-      {stall(380, "url(#lp-st-grn)")}
-
-      {/* productos sobre los mostradores */}
-      {produce(58, 268, ["#ff7a59", "#ff9f43", "#ffd166", "#e63946", "#ff7a59"])}
-      {produce(126, 268, ["#6dd3a0", "#2faa6a", "#9ae6b4", "#2faa6a", "#6dd3a0"])}
-      {produce(228, 268, ["#e63946", "#ff5d73", "#ff8fa3", "#e63946", "#ff5d73"])}
-      {produce(296, 268, ["#7a8cff", "#b794ff", "#9b7bff", "#7a8cff", "#b794ff"])}
-      {produce(398, 268, ["#ffd166", "#ffe08a", "#ffbf45", "#ffd166", "#ffe08a"])}
-      {produce(466, 268, ["#ff9f43", "#ff7a59", "#ffb673", "#ff9f43", "#ff7a59"])}
-    </svg>
-  );
-}
-
 /* ---------- Datos ------------------------------------------------------- */
 const CATS = [
   { name: "Frutas y verduras", sub: "Frescas de la región", icon: <IconApple />, bg: "var(--green-50)", fg: "var(--green)" },
@@ -389,10 +301,60 @@ export default function LandingPage() {
         {/* ===================== HERO ===================== */}
         <section className="lp-hero">
           <div className="lp__container lp-hero__grid">
-            <HeroCarousel />
+            <div className="lp-hero__copy">
+              <span className="lp-eyebrow">
+                <span className="lp-eyebrow__dot" /> El mercado mayorista de Madre de Dios
+              </span>
+              <h1>
+                Feria Mayorista Internacional <span className="lp-hl">Milagros</span>
+              </h1>
+              <p className="lp-hero__lead">
+                El gran mercado mayorista y minorista de Puerto Maldonado, Milagros,
+                Madre de Dios: productos frescos todos los días, comerciantes
+                formales y precios de feria.
+              </p>
+              <div className="lp-hero__cta">
+                <a className="lp-btn lp-btn--yellow lp-btn--lg" href="#mercado">
+                  Conoce el mercado
+                </a>
+                <a className="lp-btn lp-btn--glass lp-btn--lg" href="/login">
+                  Acceder al sistema
+                </a>
+              </div>
+              <div className="lp-hero__chips">
+                <div className="lp-chip">
+                  <span className="lp-chip__ic"><IconShieldCheck /></span>
+                  <div>
+                    <b>Comercio seguro</b>
+                    <span>Confianza y seguridad</span>
+                  </div>
+                </div>
+                <div className="lp-chip">
+                  <span className="lp-chip__ic"><IconLeaf /></span>
+                  <div>
+                    <b>Productos frescos</b>
+                    <span>Todos los días</span>
+                  </div>
+                </div>
+                <div className="lp-chip">
+                  <span className="lp-chip__ic"><IconChart /></span>
+                  <div>
+                    <b>Precios justos</b>
+                    <span>Ahorra más</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="lp-hero__visual">
-              <MarketScene />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="lp-hero__photo"
+                src="/hero-mercado.jpg"
+                alt="Puestos de la Feria Mayorista Internacional Milagros con frutas, verduras y productos frescos"
+                width={900}
+                height={262}
+              />
               <div className="lp-float lp-float--a">
                 <div className="lp-float__avatars">
                   <span style={{ background: "#0b63d6" }}>R</span>
@@ -400,7 +362,7 @@ export default function LandingPage() {
                   <span style={{ background: "#f5a623" }}>C</span>
                 </div>
                 <div>
-                  <div className="lp-float__big">+120 comerciantes</div>
+                  <div className="lp-float__big">+400 comerciantes</div>
                   <div className="lp-float__small">formando comunidad</div>
                 </div>
               </div>
@@ -409,8 +371,8 @@ export default function LandingPage() {
                   <IconLeaf />
                 </div>
                 <div>
-                  <div className="lp-float__big">Productos frescos</div>
-                  <div className="lp-float__small">Abierto hoy · 6am–6pm</div>
+                  <div className="lp-float__big">Abierto hoy</div>
+                  <div className="lp-float__small">6 a. m. – 6 p. m.</div>
                 </div>
               </div>
             </div>

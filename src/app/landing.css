@@ -366,6 +366,61 @@ html:has(.lp) {
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* Chips de confianza del hero (glass) */
+.lp-hero__chips {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lp-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.lp-chip__ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0a57bd;
+  flex-shrink: 0;
+}
+.lp-chip__ic svg {
+  width: 18px;
+  height: 18px;
+}
+.lp-chip b {
+  display: block;
+  font-family: "Google Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.15;
+}
+.lp-chip span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Foto del hero (puestos del mercado) */
+.lp-hero__photo {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 22px;
+  box-shadow: var(--shadow-lg);
+  border: 5px solid rgba(255, 255, 255, 0.75);
+}
+
 /* Curva blanca inferior que funde el hero con la sección siguiente */
 .lp-hero__wave {
   position: absolute;
