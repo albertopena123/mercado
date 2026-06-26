@@ -367,12 +367,12 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="lp-float lp-float--b">
-                <div className="lp-float__icon lp-float__icon--green">
-                  <IconLeaf />
+                <div className="lp-float__icon lp-float__icon--amber">
+                  <IconBox />
                 </div>
                 <div>
-                  <div className="lp-float__big">Abierto hoy</div>
-                  <div className="lp-float__small">6 a. m. – 6 p. m.</div>
+                  <div className="lp-float__big">+120 puestos</div>
+                  <div className="lp-float__small">organizados por rubro</div>
                 </div>
               </div>
             </div>
