@@ -13,6 +13,7 @@ import { buildXlsx } from "@/lib/xlsx";
 import {
   buildSocioSearchKey,
   normalizeToken,
+  splitSearchTokens,
 } from "@/lib/socios/normalize";
 import {
   lookupDniUnamad,
@@ -129,10 +130,7 @@ function buildWhere(params: {
     // searchKey, que es la concatenación normalizada de los 5 campos.
     // Esto permite que "mondragon" matchee "Mondragón" y que el orden
     // de las palabras no importe.
-    const tokens = q
-      .split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map(normalizeToken);
+    const tokens = splitSearchTokens(q).map(normalizeToken);
     if (tokens.length > 0) {
       where.AND = tokens.map((token) => ({
         searchKey: { contains: token },

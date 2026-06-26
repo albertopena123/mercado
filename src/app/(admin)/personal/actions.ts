@@ -22,7 +22,7 @@ import {
   lookupDniUnamad,
   type DniLookupResult,
 } from "@/lib/socios/dni-lookup";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import {
   validateUpload,
   sniffMime,
@@ -259,10 +259,7 @@ function buildWhere(params: ListEmpleadosParams): Prisma.EmpleadoWhereInput {
   if (params.cargo) where.cargo = params.cargo;
   const q = params.q?.trim() ?? "";
   if (q) {
-    const tokens = q
-      .split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map(normalizeToken);
+    const tokens = splitSearchTokens(q).map(normalizeToken);
     if (tokens.length > 0)
       where.AND = tokens.map((t) => ({ searchKey: { contains: t } }));
   }

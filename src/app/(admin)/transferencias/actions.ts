@@ -9,7 +9,7 @@ import { toNumber } from "@/lib/money";
 import { inicioDiaUTC } from "@/lib/fecha";
 import { anioLima } from "@/lib/constancia/codigo";
 import { nextCodigoFromList } from "@/lib/socios/codigo";
-import { buildSocioSearchKey, normalizeToken } from "@/lib/socios/normalize";
+import { buildSocioSearchKey, normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 import { lookupDniUnamad, type DniLookupResult } from "@/lib/socios/dni-lookup";
 import { esTipoDocumentoValido } from "@/lib/socios/document";
@@ -96,7 +96,7 @@ export async function listTransferencias(
       // repartido entre nombres y apellidos del adquiriente, o contra el
       // searchKey del transferente— no cabía en ningún campo y devolvía 0
       // resultados. Ahora el orden de las palabras deja de importar.
-      const tokens = q.split(/\s+/).filter((t) => t.length > 0);
+      const tokens = splitSearchTokens(q);
       if (tokens.length > 0) {
         where.AND = tokens.map((tok) => ({
           OR: [
@@ -774,11 +774,12 @@ export async function buscarSociosConPuesto(
     await authorize("transferencias.read");
     const term = (q ?? "").trim();
     if (term.length < 2) return ok([]);
-    const token = normalizeToken(term);
+    const tokens = splitSearchTokens(term).map(normalizeToken);
+    if (tokens.length === 0) return ok([]);
     const socios = await prisma.socio.findMany({
       where: {
         estado: "activo",
-        searchKey: { contains: token },
+        AND: tokens.map((t) => ({ searchKey: { contains: t } })),
         asignacionesPuesto: { some: { hasta: null } },
       },
       take: 8,

@@ -7,7 +7,7 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { toNumber } from "@/lib/money";
 import { inicioDiaUTC } from "@/lib/fecha";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import { CATEGORIA_LABEL } from "@/lib/caja/labels";
 import { emitirComprobantePago } from "@/lib/comprobante/emitir";
 import {
@@ -229,10 +229,7 @@ export async function listCuotas(
       // entre `nombres` y los apellidos y sin importar el orden ni los acentos.
       // (Antes se hacía un único `contains` del query COMPLETO por campo, así que
       // un nombre de varias palabras no cabía en ningún campo → 0 resultados.)
-      const tokens = q
-        .split(/\s+/)
-        .filter((t) => t.length > 0)
-        .map(normalizeToken);
+      const tokens = splitSearchTokens(q).map(normalizeToken);
       if (tokens.length > 0) {
         where.socio = {
           AND: tokens.map((token) => ({ searchKey: { contains: token } })),
@@ -588,10 +585,7 @@ export async function buscarSociosParaDeuda(
 ): Promise<ActionResult<SocioPick[]>> {
   try {
     await authorize("cuotas.write");
-    const tokens = (q ?? "")
-      .split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map(normalizeToken);
+    const tokens = splitSearchTokens(q).map(normalizeToken);
     const where: Prisma.SocioWhereInput =
       tokens.length > 0
         ? { AND: tokens.map((t) => ({ searchKey: { contains: t } })) }

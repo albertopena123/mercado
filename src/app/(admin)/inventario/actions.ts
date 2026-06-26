@@ -10,7 +10,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import { nextCodigo } from "@/lib/inventario/codigo";
 import type {
   ActionResult,
@@ -112,10 +112,7 @@ function buildWhere(params: {
   if (params.estado) where.estado = params.estado;
   const q = params.q?.trim() ?? "";
   if (q) {
-    const tokens = q
-      .split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map(normalizeToken);
+    const tokens = splitSearchTokens(q).map(normalizeToken);
     if (tokens.length > 0) {
       where.AND = tokens.map((token) => ({ searchKey: { contains: token } }));
     }

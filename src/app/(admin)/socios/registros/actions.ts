@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/server";
 import { validateSocioInput, buildSocioUpdateData } from "@/lib/socios/update";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import type { ActionResult, CreateSocioInput } from "@/app/(admin)/socios/types";
 
 // Sentinel error thrown inside the transaction when the updateMany guard finds
@@ -78,10 +78,7 @@ export async function buscarSociosParaMatch(
   // fallaría con "julia mondragon" (nombre+apellido). En cambio exigimos que
   // CADA palabra esté presente: el orden no importa y "Mondragón" matchea con
   // "mondragon".
-  const tokens = (q ?? "")
-    .split(/\s+/)
-    .filter((t) => t.length > 0)
-    .map(normalizeToken);
+  const tokens = splitSearchTokens(q).map(normalizeToken);
 
   if (tokens.length === 0 || tokens.join("").length < 2) {
     return { ok: true, data: [] };

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
 import {
   validateNumeroDocumento,
   normalizeNumeroDocumento,
@@ -684,10 +684,7 @@ export async function searchLinkableSocios(
 ): Promise<ActionResult<LinkableSocio[]>> {
   try {
     await authorize("users.write");
-    const tokens = (q ?? "")
-      .split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map(normalizeToken);
+    const tokens = splitSearchTokens(q).map(normalizeToken);
     if (tokens.length === 0) return ok([]);
 
     const rows = await prisma.socio.findMany({

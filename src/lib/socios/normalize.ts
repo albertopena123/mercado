@@ -13,6 +13,16 @@ export function normalizeToken(s: string): string {
   return stripDiacritics(s).toLowerCase();
 }
 
+// Parte una consulta de búsqueda libre en tokens, tratando CUALQUIER carácter no
+// alfanumérico (espacios, comas, guiones, puntos…) como separador. Antes los
+// buscadores partían solo por espacios (`/\s+/`), así que pegar "Apellido, Nombre"
+// tal como aparece en la lista dejaba la coma pegada al token ("curasi,") y el
+// `contains` contra searchKey —que no lleva comas— nunca matcheaba. \p{L}/\p{N}
+// conserva letras acentuadas y dígitos para quienes buscan contra campos crudos.
+export function splitSearchTokens(q: string | null | undefined): string[] {
+  return (q ?? "").split(/[^\p{L}\p{N}]+/u).filter((t) => t.length > 0);
+}
+
 export function buildSocioSearchKey(parts: {
   codigo?: string | null;
   numeroDocumento?: string | null;
