@@ -25,7 +25,12 @@ export type PuestoRow = {
   giro: Giro | null;
   estado: EstadoPuesto;
   fotoUrl: string | null;
-  socioActual: { id: string; nombre: string } | null;
+  socioActual: {
+    id: string;
+    nombre: string;
+    documento: string;
+    sinDni: boolean;
+  } | null;
 };
 
 export type PuestoDetail = {

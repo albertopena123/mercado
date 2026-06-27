@@ -1,0 +1,208 @@
+/* ─────────── Módulo de Reportes ─────────── */
+
+/* Pestañas */
+.rep-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+.rep-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.rep-tab:hover {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+.rep-tab.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.rep-tab.is-active:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+/* Tarjetas resumen genéricas */
+.rep-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.rep-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rep-card__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.rep-card__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.rep-card--accent {
+  border-left-color: var(--accent);
+}
+.rep-card--green {
+  border-left-color: #1e8e3e;
+}
+.rep-card--red {
+  border-left-color: #d93025;
+}
+.rep-card--amber {
+  border-left-color: #f9ab00;
+}
+
+/* Secciones */
+.rep-grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+.rep-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.rep-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.rep-empty {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.rep-note {
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+/* Barras de distribución */
+.rep-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rep-bar__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.rep-bar__val {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rep-bar__track {
+  height: 8px;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rep-bar__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  min-width: 2px;
+}
+.rep-bar__fill--green {
+  background: #1e8e3e;
+}
+.rep-bar__fill--red {
+  background: #d93025;
+}
+.rep-bar__fill--amber {
+  background: #f9ab00;
+}
+.rep-bar__fill--neutral {
+  background: var(--text-faint);
+}
+
+/* Dinero */
+.rep-pos {
+  color: #1e8e3e;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rep-neg {
+  color: #d93025;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Posibles duplicados */
+.rep-dups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rep-dup {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.rep-dup__head {
+  background: var(--bg-soft);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.rep-dup__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.rep-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #f9ab00;
+  color: #b06000;
+  background: rgba(249, 171, 0, 0.12);
+}
+.rep-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La tabla dentro de una sección no necesita margen superior extra */
+.rep-section .socios-table {
+  margin-top: 0;
+}

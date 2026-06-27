@@ -2,29 +2,11 @@ import Link from "next/link";
 import { requireSocio } from "@/lib/portal/socio";
 import { getMisCuotas } from "@/lib/portal/data";
 import { formatSoles } from "@/lib/money";
-import { fechaCorta } from "@/lib/fecha";
 import { Icon } from "@/components/admin/Icon";
-import type { EstadoCuota } from "@/generated/prisma/client";
+import { CuotasList } from "./CuotasList";
 
 export const metadata = { title: "Mis deudas · Feria Mayorista Internacional Milagros" };
 export const dynamic = "force-dynamic";
-
-const ESTADO_CUOTA_LABEL: Record<EstadoCuota, string> = {
-  pendiente: "Pendiente",
-  pagada: "Pagada",
-  anulada: "Anulada",
-};
-
-const MESES = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Set", "Oct", "Nov", "Dic",
-];
-function fmtPeriodo(p: string): string {
-  const m = /^(\d{4})-(\d{2})$/.exec(p);
-  if (!m) return p;
-  const mes = MESES[parseInt(m[2], 10) - 1] ?? m[2];
-  return `${mes} ${m[1]}`;
-}
 
 export default async function DeudasPage() {
   const { socio } = await requireSocio();
@@ -54,34 +36,7 @@ export default async function DeudasPage() {
 
       <section className="pt-panel">
         <h2>Cuotas</h2>
-        {cuotas.length === 0 ? (
-          <p className="pt-empty">No tienes cuotas registradas.</p>
-        ) : (
-          <div className="pt-list">
-            {cuotas.map((c) => (
-              <div key={c.id} className="pt-row">
-                <div className="pt-row__main">
-                  <div className="pt-row__title">
-                    {c.concepto || "Cuota"} · {fmtPeriodo(c.periodo)}
-                  </div>
-                  <div className="pt-row__sub">
-                    {c.estado === "pagada" && c.pagadoEn
-                      ? `Pagada el ${fechaCorta(c.pagadoEn)}`
-                      : c.vencimiento
-                        ? `Vence ${fechaCorta(c.vencimiento)}`
-                        : "—"}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div className="pt-row__amount">{formatSoles(c.monto)}</div>
-                  <span className={`pt-badge pt-badge--${c.estado}`}>
-                    {ESTADO_CUOTA_LABEL[c.estado]}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <CuotasList items={cuotas} />
       </section>
     </>
   );

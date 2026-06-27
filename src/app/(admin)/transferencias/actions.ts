@@ -610,8 +610,10 @@ export async function anularTransferencia(
     if (!t) return fail("Transferencia no encontrada.");
     if (t.estado === "completada")
       return fail("No se puede anular una transferencia ya formalizada.");
-    await prisma.transferencia.update({
-      where: { id },
+    // Claim atómico: si formalizarTransferencia la completó entre la lectura y
+    // esta escritura, NO sobre-escribimos un expediente ya formalizado.
+    const res = await prisma.transferencia.updateMany({
+      where: { id, estado: { not: "completada" } },
       data: {
         estado: "anulada",
         renunciaUrl: null,
@@ -622,6 +624,7 @@ export async function anularTransferencia(
         contratoUploadedAt: null,
       },
     });
+    if (res.count !== 1) return fail("La transferencia ya fue formalizada.");
     // Expediente muerto: no conservar los escaneos firmados (datos personales).
     await removeTransferenciaDir(id);
     refresh(id);
@@ -643,7 +646,13 @@ export async function deleteTransferencia(id: string): Promise<ActionResult> {
     if (!t) return fail("Transferencia no encontrada.");
     if (t.estado === "completada")
       return fail("No se puede eliminar una transferencia formalizada.");
-    await prisma.transferencia.delete({ where: { id } });
+    // Claim atómico: evita borrar un expediente formalizado por una carrera con
+    // formalizarTransferencia entre la lectura y este delete.
+    const del = await prisma.transferencia.deleteMany({
+      where: { id, estado: { not: "completada" } },
+    });
+    if (del.count !== 1)
+      return fail("No se pudo eliminar: la transferencia fue formalizada.");
     await removeTransferenciaDir(id);
     refresh();
     return ok();

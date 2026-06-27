@@ -189,7 +189,7 @@ export function PuestosClient({
         <input
           key={`q-${filters.q ?? ""}`}
           className="socios-toolbar__search"
-          placeholder="Buscar por código, bloque, giro…"
+          placeholder="Buscar por código, bloque, giro, socio o documento…"
           defaultValue={filters.q}
           onKeyDown={(e) => {
             if (e.key === "Enter")
@@ -325,7 +325,24 @@ export function PuestosClient({
                   </td>
                   <td data-label="Socio actual">
                     {p.socioActual ? (
-                      <span className="pst-socio">{p.socioActual.nombre}</span>
+                      <span className="pst-socio">
+                        <span className="pst-socio__name">
+                          {p.socioActual.nombre}
+                        </span>
+                        {p.socioActual.sinDni ? (
+                          <span
+                            className="soc-sindni-chip"
+                            title="Importado del padrón sin DNI registrado"
+                          >
+                            <Icon name="info" size={11} />
+                            Sin DNI
+                          </span>
+                        ) : (
+                          <span className="pst-socio__doc">
+                            {p.socioActual.documento}
+                          </span>
+                        )}
+                      </span>
                     ) : (
                       <span className="pst-socio--empty">Sin asignar</span>
                     )}

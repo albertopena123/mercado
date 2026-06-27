@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { clientMeta, createSessionFor } from "@/lib/auth/server";
+import { getClientIp, rateCheck } from "@/lib/rate-limit";
 
 const GENERIC_ERROR = "Correo/documento o contraseña incorrectos.";
 
@@ -36,44 +37,9 @@ const IP_MAX = 30;
 const IP_WINDOW_MS = 60_000;
 const ID_MAX = 8;
 const ID_WINDOW_MS = 5 * 60_000;
-type Bucket = { count: number; resetAt: number };
-const buckets = new Map<string, Bucket>();
-
-function rateCheck(
-  key: string,
-  max: number,
-  windowMs: number,
-): { allowed: boolean; retryAfter: number } {
-  const now = Date.now();
-
-  // Light GC so the map doesn't grow unbounded under sustained load.
-  if (buckets.size > 5000) {
-    for (const [k, v] of buckets) if (v.resetAt < now) buckets.delete(k);
-  }
-
-  const b = buckets.get(key);
-  if (!b || b.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfter: 0 };
-  }
-  if (b.count >= max) {
-    return { allowed: false, retryAfter: Math.ceil((b.resetAt - now) / 1000) };
-  }
-  b.count++;
-  return { allowed: true, retryAfter: 0 };
-}
-
-async function getClientIp(): Promise<string> {
-  // En producción, un proxy de confianza (Nginx/Caddy) debe sobrescribir
-  // x-real-ip con la IP real del peer TCP; lo preferimos por eso. x-forwarded-for
-  // es plenamente falseable y queda solo como último recurso para dev.
-  const h = await headers();
-  const real = h.get("x-real-ip");
-  if (real) return real.trim();
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
-  return "unknown";
-}
+// La implementación del rate-limit (buckets con tope DURO + desalojo) y la
+// resolución de IP del cliente viven en @/lib/rate-limit, compartidas con el
+// resto del proyecto. Aquí solo conservamos los límites propios del login.
 
 function tooMany(retryAfter: number) {
   return NextResponse.json(
@@ -83,6 +49,20 @@ function tooMany(retryAfter: number) {
 }
 
 export async function POST(request: Request) {
+  // C4: protección contra login-CSRF. Con cookie SameSite=Lax un sitio atacante
+  // podría forzar un POST de login cross-site (logueando a la víctima en la
+  // cuenta del atacante). El navegador declara el origen en `sec-fetch-site`: si
+  // está PRESENTE y NO es same-origin/none, lo rechazamos. Si está AUSENTE (apps
+  // nativas/móvil no envían el header), continuamos para no romper esos clientes.
+  const secFetchSite = (await headers()).get("sec-fetch-site");
+  if (
+    secFetchSite &&
+    secFetchSite !== "same-origin" &&
+    secFetchSite !== "none"
+  ) {
+    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
+  }
+
   const ip = await getClientIp();
   const ipRate = rateCheck(`ip:${ip}`, IP_MAX, IP_WINDOW_MS);
   if (!ipRate.allowed) return tooMany(ipRate.retryAfter);

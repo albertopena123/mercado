@@ -308,14 +308,11 @@ export async function updateAsamblea(
         return fail("Tipo de asamblea inválido.", { tipo: "Inválido." });
       data.tipo = patch.tipo as TipoAsamblea;
     }
-    if (patch.estado !== undefined) {
-      // Whitelist explícita: no aceptar un estado arbitrario del cliente ni
-      // eludir la máquina de estados. (setEstadoAsamblea es la vía normal; aquí
-      // se valida igual para que la edición no se cuele un valor inválido.)
-      if (!ESTADOS_ASAMBLEA.includes(patch.estado as EstadoAsamblea))
-        return fail("Estado de asamblea inválido.", { estado: "Inválido." });
-      data.estado = patch.estado as EstadoAsamblea;
-    }
+    // El estado (programada/en_curso/cerrada) es la "puerta" del registro de
+    // asistencia y su cambio está reservado a setEstadoAsamblea, que exige el
+    // permiso fuerte 'asambleas.attendance'. Esta acción solo edita datos de la
+    // asamblea con 'asambleas.write': ignora patch.estado para que un rol con
+    // write pero sin attendance no pueda abrir/cerrar el registro por esta vía.
     if (patch.fecha !== undefined) {
       // Combinar fecha + hora interpretadas como hora de Perú (igual que
       // createAsamblea); antes usaba new Date() (UTC/zona del servidor) e

@@ -80,6 +80,30 @@ function meIsSuper(me: CurrentUser): boolean {
   return me.roles.some((r) => r.key === SUPERADMIN_KEY);
 }
 
+// Regla de subconjunto: nadie puede otorgar (vía roles) un permiso que él mismo
+// no posee. El superadmin queda exento (los tiene todos). Devuelve un mensaje de
+// error si la unión de permisos de los roles solicitados excede los de `me`.
+async function checkPermissionSubset(
+  me: CurrentUser,
+  roleIds: string[],
+): Promise<string | null> {
+  if (meIsSuper(me) || roleIds.length === 0) return null;
+  const roles = await prisma.role.findMany({
+    where: { id: { in: roleIds } },
+    select: {
+      permissions: { select: { permission: { select: { key: true } } } },
+    },
+  });
+  for (const role of roles) {
+    for (const rp of role.permissions) {
+      if (!me.permissions.has(rp.permission.key)) {
+        return "No puedes asignar roles con permisos que tú no posees.";
+      }
+    }
+  }
+  return null;
+}
+
 function refresh() {
   revalidatePath("/usuarios");
 }
@@ -128,7 +152,7 @@ async function checkRolePermissions(
   if (grantsSuper && !meIsSuper(me)) {
     return "Solo un superadministrador puede otorgar el rol Superadministrador.";
   }
-  return null;
+  return checkPermissionSubset(me, roleIds);
 }
 
 export async function createUser(
@@ -399,6 +423,11 @@ export async function setUserRoles(
         return fail("No puedes quitarte el rol de superadministrador.");
       }
     }
+
+    // Regla de subconjunto: un no-superadmin no puede asignar roles cuyos
+    // permisos excedan los suyos (evita auto-escalada vía un rol custom potente).
+    const subsetErr = await checkPermissionSubset(me, cleanIds);
+    if (subsetErr) return fail(subsetErr);
 
     await prisma.$transaction(async (tx) => {
       await tx.userRole.deleteMany({ where: { userId } });

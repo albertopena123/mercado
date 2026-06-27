@@ -75,14 +75,20 @@ function socioNombre(s: {
   );
 }
 
-// Texto del comprobante: qué cuotas se saldaron + saldo a favor resultante.
+// Texto del comprobante: qué cuotas se saldaron + cómo se financió el pago.
+// `saldoAplicado` es el saldo a favor PREVIO consumido para saldar cuotas (cuando
+// el efectivo no cubría el total); `saldoAFavor` es el EXCEDENTE nuevo que quedó a
+// favor. Listar ambos hace que el importe del recibo cuadre con las cuotas.
 function buildDetallePago(
   cuotas: { periodo: string; concepto: string; monto: number }[],
   saldoAFavor: number,
+  saldoAplicado = 0,
 ): string {
   const lineas = cuotas.map(
     (c) => `${c.concepto} (${c.periodo}) — S/ ${c.monto.toFixed(2)}`,
   );
+  if (saldoAplicado > 0.0001)
+    lineas.push(`Aplicado de saldo a favor: S/ ${saldoAplicado.toFixed(2)}`);
   if (saldoAFavor > 0.0001)
     lineas.push(`Saldo a favor: S/ ${saldoAFavor.toFixed(2)}`);
   return lineas.length ? lineas.join("\n") : "Pago a cuenta";
@@ -414,20 +420,26 @@ export async function pagarPorMonto(
       return { socio, saldadas, saldoAFavor: pozo, movId };
     });
 
-    // Parte del pago que quedó como saldo a favor (lo que excedió las cuotas).
+    // `recaudado` (suma nominal de cuotas saldadas) = importe del MovimientoCaja.
     const recaudado = result.saldadas.reduce((a, c) => a + c.monto, 0);
+    // Excedente NUEVO que quedó como saldo a favor (efectivo > cuotas saldadas).
     const saldoDelPago = Math.max(0, Math.round((monto - recaudado) * 100) / 100);
+    // Saldo a favor PREVIO consumido para saldar cuotas (cuotas saldadas > efectivo).
+    const saldoAplicado = Math.max(0, Math.round((recaudado - monto) * 100) / 100);
 
     // Emite el comprobante (recibo) SOLO si hubo recaudación (alguna cuota
     // saldada → movimiento de caja). Si TODO fue a saldo a favor (movId null) no
     // se emite recibo: evita un comprobante S/0 no idempotente (que un reintento
     // duplicaría) y concuerda con el mensaje "quedó como saldo a favor".
+    // El importe del recibo es `recaudado` (= MovimientoCaja vinculado y suma de
+    // cuotas listadas), no el efectivo nuevo: así cuadra cuando se consumió saldo
+    // previo (recaudado > monto) y no muestra S/0 si el efectivo nuevo fue 0.
     const comprobante = result.movId
       ? await emitirComprobanteSocio({
           socioId,
           socio: result.socio,
-          monto,
-          detalle: buildDetallePago(result.saldadas, saldoDelPago),
+          monto: recaudado,
+          detalle: buildDetallePago(result.saldadas, saldoDelPago, saldoAplicado),
           metodoPago,
           nroOperacion,
           fecha,

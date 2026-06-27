@@ -50,7 +50,18 @@
 }
 
 .pst-socio {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
   color: var(--text);
+}
+.pst-socio__name {
+  color: var(--text);
+}
+.pst-socio__doc {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 .pst-socio--empty {
   color: var(--text-faint);

@@ -121,7 +121,27 @@ function buildWhere(params: {
       .filter((t) => t.length > 0)
       .map(normalizeToken);
     if (tokens.length > 0) {
-      where.AND = tokens.map((token) => ({ searchKey: { contains: token } }));
+      // Cada token debe matchear el searchKey del puesto (código/bloque/giro) o
+      // el searchKey del socio ocupante vigente, que es la concatenación
+      // normalizada de documento + nombres + código. Así un puesto puede
+      // encontrarse por el N.º de documento (o el nombre) de su titular actual.
+      where.AND = tokens.map((token) => {
+        const branches: Prisma.PuestoWhereInput[] = [
+          { searchKey: { contains: token } },
+        ];
+        // La rama "socio" solo para tokens de ≥2 caracteres. Una sola letra
+        // (p. ej. un bloque A–M) aparecería en casi cualquier apellido y
+        // volvería el token prácticamente universal, degradando la búsqueda por
+        // bloque. Documentos (8–11 díg.) y nombres siempre superan ese umbral.
+        if (token.length >= 2) {
+          branches.push({
+            asignaciones: {
+              some: { hasta: null, socio: { searchKey: { contains: token } } },
+            },
+          });
+        }
+        return branches.length === 1 ? branches[0] : { OR: branches };
+      });
     }
   }
   return where;
@@ -180,6 +200,7 @@ export async function listPuestos(
                   apellidoPaterno: true,
                   apellidoMaterno: true,
                   nombres: true,
+                  numeroDocumento: true,
                 },
               },
             },
@@ -201,7 +222,14 @@ export async function listPuestos(
         giro: p.giro,
         estado: p.estado,
         fotoUrl: p.fotoUrl,
-        socioActual: vig ? { id: vig.id, nombre: socioNombre(vig) } : null,
+        socioActual: vig
+          ? {
+              id: vig.id,
+              nombre: socioNombre(vig),
+              documento: vig.numeroDocumento,
+              sinDni: esDocumentoPendiente(vig.numeroDocumento),
+            }
+          : null,
       };
     });
 
@@ -536,9 +564,16 @@ export async function assignPuesto(
         );
       const socio = await tx.socio.findUnique({
         where: { id: socioId },
-        select: { id: true },
+        select: { id: true, estado: true },
       });
       if (!socio) throw new Denied("Socio no encontrado.");
+      // Simetría con changeEstadoSocio/efectivizarRenuncia (que liberan puestos
+      // al retirar/fallecer): no asignar a un socio no activo. Cierra la carrera
+      // con un cambio de estado concurrente al estar dentro del FOR UPDATE.
+      if (socio.estado !== "activo")
+        throw new Denied(
+          `No se puede asignar un puesto a un socio en estado “${socio.estado}”.`,
+        );
 
       // Propietario actual (asignación vigente). Si se transfiere a OTRO socio
       // y el saliente tiene deuda pendiente, no se permite: debe regularizar

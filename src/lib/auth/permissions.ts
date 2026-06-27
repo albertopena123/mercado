@@ -240,6 +240,13 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Inventario",
   },
   {
+    key: "reportes.read",
+    name: "Ver reportes",
+    description:
+      "Acceder al módulo de reportes (financiero, cobranzas, padrón, puestos y asistencia) y exportarlos",
+    category: "Reportes",
+  },
+  {
     key: "portal.read",
     name: "Portal del socio",
     description:
@@ -306,6 +313,7 @@ export const ROLE_DEFS = [
       "inventario.write",
       "inventario.delete",
       "inventario.move",
+      "reportes.read",
     ],
   },
   {
@@ -331,6 +339,7 @@ export const ROLE_DEFS = [
       "asambleas.read",
       "cuotas.read",
       "inventario.read",
+      "reportes.read",
     ],
   },
   {

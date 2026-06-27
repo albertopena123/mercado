@@ -101,8 +101,8 @@ export default async function AsambleaQrPage({
             <p className="asm-qr__hint">
               Los socios escanean este código con su celular (con su sesión
               iniciada) para marcar su asistencia.{" "}
-              <strong>Se renueva cada minuto</strong>: solo quien está presente,
-              viendo esta pantalla, puede registrarse.
+              <strong>Se renueva cada minuto</strong> para dificultar el registro
+              a distancia.
             </p>
             <p className="asm-qr__code">{codigo}</p>
 

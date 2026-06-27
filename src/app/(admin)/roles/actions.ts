@@ -37,6 +37,18 @@ async function authorize(): Promise<CurrentUser> {
   return me;
 }
 
+function meIsSuper(me: CurrentUser): boolean {
+  return me.roles.some((r) => r.key === "superadmin");
+}
+
+// Regla de subconjunto: un no-superadmin no puede fabricar/editar un rol con
+// permisos que él mismo no posee (cierra la raíz de la auto-escalada). Devuelve
+// las keys que exceden los permisos de `me`.
+function escalatedPerms(me: CurrentUser, permKeys: string[]): string[] {
+  if (meIsSuper(me)) return [];
+  return permKeys.filter((k) => !me.permissions.has(k));
+}
+
 function fail<T = void>(
   error: string,
   fieldErrors?: Record<string, string>,
@@ -81,7 +93,7 @@ export async function createRole(
   input: CreateInput,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    await authorize();
+    const me = await authorize();
 
     const key = (input.key ?? "").trim().toLowerCase();
     const name = (input.name ?? "").trim();
@@ -105,6 +117,12 @@ export async function createRole(
     }
     if (Object.keys(fieldErrors).length > 0) {
       return fail("Revisa los campos marcados.", fieldErrors);
+    }
+
+    if (escalatedPerms(me, permKeys).length > 0) {
+      return fail("No puedes incluir permisos que tú no posees.", {
+        permissionKeys: "Hay permisos que exceden los tuyos.",
+      });
     }
 
     try {
@@ -198,7 +216,7 @@ export async function setRolePermissions(
   permissionKeys: string[],
 ): Promise<ActionResult<{ count: number }>> {
   try {
-    await authorize();
+    const me = await authorize();
 
     const target = await prisma.role.findUnique({ where: { id: roleId } });
     if (!target) return fail("Rol no encontrado.");
@@ -207,6 +225,10 @@ export async function setRolePermissions(
     }
 
     const keys = dedupePerms(permissionKeys) as PermissionKey[];
+
+    if (escalatedPerms(me, keys).length > 0) {
+      return fail("No puedes asignar permisos que tú no posees.");
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.rolePermission.deleteMany({ where: { roleId } });

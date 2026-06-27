@@ -87,7 +87,7 @@ export async function getMisComprobantes(
   const rows = await prisma.comprobante.findMany({
     where: { socioId },
     orderBy: { emitidoEn: "desc" },
-    take: 100,
+    take: 300,
     select: {
       id: true,
       folio: true,
@@ -147,6 +147,8 @@ export async function getMisPuestos(socioId: string): Promise<MiPuesto[]> {
 }
 
 /* ───────────────────────── Comunicados ───────────────────────── */
+const COMUNICADOS_LIMIT = 100;
+
 export type MiComunicado = {
   id: string;
   titulo: string;
@@ -168,7 +170,7 @@ export async function getMisComunicados(): Promise<MiComunicado[]> {
       OR: [{ validoHasta: null }, { validoHasta: { gte: hoy } }],
     },
     orderBy: [{ fijado: "desc" }, { publicadoEn: "desc" }],
-    take: 50,
+    take: COMUNICADOS_LIMIT,
     select: {
       id: true,
       titulo: true,
@@ -206,7 +208,7 @@ export async function getMisAsambleas(socioId: string): Promise<MiAsamblea[]> {
   const asis = await prisma.asistencia.findMany({
     where: { socioId },
     orderBy: { asamblea: { fecha: "desc" } },
-    take: 50,
+    take: 150,
     select: {
       estado: true,
       asamblea: {
@@ -241,14 +243,18 @@ export type MiResumen = {
   comunicados: number;
   puestos: number;
   reuniones: number;
+  ultimoPago: string | null;
+  proximoVencimiento: string | null;
+  proximoVencido: boolean;
+  montoProximo: number;
 };
 
 export async function getMiResumen(socioId: string): Promise<MiResumen> {
   const hoy = inicioDiaUTC(hoyISOPeru());
-  const [pendientes, socio, comunicados, puestos, reuniones] = await Promise.all([
+  const [cuotas, socio, comunicados, puestos, reuniones] = await Promise.all([
     prisma.cuota.findMany({
-      where: { socioId, estado: "pendiente" },
-      select: { monto: true },
+      where: { socioId },
+      select: { monto: true, estado: true, vencimiento: true, pagadoEn: true },
     }),
     prisma.socio.findUnique({
       where: { id: socioId },
@@ -264,12 +270,48 @@ export async function getMiResumen(socioId: string): Promise<MiResumen> {
     prisma.puestoAsignacion.count({ where: { socioId, hasta: null } }),
     prisma.asistencia.count({ where: { socioId } }),
   ]);
+
+  const pendientes = cuotas.filter((c) => c.estado === "pendiente");
+  const deuda = pendientes.reduce((acc, c) => acc + toNumber(c.monto), 0);
+
+  // Último pago: la cuota pagada más reciente.
+  const ultimoPago =
+    cuotas
+      .filter((c) => c.estado === "pagada" && c.pagadoEn)
+      .map((c) => c.pagadoEn as Date)
+      .sort((a, b) => b.getTime() - a.getTime())[0]
+      ?.toISOString() ?? null;
+
+  // Próximo a vencer: la cuota pendiente futura (vence hoy o después) más
+  // cercana. Si ninguna está vigente, caemos a la más antigua (ya vencida) y
+  // la marcamos como tal para que la UI la rotule "Cuota vencida".
+  const pendConVenc = pendientes
+    .filter((c) => c.vencimiento)
+    .sort(
+      (a, b) =>
+        (a.vencimiento as Date).getTime() - (b.vencimiento as Date).getTime(),
+    );
+  const proxFuturo =
+    pendConVenc.find((c) => (c.vencimiento as Date).getTime() >= hoy.getTime())
+      ?.vencimiento ?? null;
+  const proxVenc = proxFuturo ?? pendConVenc[0]?.vencimiento ?? null;
+  const proximoVencido = proxVenc ? proxVenc.getTime() < hoy.getTime() : false;
+  const montoProximo = proxVenc
+    ? pendConVenc
+        .filter((c) => (c.vencimiento as Date).getTime() === proxVenc.getTime())
+        .reduce((acc, c) => acc + toNumber(c.monto), 0)
+    : 0;
+
   return {
-    deuda: pendientes.reduce((acc, c) => acc + toNumber(c.monto), 0),
+    deuda,
     saldoAFavor: toNumber(socio?.saldoAFavor),
-    comunicados,
+    comunicados: Math.min(comunicados, COMUNICADOS_LIMIT),
     puestos,
     reuniones,
+    ultimoPago,
+    proximoVencimiento: proxVenc ? proxVenc.toISOString() : null,
+    proximoVencido,
+    montoProximo,
   };
 }
 

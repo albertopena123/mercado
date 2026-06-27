@@ -41,7 +41,9 @@ export type IconName =
   | "hourglass"
   | "shield-check"
   | "qr"
-  | "logo";
+  | "logo"
+  | "headset"
+  | "logout";
 
 type IconProps = {
   name: IconName;
@@ -346,6 +348,23 @@ export function Icon({
           <rect x="14" y="4" width="6" height="6" rx="1.2" />
           <rect x="4" y="14" width="6" height="6" rx="1.2" />
           <path d="M14 14h3M14 17.5h2M17.5 14v3M20 14v6M14 20h3M17.5 20H20" />
+        </svg>
+      );
+    case "headset":
+      return (
+        <svg {...props}>
+          <path d="M5 13v-1a7 7 0 0 1 14 0v1" />
+          <rect x="3" y="13" width="4" height="6" rx="1.3" />
+          <rect x="17" y="13" width="4" height="6" rx="1.3" />
+          <path d="M19 19v.4a2.6 2.6 0 0 1-2.6 2.6H14" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg {...props}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="m16 17 5-5-5-5" />
+          <path d="M21 12H9" />
         </svg>
       );
     case "logo":
