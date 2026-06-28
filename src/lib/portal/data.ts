@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { toNumber } from "@/lib/money";
-import { inicioDiaUTC, hoyISOPeru } from "@/lib/fecha";
+import { toNumber, formatSoles } from "@/lib/money";
+import { inicioDiaUTC, hoyISOPeru, fechaHora } from "@/lib/fecha";
 import type {
   EstadoCuota,
   EstadoAsamblea,
@@ -234,6 +234,117 @@ export async function getMisAsambleas(socioId: string): Promise<MiAsamblea[]> {
     estadoAsamblea: a.asamblea.estado,
     miEstado: a.estado,
   }));
+}
+
+/* ───────────────────────── Notificaciones (campanita) ───────────────────────── */
+export type TipoNotificacion = "reunion" | "deuda" | "comunicado";
+export type Notificacion = {
+  id: string;
+  tipo: TipoNotificacion;
+  titulo: string;
+  detalle: string;
+  fecha: string | null;
+  href: string;
+  urgente: boolean;
+};
+
+export async function getMisNotificaciones(
+  socioId: string,
+): Promise<Notificacion[]> {
+  const ahora = new Date();
+  const hoy = inicioDiaUTC(hoyISOPeru());
+  const desde = new Date(ahora.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const [asambleas, comunicados, vencidas] = await Promise.all([
+    prisma.asamblea.findMany({
+      where: { estado: { in: ["programada", "en_curso"] } },
+      orderBy: { fecha: "asc" },
+      take: 10,
+      select: {
+        id: true,
+        titulo: true,
+        fecha: true,
+        estado: true,
+        codigoVerificacion: true,
+      },
+    }),
+    prisma.anuncio.findMany({
+      where: {
+        estado: "publicado",
+        visibilidad: { in: ["publico", "socios"] },
+        publicadoEn: { gte: desde },
+        OR: [{ validoHasta: null }, { validoHasta: { gte: hoy } }],
+      },
+      orderBy: { publicadoEn: "desc" },
+      take: 5,
+      select: { id: true, titulo: true, publicadoEn: true },
+    }),
+    prisma.cuota.findMany({
+      where: { socioId, estado: "pendiente", vencimiento: { lt: hoy } },
+      select: { monto: true, vencimiento: true },
+    }),
+  ]);
+
+  const items: Notificacion[] = [];
+
+  for (const a of asambleas) {
+    const enCurso = a.estado === "en_curso";
+    // Una reunión programada solo es accionable mientras no haya pasado.
+    if (!enCurso && a.fecha.getTime() < ahora.getTime()) continue;
+    items.push({
+      id: `reunion:${a.id}:${a.estado}`,
+      tipo: "reunion",
+      titulo: enCurso ? "Reunión en curso" : "Reunión programada",
+      detalle: enCurso
+        ? `${a.titulo} · marca tu asistencia`
+        : `${a.titulo} · ${fechaHora(a.fecha)}`,
+      fecha: a.fecha.toISOString(),
+      href: a.codigoVerificacion
+        ? `/portal/asambleas/${a.codigoVerificacion}`
+        : "/portal/asambleas",
+      urgente: enCurso,
+    });
+  }
+
+  if (vencidas.length > 0) {
+    const total = vencidas.reduce((acc, c) => acc + toNumber(c.monto), 0);
+    const masAntigua = vencidas
+      .map((c) => c.vencimiento as Date)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    items.push({
+      id: "deuda:vencida",
+      tipo: "deuda",
+      titulo: vencidas.length === 1 ? "Cuota vencida" : "Cuotas vencidas",
+      detalle: `Debes ${formatSoles(total)} vencido${
+        vencidas.length === 1 ? "" : "s"
+      }`,
+      fecha: masAntigua ? masAntigua.toISOString() : null,
+      href: "/portal/deudas",
+      urgente: true,
+    });
+  }
+
+  for (const c of comunicados) {
+    items.push({
+      id: `comunicado:${c.id}`,
+      tipo: "comunicado",
+      titulo: "Nuevo comunicado",
+      detalle: c.titulo,
+      fecha: c.publicadoEn ? c.publicadoEn.toISOString() : null,
+      href: "/portal/comunicados",
+      urgente: false,
+    });
+  }
+
+  // Urgentes primero; dentro de cada grupo, lo más reciente/cercano arriba.
+  items.sort((a, b) => {
+    if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+    const ta = a.fecha ? new Date(a.fecha).getTime() : 0;
+    const tb = b.fecha ? new Date(b.fecha).getTime() : 0;
+    return tb - ta;
+  });
+
+  return items.slice(0, 12);
 }
 
 /* ───────────────────────── Resumen del dashboard ───────────────────────── */

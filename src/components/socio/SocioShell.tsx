@@ -1,11 +1,13 @@
 "use client";
 
 import "./socio.css";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/admin/Icon";
 import { ToastProvider } from "@/components/admin/toast";
+import { NotificationBell } from "./NotificationBell";
+import type { Notificacion } from "@/lib/portal/data";
 import { ORG } from "@/lib/org";
 
 const NAV: { href: string; label: string; icon: IconName }[] = [
@@ -23,16 +25,29 @@ const WHATSAPP = `https://wa.me/51${ORG.celular}?text=${encodeURIComponent(
 
 export function SocioShell({
   socio,
+  notificaciones,
   children,
 }: {
   socio: { nombre: string; codigo: string };
+  notificaciones: Notificacion[];
   children: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
+  // En escritorio el botón colapsa la barra; en móvil la abre como cajón.
+  const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   function isActive(href: string): boolean {
     return href === "/portal" ? pathname === "/portal" : pathname.startsWith(href);
+  }
+
+  function toggleNav() {
+    const mobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 900px)").matches;
+    if (mobile) setDrawerOpen((v) => !v);
+    else setCollapsed((v) => !v);
   }
 
   async function logout() {
@@ -43,15 +58,30 @@ export function SocioShell({
 
   return (
     <ToastProvider>
-      <div className="pt">
+      <div
+        className={`pt ${collapsed ? "pt--collapsed" : ""} ${
+          drawerOpen ? "pt--drawer" : ""
+        }`}
+      >
         <header className="pt-top">
-          <Link href="/portal" className="pt-brand">
-            <span className="pt-brand__logo">GF</span>
-            <span className="pt-brand__name">
-              Feria Mayorista Internacional Milagros
-            </span>
-          </Link>
+          <div className="pt-top__left">
+            <button
+              type="button"
+              className="pt-iconbtn pt-navtoggle"
+              onClick={toggleNav}
+              aria-label={drawerOpen ? "Cerrar menú" : "Mostrar u ocultar menú"}
+            >
+              <Icon name="menu" size={20} />
+            </button>
+            <Link href="/portal" className="pt-brand">
+              <span className="pt-brand__logo">GF</span>
+              <span className="pt-brand__name">
+                Feria Mayorista Internacional Milagros
+              </span>
+            </Link>
+          </div>
           <div className="pt-top__right">
+            <NotificationBell items={notificaciones} />
             <span className="pt-loc" title={socio.codigo}>
               <Icon name="pin" size={16} />
               <span>{socio.nombre}</span>
@@ -64,7 +94,24 @@ export function SocioShell({
         </header>
 
         <div className="pt-shell">
-          <aside className="pt-side">
+          {drawerOpen && (
+            <div
+              className="pt-backdrop"
+              onClick={() => setDrawerOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          <aside className="pt-side" id="pt-sidenav">
+            <button
+              type="button"
+              className="pt-side__close"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Cerrar menú"
+            >
+              <Icon name="close" size={18} />
+            </button>
+
             <nav className="pt-nav" aria-label="Secciones del portal">
               {NAV.map((item) => {
                 const active = isActive(item.href);
@@ -74,6 +121,7 @@ export function SocioShell({
                     href={item.href}
                     className={`pt-nav__item ${active ? "is-active" : ""}`}
                     aria-current={active ? "page" : undefined}
+                    onClick={() => setDrawerOpen(false)}
                   >
                     <Icon name={item.icon} size={19} />
                     <span>{item.label}</span>
