@@ -116,7 +116,7 @@ export type CreateSocioInput = {
 
 export type UpdateSocioPatch = Partial<CreateSocioInput>;
 
-export type SortKey = "codigo" | "documento" | "nombre" | "ingreso" | "estado";
+export type SortKey = "padron" | "documento" | "nombre" | "ingreso" | "estado";
 export type SortDir = "asc" | "desc";
 
 export type ListSociosParams = {

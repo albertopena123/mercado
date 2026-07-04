@@ -24,7 +24,7 @@ import type {
 } from "./types";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: "codigo", label: "Código" },
+  { key: "padron", label: "N° Padrón" },
   { key: "documento", label: "Documento" },
   { key: "nombre", label: "Apellidos, Nombres" },
   { key: "ingreso", label: "Ingreso" },
@@ -290,12 +290,11 @@ export function SociosClient({
                   className={sinDni ? "soc-row--sin-dni" : undefined}
                   onClick={() => setOpenId(s.id)}
                 >
-                  <td data-label="Código">
-                    <span className="soc-codigo">{s.codigo}</span>
-                    {s.numeroPadron != null && (
-                      <span className="soc-codigo-padron">
-                        Padrón {s.numeroPadron}
-                      </span>
+                  <td data-label="N° Padrón">
+                    {s.numeroPadron != null ? (
+                      <span className="soc-codigo">{s.numeroPadron}</span>
+                    ) : (
+                      <span className="soc-codigo-padron">—</span>
                     )}
                   </td>
                   <td data-label="Documento">

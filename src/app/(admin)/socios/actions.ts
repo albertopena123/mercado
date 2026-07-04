@@ -148,7 +148,7 @@ function buildWhere(params: {
   return where;
 }
 
-const SORT_KEYS = ["codigo", "documento", "nombre", "ingreso", "estado"] as const;
+const SORT_KEYS = ["padron", "documento", "nombre", "ingreso", "estado"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
 function buildOrderBy(
@@ -156,8 +156,8 @@ function buildOrderBy(
   dir: "asc" | "desc",
 ): Prisma.SocioOrderByWithRelationInput[] {
   switch (sort) {
-    case "codigo":
-      return [{ codigo: dir }];
+    case "padron":
+      return [{ numeroPadron: dir }];
     case "documento":
       return [{ numeroDocumento: dir }];
     case "ingreso":

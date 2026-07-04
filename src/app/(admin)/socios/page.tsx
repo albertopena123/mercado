@@ -21,7 +21,7 @@ type SearchParams = {
 
 const ESTADOS: EstadoSocio[] = ["activo", "suspendido", "retirado", "fallecido"];
 const TIPOS: TipoDocumento[] = ["DNI", "CE", "PASAPORTE", "RUC"];
-const SORTS: SortKey[] = ["codigo", "documento", "nombre", "ingreso", "estado"];
+const SORTS: SortKey[] = ["padron", "documento", "nombre", "ingreso", "estado"];
 
 export default async function Page({
   searchParams,
