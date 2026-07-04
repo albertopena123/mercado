@@ -151,7 +151,7 @@ export function SociosClient({
             className="btn btn--ghost"
             onClick={handleExport}
             disabled={exporting || initial.total === 0}
-            title="Descargar el padrón filtrado en CSV (Excel)"
+            title="Descargar el padrón filtrado en Excel (.xlsx)"
           >
             <Icon name="download" size={16} />
             <span>{exporting ? "Generando…" : "Exportar"}</span>

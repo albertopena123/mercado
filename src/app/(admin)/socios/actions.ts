@@ -9,7 +9,7 @@ import type { PermissionKey } from "@/lib/auth/permissions";
 import { hashPassword } from "@/lib/auth/password";
 import { esDocumentoPendiente } from "@/lib/socios/document";
 import { nextCodigoFromList } from "@/lib/socios/codigo";
-import { buildXlsx } from "@/lib/xlsx";
+import { buildStyledXlsx, type XlsxColumn, type XlsxValue } from "@/lib/xlsx";
 import {
   buildSocioSearchKey,
   normalizeToken,
@@ -20,6 +20,7 @@ import {
   type DniLookupResult,
 } from "@/lib/socios/dni-lookup";
 import { toNumber } from "@/lib/money";
+import { hoyISOPeru } from "@/lib/fecha";
 import { CATEGORIA_LABEL } from "@/lib/caja/labels";
 import {
   writeAdjunto,
@@ -46,6 +47,13 @@ import {
   validateSocioInput,
   buildSocioUpdateData,
 } from "@/lib/socios/update";
+
+const ESTADO_LABEL: Record<EstadoSocio, string> = {
+  activo: "Activo",
+  suspendido: "Suspendido",
+  retirado: "Retirado",
+  fallecido: "Fallecido",
+};
 
 const PAGE_SIZE = 25;
 const PAGE_SIZES = [25, 50, 100];
@@ -288,60 +296,95 @@ export async function exportSociosXlsx(params: {
         fechaIngreso: true,
         estado: true,
         observaciones: true,
+        // Puestos VIGENTES (hasta=null): un socio puede tener más de uno.
+        asignacionesPuesto: {
+          where: { hasta: null },
+          select: { puesto: { select: { codigo: true } } },
+        },
       },
     });
 
-    const headers = [
-      "Código",
-      "Nº Padrón",
-      "Tipo Doc.",
-      "Número Doc.",
-      "Sin DNI",
-      "Apellido Paterno",
-      "Apellido Materno",
-      "Nombres",
-      "Sexo",
-      "Estado Civil",
-      "Teléfono",
-      "Email",
-      "Dirección",
-      "Distrito",
-      "Provincia",
-      "Departamento",
-      "Fecha Nacimiento",
-      "Fecha Ingreso",
-      "Estado",
-      "Observaciones",
+    const columns: XlsxColumn[] = [
+      { header: "Código", align: "center", width: 12 },
+      { header: "Nº Padrón", type: "number", width: 10 },
+      { header: "Tipo Doc.", align: "center", width: 10 },
+      { header: "Número Doc.", align: "center", width: 14 },
+      { header: "Sin DNI", align: "center", width: 8 },
+      { header: "Apellido Paterno", width: 18 },
+      { header: "Apellido Materno", width: 18 },
+      { header: "Nombres", width: 22 },
+      { header: "Sexo", align: "center", width: 8 },
+      { header: "Estado Civil", align: "center", width: 14 },
+      { header: "Teléfono", align: "center", width: 13 },
+      { header: "Email", width: 26 },
+      { header: "Dirección", width: 30 },
+      { header: "Distrito", width: 16 },
+      { header: "Provincia", width: 16 },
+      { header: "Departamento", width: 16 },
+      { header: "Fecha Nacimiento", type: "date", width: 16 },
+      { header: "Fecha Ingreso", type: "date", width: 15 },
+      { header: "Estado", align: "center", width: 13 },
+      { header: "N° Puestos", type: "number", width: 11 },
+      { header: "Puestos asignados", width: 22 },
+      { header: "Observaciones", width: 36 },
     ];
 
-    const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+    const data: XlsxValue[][] = rows.map((r) => {
+      // Códigos de puestos vigentes, ordenados (E1-A-12, E2-C-03…).
+      const codigos = r.asignacionesPuesto
+        .map((a) => a.puesto.codigo)
+        .sort((a, b) => a.localeCompare(b, "es"));
+      return [
+        r.codigo,
+        r.numeroPadron,
+        r.tipoDocumento,
+        // Documento placeholder de socio SIN DNI → en blanco (no "SIN-DNI-0001").
+        esDocumentoPendiente(r.numeroDocumento) ? "" : r.numeroDocumento,
+        esDocumentoPendiente(r.numeroDocumento) ? "SÍ" : "",
+        r.apellidoPaterno,
+        r.apellidoMaterno ?? "",
+        r.nombres,
+        r.sexo ?? "",
+        r.estadoCivil ?? "",
+        r.telefono ?? "",
+        r.email ?? "",
+        r.direccion ?? "",
+        r.distrito ?? "",
+        r.provincia ?? "",
+        r.departamento ?? "",
+        r.fechaNacimiento,
+        r.fechaIngreso,
+        ESTADO_LABEL[r.estado] ?? r.estado,
+        codigos.length,
+        codigos.join(", "),
+        r.observaciones ?? "",
+      ];
+    });
 
-    const data = rows.map((r) => [
-      r.codigo,
-      r.numeroPadron,
-      r.tipoDocumento,
-      // Documento placeholder de socio SIN DNI → en blanco (no "SIN-DNI-0001").
-      esDocumentoPendiente(r.numeroDocumento) ? "" : r.numeroDocumento,
-      esDocumentoPendiente(r.numeroDocumento) ? "SÍ" : "",
-      r.apellidoPaterno,
-      r.apellidoMaterno ?? "",
-      r.nombres,
-      r.sexo ?? "",
-      r.estadoCivil ?? "",
-      r.telefono ?? "",
-      r.email ?? "",
-      r.direccion ?? "",
-      r.distrito ?? "",
-      r.provincia ?? "",
-      r.departamento ?? "",
-      fmt(r.fechaNacimiento),
-      fmt(r.fechaIngreso),
-      r.estado,
-      r.observaciones ?? "",
-    ]);
+    // Banda de metadatos: cuándo se generó, filtros aplicados y total.
+    const generado = new Intl.DateTimeFormat("es-PE", {
+      timeZone: "America/Lima",
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date());
+    const filtros: string[] = [];
+    if (params.q?.trim()) filtros.push(`búsqueda "${params.q.trim()}"`);
+    if (params.estado) filtros.push(`estado: ${ESTADO_LABEL[params.estado] ?? params.estado}`);
+    if (params.tipoDocumento) filtros.push(`documento: ${params.tipoDocumento}`);
 
-    const buf = buildXlsx("Padrón de socios", headers, data);
-    const stamp = new Date().toISOString().slice(0, 10);
+    const buf = buildStyledXlsx({
+      sheetName: "Padrón de socios",
+      title: "Padrón de socios",
+      subtitle: "Feria Mayorista Internacional Milagros",
+      meta: [
+        `Generado el ${generado} (hora de Lima)`,
+        filtros.length ? `Filtros: ${filtros.join(" · ")}` : "Sin filtros — padrón completo",
+        `Total: ${rows.length} ${rows.length === 1 ? "socio" : "socios"}`,
+      ],
+      columns,
+      rows: data,
+    });
+    const stamp = hoyISOPeru();
     return ok({
       base64: buf.toString("base64"),
       filename: "padron-socios-" + stamp + ".xlsx",

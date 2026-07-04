@@ -82,7 +82,9 @@ export function puestoCodigo(
   etapa: number,
   bloque: string,
   numero: number,
-  fila = 1,
 ): string {
-  return `E${etapa}-${bloque.toUpperCase()}-${fila}-${numero}`;
+  // Formato 'E{etapa}-{bloque}-{numero}', p. ej. 'E1-A-12'. La sub-fila/banda se
+  // deriva del número (bandaPorNumero) y NO se incluye en el código: era siempre
+  // 1 (vestigial del layout original del Excel) y solo añadía ruido.
+  return `E${etapa}-${bloque.toUpperCase()}-${numero}`;
 }
