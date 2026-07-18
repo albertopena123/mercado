@@ -6,7 +6,7 @@ import { getCurrentUser, type CurrentUser } from "@/lib/auth/server";
 import type { PermissionKey } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import { inicioDiaUTC } from "@/lib/fecha";
-import { normalizeToken } from "@/lib/socios/normalize";
+import { searchKeyAnd } from "@/lib/socios/normalize";
 import { SNIFF_BYTES, sniffMime, validateUpload } from "@/lib/socios/limits";
 import { writeFirma, removeFirma, extFromMime } from "@/lib/organos/storage";
 import {
@@ -58,9 +58,11 @@ export async function buscarSocios(
     await authorize("organos.read");
     const term = (q ?? "").trim();
     if (term.length < 2) return ok([]);
-    const token = normalizeToken(term);
+    // Tokenizar + AND: cada palabra debe aparecer en searchKey, en cualquier
+    // orden. Un solo `contains` del término completo fallaba cuando el orden de
+    // las palabras no coincidía con el de searchKey (p. ej. "Julia Mondragón").
     const socios = await prisma.socio.findMany({
-      where: { estado: "activo", searchKey: { contains: token } },
+      where: { estado: "activo", AND: searchKeyAnd(term) },
       take: 8,
       orderBy: { apellidoPaterno: "asc" },
       select: {
