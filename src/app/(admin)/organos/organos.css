@@ -182,14 +182,47 @@
   gap: 8px;
   margin-top: 6px;
 }
-.org-firma__img {
-  height: 40px;
-  max-width: 160px;
-  object-fit: contain;
-  background: #fff;
+/* Miniatura clicable que abre el visor */
+.org-firma__thumb {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 2px 4px;
+  background: #fff;
+  cursor: zoom-in;
+  overflow: hidden;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.org-firma__thumb:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+.org-firma__img {
+  display: block;
+  height: 52px;
+  max-width: 200px;
+  object-fit: contain;
+  padding: 3px 6px;
+}
+/* Etiqueta "Ver" que aparece al pasar el mouse */
+.org-firma__thumb-hint {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.org-firma__thumb:hover .org-firma__thumb-hint,
+.org-firma__thumb:focus-visible .org-firma__thumb-hint {
+  opacity: 1;
 }
 .org-firma__empty {
   font-size: 12px;
@@ -198,4 +231,50 @@
 .org-firma__actions {
   display: inline-flex;
   gap: 4px;
+}
+
+/* Visor a pantalla (lightbox) para ver la firma en grande */
+.org-firma-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+}
+.org-firma-lightbox__card {
+  width: min(560px, 100%);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+}
+.org-firma-lightbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef2f7;
+  font-weight: 700;
+  font-size: 14px;
+  color: #1e293b;
+}
+.org-firma-lightbox__img {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  padding: 20px;
+  background: #fff;
+}
+.org-firma-lightbox__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #eef2f7;
+  background: #f8fafc;
 }

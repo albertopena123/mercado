@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import {
@@ -25,6 +25,17 @@ export function FirmaUploader({
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(false);
+
+  // Cerrar el visor con Escape.
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -60,21 +71,30 @@ export function FirmaUploader({
       return;
     }
     toast.success("Firma eliminada.");
+    setPreview(false);
     onChange();
   }
 
   return (
     <div className="org-firma">
       {firmaUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          className="org-firma__img"
-          src={firmaUrl}
-          alt="Firma del directivo"
-        />
+        <button
+          type="button"
+          className="org-firma__thumb"
+          title="Ver firma en grande"
+          onClick={() => setPreview(true)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="org-firma__img" src={firmaUrl} alt="Firma del directivo" />
+          <span className="org-firma__thumb-hint">
+            <Icon name="search" size={13} />
+            Ver
+          </span>
+        </button>
       ) : (
         <span className="org-firma__empty">Sin firma</span>
       )}
+
       {canWrite && (
         <div className="org-firma__actions">
           <input
@@ -102,6 +122,58 @@ export function FirmaUploader({
               <Icon name="trash" size={16} />
             </button>
           )}
+        </div>
+      )}
+
+      {preview && firmaUrl && (
+        <div
+          className="org-firma-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Firma del directivo"
+          onClick={() => setPreview(false)}
+        >
+          <div
+            className="org-firma-lightbox__card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="org-firma-lightbox__head">
+              <span>Firma del directivo</span>
+              <button
+                className="iconbtn"
+                title="Cerrar"
+                onClick={() => setPreview(false)}
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </header>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="org-firma-lightbox__img"
+              src={firmaUrl}
+              alt="Firma del directivo"
+            />
+            {canWrite && (
+              <footer className="org-firma-lightbox__foot">
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => inputRef.current?.click()}
+                >
+                  <Icon name="plus" size={14} />
+                  <span>Reemplazar</span>
+                </button>
+                <button
+                  className="btn btn--danger"
+                  disabled={busy}
+                  onClick={onDelete}
+                >
+                  <Icon name="trash" size={14} />
+                  <span>Eliminar</span>
+                </button>
+              </footer>
+            )}
+          </div>
         </div>
       )}
     </div>
