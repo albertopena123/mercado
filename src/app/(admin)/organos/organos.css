@@ -174,3 +174,28 @@
 .org-item--hist {
   opacity: 0.85;
 }
+
+/* Firma del directivo (subida/preview) */
+.org-firma {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.org-firma__img {
+  height: 40px;
+  max-width: 160px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.org-firma__empty {
+  font-size: 12px;
+  color: #9ca3af;
+}
+.org-firma__actions {
+  display: inline-flex;
+  gap: 4px;
+}

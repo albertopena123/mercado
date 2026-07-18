@@ -48,6 +48,7 @@ export type DirectivoRow = {
   desde: string; // ISO
   hasta: string | null; // ISO; null = vigente
   observaciones: string | null;
+  firmaUrl: string | null;
 };
 
 export type SocioOption = {

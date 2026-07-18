@@ -9,6 +9,7 @@ import { useToast } from "@/components/admin/toast";
 import { fechaCorta } from "@/lib/fecha";
 import { ConfirmDialog } from "../socios/ConfirmDialog";
 import { CrearDirectivoModal } from "./CrearDirectivoModal";
+import { FirmaUploader } from "./FirmaUploader";
 import { cesarDirectivo, eliminarDirectivo } from "./actions";
 import {
   CARGO_LABEL,
@@ -145,6 +146,12 @@ export function OrganosClient({
                       Desde {fechaCorta(d.desde)}
                       {d.periodo ? ` · Periodo ${d.periodo}` : ""}
                     </span>
+                    <FirmaUploader
+                      directivoId={d.id}
+                      firmaUrl={d.firmaUrl}
+                      canWrite={perms.canWrite}
+                      onChange={() => router.refresh()}
+                    />
                   </div>
                   {perms.canWrite && (
                     <div className="org-item__actions">

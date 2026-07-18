@@ -7,6 +7,8 @@ import type { PermissionKey } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import { inicioDiaUTC } from "@/lib/fecha";
 import { normalizeToken } from "@/lib/socios/normalize";
+import { SNIFF_BYTES, sniffMime, validateUpload } from "@/lib/socios/limits";
+import { writeFirma, removeFirma, extFromMime } from "@/lib/organos/storage";
 import {
   CARGOS_UNICOS,
   type ActionResult,
@@ -232,5 +234,91 @@ export async function eliminarDirectivo(id: string): Promise<ActionResult> {
     if (e instanceof Denied) return fail(e.message);
     console.error("eliminarDirectivo", e);
     return fail("No se pudo eliminar el cargo.");
+  }
+}
+
+// Extrae "<file>" de "/api/uploads/organos/<id>/<file>" para poder borrarlo.
+function firmaFileName(url: string | null): string | null {
+  if (!url) return null;
+  const parts = url.split("/");
+  return parts[parts.length - 1] || null;
+}
+
+// Sube (o reemplaza) la firma escaneada de un directivo. Solo imágenes.
+export async function subirFirma(
+  directivoId: string,
+  file: File,
+): Promise<ActionResult<{ firmaUrl: string }>> {
+  try {
+    const me = await authorize("organos.write");
+
+    const directivo = await prisma.directivo.findUnique({
+      where: { id: directivoId },
+      select: { id: true, firmaUrl: true },
+    });
+    if (!directivo) return fail("Directivo no encontrado.");
+
+    const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+    const sniffed = sniffMime(head);
+    const err = validateUpload(file, "foto", sniffed);
+    if (err) return fail(err);
+    if (!sniffed)
+      return fail(
+        "No se reconoció el contenido del archivo. Sube una imagen JPG, PNG o WebP.",
+      );
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const fileName = `firma-${Date.now()}.${extFromMime(sniffed)}`;
+    const url = await writeFirma(directivoId, fileName, buffer);
+
+    await prisma.directivo.update({
+      where: { id: directivoId },
+      data: {
+        firmaUrl: url,
+        firmaUploadedAt: new Date(),
+        firmaUploadedById: me.id,
+      },
+    });
+
+    // Borra el archivo anterior (si existía y cambió de nombre) para no dejar huérfanos.
+    const prev = firmaFileName(directivo.firmaUrl);
+    if (prev && prev !== fileName) await removeFirma(directivoId, prev);
+
+    refresh();
+    return ok({ firmaUrl: url });
+  } catch (e) {
+    unstable_rethrow(e);
+    if (e instanceof Denied) return fail(e.message);
+    console.error("subirFirma", e);
+    return fail("No se pudo subir la firma.");
+  }
+}
+
+// Elimina la firma del directivo (archivo + campos).
+export async function eliminarFirma(
+  directivoId: string,
+): Promise<ActionResult> {
+  try {
+    await authorize("organos.write");
+    const directivo = await prisma.directivo.findUnique({
+      where: { id: directivoId },
+      select: { id: true, firmaUrl: true },
+    });
+    if (!directivo) return fail("Directivo no encontrado.");
+
+    const prev = firmaFileName(directivo.firmaUrl);
+    if (prev) await removeFirma(directivoId, prev);
+
+    await prisma.directivo.update({
+      where: { id: directivoId },
+      data: { firmaUrl: null, firmaUploadedAt: null, firmaUploadedById: null },
+    });
+    refresh();
+    return ok();
+  } catch (e) {
+    unstable_rethrow(e);
+    if (e instanceof Denied) return fail(e.message);
+    console.error("eliminarFirma", e);
+    return fail("No se pudo eliminar la firma.");
   }
 }

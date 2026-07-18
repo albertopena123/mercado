@@ -35,6 +35,7 @@ function toRow(d: {
   desde: Date;
   hasta: Date | null;
   observaciones: string | null;
+  firmaUrl: string | null;
   socio: {
     codigo: string;
     apellidoPaterno: string;
@@ -54,6 +55,7 @@ function toRow(d: {
     desde: d.desde.toISOString(),
     hasta: d.hasta ? d.hasta.toISOString() : null,
     observaciones: d.observaciones,
+    firmaUrl: d.firmaUrl,
   };
 }
 
