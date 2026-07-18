@@ -17,6 +17,7 @@ import {
 } from "./shared";
 import { DIMENSION_LABEL } from "@/lib/puestos/giro";
 import type { DimensionPuesto } from "@/generated/prisma/client";
+import type { FirmasConsejo } from "@/lib/organos/firmas";
 
 type Data = {
   nombreCompleto: string;
@@ -37,6 +38,7 @@ export function ConstanciaView({
   activo,
   motivoBloqueo,
   inasistencias,
+  firmas,
 }: {
   socioId: string;
   data: Data;
@@ -44,6 +46,7 @@ export function ConstanciaView({
   motivoBloqueo: string | null;
   // Inasistencias injustificadas a asambleas concluidas (bloquean la de no adeudo).
   inasistencias: number;
+  firmas: FirmasConsejo;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -333,11 +336,27 @@ export function ConstanciaView({
           {noAdeudo ? (
             <>
               <div className="constancia__firma">
+                {firmas.tesorero && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="constancia__firma-img"
+                    src={firmas.tesorero}
+                    alt="Firma de Tesorería"
+                  />
+                )}
                 <div className="constancia__firma-line" />
                 <div className="constancia__firma-label">Tesorería</div>
                 <div className="constancia__firma-sub">Junta Directiva</div>
               </div>
               <div className="constancia__firma">
+                {firmas.presidente && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="constancia__firma-img"
+                    src={firmas.presidente}
+                    alt="Firma de Presidencia"
+                  />
+                )}
                 <div className="constancia__firma-line" />
                 <div className="constancia__firma-label">Presidencia</div>
                 <div className="constancia__firma-sub">Junta Directiva</div>
@@ -346,11 +365,27 @@ export function ConstanciaView({
           ) : (
             <>
               <div className="constancia__firma">
+                {firmas.presidente && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="constancia__firma-img"
+                    src={firmas.presidente}
+                    alt="Firma de Presidencia"
+                  />
+                )}
                 <div className="constancia__firma-line" />
                 <div className="constancia__firma-label">Presidencia</div>
                 <div className="constancia__firma-sub">Junta Directiva</div>
               </div>
               <div className="constancia__firma">
+                {firmas.secretario && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="constancia__firma-img"
+                    src={firmas.secretario}
+                    alt="Firma de Secretaría"
+                  />
+                )}
                 <div className="constancia__firma-line" />
                 <div className="constancia__firma-label">Secretaría</div>
                 <div className="constancia__firma-sub">Junta Directiva</div>

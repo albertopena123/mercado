@@ -202,6 +202,13 @@
   border-top: 1px solid #1a1a1a;
   margin: 0 0 6px;
 }
+.constancia__firma-img {
+  display: block;
+  height: 56px;
+  max-width: 100%;
+  margin: 0 auto -4px;
+  object-fit: contain;
+}
 .constancia__firma-label {
   font-size: 13px;
   font-weight: 700;
@@ -380,5 +387,9 @@
   .constancia__firmas {
     gap: 28px;
     flex-wrap: wrap;
+  }
+  .constancia__firma-img {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/money";
 import { ConstanciaView } from "./ConstanciaView";
 import { contarInasistenciasInjustificadas } from "./asistencia";
+import { resolveFirmasConsejo } from "@/lib/organos/firmas";
 
 export const metadata = { title: "Constancia de socio · Admin" };
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function Page({
 
   const deuda = socio.cuotas.reduce((acc, c) => acc + toNumber(c.monto), 0);
   const inasistencias = await contarInasistenciasInjustificadas(socio.id);
+  const firmas = await resolveFirmasConsejo();
   const puestos = socio.asignacionesPuesto.map((a) => ({
     codigo: a.puesto.codigo,
     giro: a.puesto.giro,
@@ -67,6 +69,7 @@ export default async function Page({
       activo={activo}
       motivoBloqueo={motivoBloqueo}
       inasistencias={inasistencias}
+      firmas={firmas}
       data={{
         nombreCompleto,
         tipoDocumento: socio.tipoDocumento,
