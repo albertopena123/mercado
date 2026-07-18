@@ -62,6 +62,10 @@ next-env.d.ts
 /private-uploads/transferencias/*
 !/private-uploads/transferencias/.gitkeep
 
+# Local file storage for firmas de directivos (served via auth API route)
+/private-uploads/organos/*
+!/private-uploads/organos/.gitkeep
+
 # Playwright MCP scratch (browser snapshots + console logs from agent sessions)
 /.playwright-mcp/
 
