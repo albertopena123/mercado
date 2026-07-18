@@ -346,6 +346,12 @@ model Directivo {
   hasta         DateTime? // null = cargo vigente
   observaciones String?
 
+  // Firma escaneada del directivo (imagen). URL a la ruta protegida
+  // /api/uploads/organos/<id>/<file>. Se renderiza en documentos por cargo.
+  firmaUrl          String?
+  firmaUploadedAt   DateTime?
+  firmaUploadedById String?
+
   byUserId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
