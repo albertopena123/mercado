@@ -394,7 +394,7 @@ export function TransferenciaDetailClient({
           "renuncia",
           "mail",
           "Carta de renuncia",
-          `/socios/${t.transferenteId}/renuncia`,
+          `/transferencias/${t.id}/renuncia`,
           t.renunciaUrl,
           t.renunciaUploadedPor,
           t.renunciaUploadedEn,

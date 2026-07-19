@@ -23,7 +23,15 @@ type Data = {
   conservaOtros: boolean;
 };
 
-export function RenunciaView({ data }: { data: Data }) {
+export function RenunciaView({
+  data,
+  back = { href: "/socios", label: "Volver al padrón" },
+}: {
+  data: Data;
+  // Enlace "volver": por defecto al padrón; en el contexto de una transferencia
+  // se pasa la ruta del expediente para no perder el hilo del traspaso.
+  back?: { href: string; label: string };
+}) {
   const router = useRouter();
   const hoy = hoyLarga();
   const unPuesto = data.puestos.length === 1;
@@ -36,14 +44,14 @@ export function RenunciaView({ data }: { data: Data }) {
       <div className="constancia-toolbar no-print">
         <button
           className="btn btn--ghost"
-          onClick={() => router.push("/socios")}
+          onClick={() => router.push(back.href)}
         >
           <Icon
             name="chevron-right"
             size={14}
             style={{ transform: "rotate(180deg)" }}
           />
-          <span>Volver al padrón</span>
+          <span>{back.label}</span>
         </button>
         <button className="btn--cta" onClick={() => window.print()}>
           <Icon name="download" size={16} />
