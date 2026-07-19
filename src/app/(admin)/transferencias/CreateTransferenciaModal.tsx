@@ -116,6 +116,11 @@ export function CreateTransferenciaModal({
         setNombres((p) => p || d.nombres);
         if (d.estadoCivil) setEstadoCivil((p) => p || d.estadoCivil!);
         if (d.direccion) setDireccion((p) => p || d.direccion!);
+        // Ubigeo de nacimiento (UBIGEO_NAC, único decodificable en la API):
+        // rellena depto/prov/distrito sin pisar lo que el usuario ya escribió.
+        if (d.distrito) setDistrito((p) => p || d.distrito!);
+        if (d.provincia) setProvincia((p) => p || d.provincia!);
+        if (d.departamento) setDepartamento((p) => p || d.departamento!);
         setDniMsg(`RENIEC · ${d.nombres} ${d.apellidoPaterno}`);
       });
     }, 450);

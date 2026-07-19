@@ -1,4 +1,5 @@
 import "server-only";
+import { lookupUbigeo } from "@/lib/ubigeo";
 
 export type DniLookupResult = {
   apellidoPaterno: string;
@@ -8,6 +9,12 @@ export type DniLookupResult = {
   sexo: "M" | "F" | null;
   estadoCivil: string | null;
   direccion: string | null;
+  // Resueltos desde UBIGEO_NAC (ubigeo de NACIMIENTO): en esta API es el único
+  // ubigeo decodificable (UBIGEO_DIR viene como texto truncado inservible).
+  // null cuando la API no trae ubigeo o el código no está en la tabla.
+  departamento: string | null;
+  provincia: string | null;
+  distrito: string | null;
 };
 
 const ENDPOINT = "https://apidatos.unamad.edu.pe/api/consulta";
@@ -36,6 +43,8 @@ type DniApiResponse = {
   SEXO?: string;
   EST_CIVIL?: string;
   DIRECCION?: string;
+  UBIGEO_DIR?: string; // ubigeo RENIEC del domicilio (6 díg)
+  UBIGEO_NAC?: string; // ubigeo RENIEC de nacimiento (no se usa para domicilio)
 };
 
 export async function lookupDniUnamad(
@@ -68,6 +77,13 @@ export async function lookupDniUnamad(
       fechaNacimiento = data.FECHA_NAC.slice(0, 10);
     }
 
+    // Se resuelve depto/prov/distrito desde UBIGEO_NAC (ubigeo de NACIMIENTO).
+    // En esta API UBIGEO_DIR (domicilio) no es un código sino texto truncado e
+    // inservible ("MADRE ", "LIMA-L"…), mientras que UBIGEO_NAC siempre es un
+    // código RENIEC de 6 dígitos decodificable. Es lo mejor disponible; el
+    // usuario puede corregir los campos (autocompletado no destructivo).
+    const ubigeo = lookupUbigeo(data.UBIGEO_NAC);
+
     return {
       apellidoPaterno: titleCase(data.AP_PAT ?? ""),
       apellidoMaterno: titleCase(data.AP_MAT ?? ""),
@@ -76,6 +92,9 @@ export async function lookupDniUnamad(
       sexo,
       estadoCivil: data.EST_CIVIL ? titleCase(data.EST_CIVIL) : null,
       direccion: nullIfEmpty(data.DIRECCION),
+      departamento: ubigeo ? titleCase(ubigeo.departamento) || null : null,
+      provincia: ubigeo ? titleCase(ubigeo.provincia) || null : null,
+      distrito: ubigeo ? titleCase(ubigeo.distrito) || null : null,
     };
   } finally {
     clearTimeout(t);

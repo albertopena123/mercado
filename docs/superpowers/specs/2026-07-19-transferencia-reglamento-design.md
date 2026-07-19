@@ -210,10 +210,15 @@ automáticamente las mejoras cobradas.
 nombres, estado civil y domicilio (texto), pero **distrito / provincia / departamento quedan
 manuales** — el lookup ignora el ubigeo.
 
-**Hallazgo confirmado (llamada real a la API):** `apidatos.unamad.edu.pe/api/consulta/{dni}`
-sí devuelve `UBIGEO_NAC` (nacimiento) **y** `UBIGEO_DIR` (domicilio), ambos códigos RENIEC de
-6 dígitos, junto a `DIRECCION`. Para los campos de **domicilio** se usa **`UBIGEO_DIR`** (no
-el de nacimiento; `UBIGEO_DIR` es el que acompaña a `DIRECCION`).
+**Hallazgo confirmado (muestreo real de 9 DNI):** `apidatos.unamad.edu.pe/api/consulta/{dni}`
+devuelve `UBIGEO_NAC` y `UBIGEO_DIR`, **pero solo `UBIGEO_NAC` es usable**: es un código
+RENIEC de 6 dígitos decodificable en 9/9 casos, mientras que `UBIGEO_DIR` viene como **texto
+truncado inservible** ("MADRE ", "LIMA-L", "AREQUI"…) en 9/9 casos (no es un código). Por
+tanto **se autocompleta desde `UBIGEO_NAC`** (nacimiento). Salvedad: es el ubigeo de
+nacimiento, no el de domicilio, pero es el único decodificable; el `DIRECCION` de texto sí es
+el domicilio real, y los campos quedan **editables** (autocompletado no destructivo). Se
+implementó y verificó (tsc/eslint verdes); ejemplo real DNI 77493318 → Lima/Lima/Pueblo
+Libre.
 
 **Diseño:**
 1. **Portar el mapeo ubigeo** a mercado_modelo (reutilizado de `busquedanamereniec`):
@@ -224,9 +229,9 @@ el de nacimiento; `UBIGEO_DIR` es el que acompaña a `DIRECCION`).
    - `src/lib/ubigeo/index.ts` — `lookupUbigeo(code)` → `{ departamento, provincia,
      distrito, completo }`; normaliza no-dígitos y rellena cero perdido cuando llega con 5
      dígitos; retorna `null` si el código es inválido/vacío.
-2. **Extender `lookupDniUnamad`** (`src/lib/socios/dni-lookup.ts`): agregar `UBIGEO_DIR` (y
-   `UBIGEO_NAC` por completitud) a `DniApiResponse`; resolver en el servidor con
-   `lookupUbigeo(UBIGEO_DIR)` y sumar a `DniLookupResult`:
+2. **Extender `lookupDniUnamad`** (`src/lib/socios/dni-lookup.ts`): agregar `UBIGEO_NAC` (y
+   `UBIGEO_DIR`) a `DniApiResponse`; resolver en el servidor con
+   `lookupUbigeo(UBIGEO_NAC)` y sumar a `DniLookupResult`:
    `departamento / provincia / distrito` (strings o null). `direccion` se mantiene.
 3. **`CreateTransferenciaModal`**: al resolver el DNI, autocompletar `distrito / provincia /
    departamento` con `(prev) => prev || valor` (respeta lo que el usuario ya escribió), igual
