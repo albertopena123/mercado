@@ -23,10 +23,16 @@ export default async function Page({
     include: {
       asignacionesPuesto: {
         where: { hasta: null },
-        include: { puesto: { select: { codigo: true, dimension: true } } },
+        include: {
+          puesto: { select: { id: true, codigo: true, dimension: true } },
+        },
       },
       cuotas: { where: { estado: "pendiente" }, select: { monto: true } },
-      renuncias: { orderBy: { createdAt: "desc" }, take: 1 },
+      renuncias: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        include: { puesto: { select: { codigo: true, dimension: true } } },
+      },
     },
   });
   if (!socio) notFound();
@@ -40,7 +46,8 @@ export default async function Page({
   }`
     .replace(/\s+/g, " ")
     .trim();
-  const puestos = socio.asignacionesPuesto.map((a) => ({
+  const puestosOpciones = socio.asignacionesPuesto.map((a) => ({
+    id: a.puesto.id,
     codigo: a.puesto.codigo,
     dimension: a.puesto.dimension,
   }));
@@ -50,6 +57,9 @@ export default async function Page({
     ? {
         id: r.id,
         estado: r.estado,
+        puestoId: r.puestoId,
+        puestoCodigo: r.puesto?.codigo ?? null,
+        puestoDimension: r.puesto?.dimension ?? null,
         motivo: r.motivo,
         fechaSolicitud: r.fechaSolicitud.toISOString(),
         actaCdNumero: r.actaCdNumero,
@@ -69,11 +79,11 @@ export default async function Page({
       renuncia={renuncia}
       canWrite={canWrite}
       canChangeState={canChangeState}
+      puestosOpciones={puestosOpciones}
       carta={{
         nombreCompleto,
         tipoDocumento: socio.tipoDocumento,
         numeroDocumento: socio.numeroDocumento,
-        puestos,
         alDia,
       }}
     />

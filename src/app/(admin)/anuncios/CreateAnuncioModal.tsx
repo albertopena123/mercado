@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import type {
   TipoAnuncio,
@@ -23,6 +24,7 @@ export function CreateAnuncioModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   const [titulo, setTitulo] = useState("");
   const [resumen, setResumen] = useState("");
   const [contenido, setContenido] = useState("");
@@ -31,7 +33,6 @@ export function CreateAnuncioModal({
   const [estado, setEstado] = useState<EstadoAnuncio>("borrador");
   const [fijado, setFijado] = useState(false);
   const [validoHasta, setValidoHasta] = useState("");
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,7 +42,6 @@ export function CreateAnuncioModal({
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const res = await createAnuncio({
       titulo,
@@ -55,7 +55,7 @@ export function CreateAnuncioModal({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error);
+      toast.error(res.error);
       if (res.fieldErrors) setFe(res.fieldErrors as Record<string, string>);
       return;
     }
@@ -82,13 +82,6 @@ export function CreateAnuncioModal({
           </button>
         </header>
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <label className="field">
             <span className="field__label">Título</span>
             <input

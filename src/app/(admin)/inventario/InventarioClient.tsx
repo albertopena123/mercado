@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { Pagination } from "@/components/admin/Pagination";
 import { EstadoBienBadge } from "./EstadoBienBadge";
@@ -369,18 +370,18 @@ function ConfirmDelete({
   onDeleted: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useEscClose(true, onClose, busy);
 
   async function confirm() {
     setBusy(true);
-    setError(null);
     const res = await deleteBien(bien.id);
     if (!res.ok) {
-      setError(res.error);
+      toast.error(res.error);
       setBusy(false);
       return;
     }
+    toast.success("Bien eliminado.");
     onDeleted();
   }
 
@@ -398,12 +399,6 @@ function ConfirmDelete({
           </button>
         </header>
         <div className="modal__body">
-          {error && (
-            <div className="inv-error" role="alert">
-              <Icon name="info" size={16} />
-              <span>{error}</span>
-            </div>
-          )}
           <p style={{ margin: 0, lineHeight: 1.55 }}>
             ¿Eliminar <b>{bien.nombre}</b> ({bien.codigo})? Se borrará también su
             historial de movimientos. Esta acción no se puede deshacer.

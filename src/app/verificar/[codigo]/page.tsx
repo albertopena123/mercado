@@ -81,7 +81,10 @@ export default async function Page({
   const { codigo } = await params;
   const code = decodeURIComponent(codigo).trim().toUpperCase();
 
-  const c = await prisma.constancia.findUnique({ where: { codigo: code } });
+  const c = await prisma.constancia.findUnique({
+    where: { codigo: code },
+    include: { socio: { select: { estado: true } } },
+  });
 
   let estado: Estado;
   if (!c) estado = "invalida";
@@ -90,6 +93,37 @@ export default async function Page({
   else estado = "valida";
 
   const s = STATUS[estado];
+
+  // ── Realidad ACTUAL (no solo el snapshot) para prevenir el uso indebido ──
+  // La constancia de socio se presta a exhibirse como "prueba" para vender un
+  // puesto. Por eso, además de autenticidad, mostramos el estado vigente del
+  // socio y si hay una transferencia, y advertimos que NO autoriza ventas.
+  const esConstanciaSocio = !!c && c.tipo !== "no_adeudo";
+  const estadoSocioActual = c?.socio?.estado ?? null;
+  const socioNoActivo =
+    esConstanciaSocio &&
+    !!estadoSocioActual &&
+    estadoSocioActual !== "activo";
+
+  let transferenciaEstado: string | null = null;
+  if (c?.socioId) {
+    const t = await prisma.transferencia.findFirst({
+      where: {
+        transferenteId: c.socioId,
+        estado: { in: ["borrador", "completada"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { estado: true },
+    });
+    transferenciaEstado = t?.estado ?? null;
+  }
+
+  const ESTADO_SOCIO_LABEL: Record<string, string> = {
+    activo: "ACTIVO",
+    suspendido: "SUSPENDIDO",
+    retirado: "RETIRADO",
+    fallecido: "FALLECIDO",
+  };
 
   return (
     <main className={`verif verif--${estado}`}>
@@ -110,6 +144,41 @@ export default async function Page({
             <small>{s.sub}</small>
           </span>
         </div>
+
+        {esConstanciaSocio && (
+          <div className="verif__notice">
+            <b>
+              Este documento NO autoriza la compra, venta ni transferencia de un
+              puesto.
+            </b>{" "}
+            Acredita únicamente la condición de socio. Toda transferencia requiere
+            el procedimiento formal ante el Consejo Directivo y la Asamblea
+            General. Si le ofrecen vender un puesto mostrando esta constancia,
+            confírmelo con la administración antes de entregar dinero.
+          </div>
+        )}
+
+        {socioNoActivo && (
+          <div className="verif__alert">
+            Atención: a la fecha de esta consulta el socio figura como{" "}
+            <b>{ESTADO_SOCIO_LABEL[estadoSocioActual!] ?? estadoSocioActual}</b>,
+            distinto de lo que indicaba el documento al momento de emitirse.
+          </div>
+        )}
+
+        {transferenciaEstado === "completada" && (
+          <div className="verif__alert">
+            Atención: el socio registra una{" "}
+            <b>transferencia de puesto formalizada</b>. Verifique con la
+            administración la titularidad vigente del puesto.
+          </div>
+        )}
+        {transferenciaEstado === "borrador" && (
+          <div className="verif__alert verif__alert--soft">
+            Nota: existe un <b>expediente de transferencia en trámite</b> vinculado
+            a este socio.
+          </div>
+        )}
 
         {c ? (
           <div className="verif__body">
@@ -144,6 +213,20 @@ export default async function Page({
                   : "Constancia de socio"}
               </b>
             </div>
+            {c.motivo && (
+              <div className="verif__row">
+                <span>Se emitió para</span>
+                <b>{c.motivo}</b>
+              </div>
+            )}
+            {esConstanciaSocio && estadoSocioActual && (
+              <div className="verif__row">
+                <span>Estado del socio (actual)</span>
+                <b>
+                  {ESTADO_SOCIO_LABEL[estadoSocioActual] ?? estadoSocioActual}
+                </b>
+              </div>
+            )}
             <div className="verif__row">
               <span>Fecha de emisión</span>
               <b>{fechaHora(c.emitidoEn)}</b>

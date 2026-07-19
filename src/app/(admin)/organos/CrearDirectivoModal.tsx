@@ -52,7 +52,6 @@ export function CrearDirectivoModal({
   );
   const [observaciones, setObservaciones] = useState(editar?.observaciones ?? "");
 
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -86,11 +85,10 @@ export function CrearDirectivoModal({
     e.preventDefault();
     if (submitting) return;
     if (!isEdit && !sel) {
-      setTopError("Selecciona el socio.");
+      toast.error("Selecciona el socio.");
       return;
     }
     setSubmitting(true);
-    setTopError(null);
     setFe({});
 
     const res = isEdit
@@ -113,7 +111,7 @@ export function CrearDirectivoModal({
 
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error);
+      toast.error(res.error);
       if (res.fieldErrors) setFe(res.fieldErrors as Record<string, string>);
       return;
     }
@@ -142,13 +140,6 @@ export function CrearDirectivoModal({
         </header>
 
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           {isEdit ? (
             <label className="field">
               <span className="field__label">Socio</span>

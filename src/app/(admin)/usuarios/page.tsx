@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/auth/server";
 import { UsersClient } from "./UsersClient";
 import type { PermFlags, RoleOption, UserRow } from "./types";
 
-export const metadata = { title: "Usuarios · UNAMAD Admin" };
+export const metadata = { title: "Usuarios · Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

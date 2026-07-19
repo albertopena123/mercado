@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { createPuesto } from "./actions";
 import type { EstadoPuesto, Giro } from "@/generated/prisma/client";
@@ -26,13 +27,13 @@ export function CreatePuestoModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   const [etapa, setEtapa] = useState(1);
   const [bloque, setBloque] = useState("A");
   const [numero, setNumero] = useState("");
   const [giro, setGiro] = useState<Giro | "">("");
   const [estado, setEstado] = useState<EstadoPuesto>("vacio");
   const [observaciones, setObs] = useState("");
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,7 +51,6 @@ export function CreatePuestoModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const input: CreatePuestoInput = {
       etapa,
@@ -62,7 +62,7 @@ export function CreatePuestoModal({
     };
     const res = await createPuesto(input);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo crear el puesto.");
+      toast.error(res.error ?? "No se pudo crear el puesto.");
       setFe((res.fieldErrors as Record<string, string>) ?? {});
       setSubmitting(false);
       return;
@@ -96,13 +96,6 @@ export function CreatePuestoModal({
             partir de etapa, bloque y número. La asignación a un socio se hace
             después desde el detalle.
           </p>
-
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
 
           <div
             className="soc-formgrid"

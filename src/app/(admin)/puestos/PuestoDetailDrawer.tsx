@@ -311,8 +311,8 @@ function LiberarModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const toast = useToast();
   const [motivo, setMotivo] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   useEscClose(true, onClose, pending);
@@ -322,12 +322,11 @@ function LiberarModal({
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!valid || pending) return;
-    setError(null);
     setFe({});
     startTransition(async () => {
       const r = await unassignPuesto(puestoId, motivo.trim());
       if (!r.ok) {
-        setError(r.error);
+        toast.error(r.error);
         setFe((r.fieldErrors as Record<string, string>) ?? {});
         return;
       }
@@ -353,12 +352,6 @@ function LiberarModal({
             Cierra la asignación vigente. El puesto quedará <b>vacío</b> y listo
             para reasignar.
           </p>
-          {error && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 12 }}>
-              <Icon name="info" size={16} />
-              <span>{error}</span>
-            </div>
-          )}
           <label className="field">
             <span className="field__label">
               Motivo<span className="field__req">*</span>
@@ -414,7 +407,6 @@ function DatosForm({
   const [giro, setGiro] = useState<Giro | "">(initial.giro);
   const [estado, setEstado] = useState<EstadoPuesto>(initial.estado);
   const [observaciones, setObs] = useState(initial.observaciones);
-  const [error, setError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -442,7 +434,6 @@ function DatosForm({
       setFe({ numero: `Número inválido (1–${numMax}).` });
       return;
     }
-    setError(null);
     setFe({});
     const patch: UpdatePuestoPatch = {
       etapa,
@@ -455,7 +446,6 @@ function DatosForm({
     startTransition(async () => {
       const r = await updatePuesto(puesto.id, patch);
       if (!r.ok) {
-        setError(r.error);
         setFe((r.fieldErrors as Record<string, string>) ?? {});
         toast.error(r.error);
         return;
@@ -469,12 +459,6 @@ function DatosForm({
 
   return (
     <form onSubmit={submit} className="soc-formgrid">
-      {error && (
-        <div className="soc-error" role="alert">
-          <Icon name="info" size={16} />
-          <span>{error}</span>
-        </div>
-      )}
       <div
         className="soc-formgrid"
         style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}

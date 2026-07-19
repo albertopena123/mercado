@@ -393,3 +393,121 @@
     print-color-adjust: exact;
   }
 }
+
+/* ── Cláusula de no-autorización (se imprime en la constancia de socio) ── */
+.constancia__disclaimer {
+  margin: 22px 0 4px;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-left: 3px solid #b91c1c;
+  border-radius: 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #374151;
+  text-align: justify;
+  background: #fcfcfd;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ── Campo de finalidad (no se imprime; es del formulario de emisión) ── */
+.constancia-motivo {
+  margin-bottom: 16px;
+  max-width: 520px;
+}
+.constancia-motivo__hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Historial de constancias emitidas (no-print) ── */
+.constancia-historial {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.constancia-historial__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.constancia-historial__hint {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  max-width: 640px;
+}
+.constancia-historial__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.constancia-historial__item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+.constancia-historial__item.is-anulada {
+  opacity: 0.7;
+}
+.constancia-historial__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.constancia-historial__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.constancia-historial__folio {
+  color: var(--text-muted);
+}
+.constancia-historial__badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.constancia-historial__badge.is-vigente {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.constancia-historial__badge.is-vencida {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.constancia-historial__badge.is-anulada {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.constancia-historial__meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.constancia-historial__anulmotivo {
+  color: #991b1b;
+}
+.constancia-historial__anular {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.constancia-historial__anular input {
+  flex: 1;
+  min-width: 200px;
+}

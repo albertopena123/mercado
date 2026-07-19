@@ -8,7 +8,7 @@ import type {
   RoleRow,
 } from "./types";
 
-export const metadata = { title: "Roles · UNAMAD Admin" };
+export const metadata = { title: "Roles · Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

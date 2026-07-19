@@ -5,8 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/admin/Icon";
 import { avatarColor, initialsFor } from "@/lib/ui/avatar";
 import { formatDateOnly, formatFullDate } from "@/lib/ui/dates";
+import { useToast } from "@/components/admin/toast";
 import { ConfirmDialog } from "../usuarios/ConfirmDialog";
-import { Toasts, type Toast } from "../usuarios/Toasts";
 import {
   createRole,
   deleteRole,
@@ -38,6 +38,7 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   // URL state
   const roleId = params.get("role");
@@ -90,14 +91,6 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
   // Inline permission editing state
   const [pendingPerms, setPendingPerms] = useState<Set<string> | null>(null);
   const isEditingPerms = pendingPerms !== null;
-
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const pushToast = useCallback((kind: Toast["kind"], message: string) => {
-    setToasts((t) => [...t, { id: Date.now() + Math.random(), kind, message }]);
-  }, []);
-  const dismissToast = useCallback((id: number) => {
-    setToasts((t) => t.filter((x) => x.id !== id));
-  }, []);
 
   // Mounted gate for hydration-safe date rendering. useSyncExternalStore evita el
   // setState-en-effect: devuelve false en SSR/hidratación y true ya en cliente.
@@ -209,11 +202,10 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
   const warnSystemReadonly = useCallback(() => {
     if (!active || systemWarningShownFor.current === active.id) return;
     systemWarningShownFor.current = active.id;
-    pushToast(
-      "error",
+    toast.error(
       `"${active.name}" es un rol del sistema. Duplícalo para editar permisos.`,
     );
-  }, [active, pushToast]);
+  }, [active, toast]);
 
   const togglePerm = (key: string) => {
     if (!active) return;
@@ -257,11 +249,11 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     const res = await setRolePermissions(active.id, [...pendingPerms]);
     setBusy(false);
     if (res.ok) {
-      pushToast("success", "Permisos actualizados.");
+      toast.success("Permisos actualizados.");
       setPendingPerms(null);
       startTransition(() => router.refresh());
     } else {
-      pushToast("error", res.error);
+      toast.error(res.error);
     }
   };
 
@@ -280,11 +272,11 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     });
     setBusy(false);
     if (res.ok) {
-      pushToast("success", "Rol actualizado.");
+      toast.success("Rol actualizado.");
       setEditingMeta(false);
       startTransition(() => router.refresh());
     } else {
-      pushToast("error", res.error);
+      toast.error(res.error);
     }
   };
 
@@ -296,7 +288,7 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
   }) => {
     const res = await createRole(input);
     if (res.ok) {
-      pushToast("success", `Rol "${input.name}" creado.`);
+      toast.success(`Rol "${input.name}" creado.`);
       // Select the new role
       setParams({ role: res.data?.id ?? null });
       startTransition(() => router.refresh());
@@ -310,12 +302,12 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     const res = await deleteRole(deletingRole.id);
     setBusy(false);
     if (res.ok) {
-      pushToast("success", `Rol "${deletingRole.name}" eliminado.`);
+      toast.success(`Rol "${deletingRole.name}" eliminado.`);
       setDeletingRole(null);
       setParams({ role: null });
       startTransition(() => router.refresh());
     } else {
-      pushToast("error", res.error);
+      toast.error(res.error);
     }
   };
 
@@ -328,14 +320,12 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
     );
     setBusy(false);
     if (res.ok) {
-      pushToast(
-        "success",
-        `${removingUser.userName} ya no tiene este rol.`,
+      toast.success(`${removingUser.userName} ya no tiene este rol.`,
       );
       setRemovingUser(null);
       startTransition(() => router.refresh());
     } else {
-      pushToast("error", res.error);
+      toast.error(res.error);
     }
   };
 
@@ -949,8 +939,6 @@ export function RolesView({ rows, available, totalUsers, perms }: Props) {
           onClose={() => setRemovingUser(null)}
         />
       )}
-
-      <Toasts items={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

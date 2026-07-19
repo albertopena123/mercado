@@ -41,6 +41,7 @@ model User {
   asistenciasReg        Asistencia[]       @relation("AsistenciaBy")
   cuotasPago            Cuota[]            @relation("CuotaPagoBy")
   constanciasEmitidas   Constancia[]       @relation("ConstanciaEmitidoPor")
+  constanciasAnuladas   Constancia[]       @relation("ConstanciaAnuladaPor")
   comprobantesEmitidos  Comprobante[]      @relation("ComprobanteEmitidoPor")
   transferenciasCreadas Transferencia[]    @relation("TransferenciaCreatedBy")
   transferenciasRenunciaSubidas Transferencia[] @relation("TransferenciaRenunciaUploadedBy")
@@ -56,6 +57,7 @@ model User {
   movimientosBien       MovimientoBien[]   @relation("MovimientoBienBy")
   directivosReg         Directivo[]        @relation("DirectivoBy")
   renunciasCreadas      Renuncia[]         @relation("RenunciaCreatedBy")
+  guardianiaPagosReg    GuardianiaPago[]   @relation("GuardianiaPagoBy")
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([active])
@@ -177,10 +179,6 @@ model Socio {
   estado        EstadoSocio @default(activo)
   observaciones String?
 
-  // Saldo a favor (S/) acumulado cuando un pago por monto excede las cuotas
-  // pendientes; se consume en el siguiente pago.
-  saldoAFavor Decimal @default(0) @db.Decimal(10, 2)
-
   // Concatenación normalizada (lowercase, sin tildes) de codigo + documento +
   // apellidos + nombres. Permite búsqueda accent-insensitive sin extensiones
   // de Postgres. Se mantiene en createSocio/updateSocio y en el seed.
@@ -214,6 +212,8 @@ model Socio {
   renuncias                      Renuncia[]
   solicitudesActualizacion       SolicitudActualizacionDatos[]
   registrosPublicos              SolicitudRegistroPublico[]     @relation("RegistroPublicoSocio")
+  guardianiaPagos                GuardianiaPago[]
+  guardianiaCuentas              GuardianiaCuenta[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -384,6 +384,12 @@ model Renuncia {
   id      String @id @default(cuid())
   socioId String
 
+  // Puesto al que se renuncia (cesión de UN puesto, típicamente para
+  // transferirlo). null = renuncia TOTAL a la condición de socio (libera todos
+  // los puestos + baja). Con puestoId, al efectivizar se libera SOLO ese puesto
+  // y el socio se retira únicamente si era su último puesto vigente.
+  puestoId String?
+
   estado         EstadoRenuncia @default(solicitada)
   motivo         String?
   fechaSolicitud DateTime       @default(now())
@@ -405,11 +411,13 @@ model Renuncia {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  socio     Socio @relation(fields: [socioId], references: [id], onDelete: Cascade)
-  createdBy User? @relation("RenunciaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  socio     Socio   @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  puesto    Puesto? @relation("RenunciaPuesto", fields: [puestoId], references: [id], onDelete: SetNull)
+  createdBy User?   @relation("RenunciaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([socioId])
   @@index([estado])
+  @@index([puestoId])
 }
 
 // ─────────────────────────── Puestos ───────────────────────────
@@ -476,8 +484,11 @@ model Puesto {
 
   createdBy      User?              @relation("PuestoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy      User?              @relation("PuestoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  asignaciones   PuestoAsignacion[]
-  transferencias Transferencia[]
+  asignaciones     PuestoAsignacion[]
+  transferencias   Transferencia[]
+  renuncias        Renuncia[]         @relation("RenunciaPuesto")
+  guardianiaPagos  GuardianiaPago[]
+  guardianiaCuenta GuardianiaCuenta?
 
   @@unique([etapa, bloque, fila, numero])
   @@index([estado])
@@ -651,6 +662,7 @@ enum EstadoCuota {
   pendiente
   pagada
   anulada
+  exonerada
 }
 
 model Cuota {
@@ -669,6 +681,9 @@ model Cuota {
   // cuota de autovalúo (concepto ILIKE '%autoval%'), evitando que un recibo se
   // use para "pagar" el autovalúo de otro año.
   nroOperacion String?
+  // Motivo/descripción cuando la cuota se EXONERA (se perdona la deuda). La
+  // exoneración la registra tesorería/administración y siempre lleva descripción.
+  motivo       String?
   byUserId     String?
   createdById  String?
   createdAt    DateTime    @default(now())
@@ -721,10 +736,24 @@ model Constancia {
   validoHasta DateTime?
   anulada     Boolean   @default(false)
 
+  // Finalidad declarada al emitir (para qué se solicita). Se imprime en el
+  // documento y se muestra en la verificación por QR. Obligatoria en la
+  // constancia de socio (membresía); opcional en la de no adeudo.
+  motivo String?
+
+  // Anulación (revocación) con auditoría. Al emitir una nueva constancia de
+  // socio se anulan automáticamente las vigentes anteriores del mismo socio
+  // (una sola vigente por socio), de modo que toda copia impresa/fotocopia
+  // pasa a verificarse como ANULADA.
+  anuladaEn       DateTime?
+  anuladaPorId    String?
+  motivoAnulacion String?
+
   emitidoPorId String?
 
   socio      Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
   emitidoPor User?  @relation("ConstanciaEmitidoPor", fields: [emitidoPorId], references: [id], onDelete: SetNull)
+  anuladaPor User?  @relation("ConstanciaAnuladaPor", fields: [anuladaPorId], references: [id], onDelete: SetNull)
 
   @@index([socioId])
   @@index([emitidoEn])
@@ -1039,8 +1068,8 @@ model MovimientoBien {
 // ─────────────────────────── Idempotencia de pagos ───────────────────────────
 //
 // Clave de idempotencia para el pago por monto (pagarPorMonto): evita que un
-// doble-submit acredite dos veces el saldo a favor. El cliente genera un UUID por
-// apertura del modal de pago y la acción lo inserta DENTRO de la misma
+// doble-submit vuelva a saldar cuotas (cobrar dos veces). El cliente genera un
+// UUID por apertura del modal de pago y la acción lo inserta DENTRO de la misma
 // transacción del pago; una segunda llamada con la misma clave choca con el @id
 // (PK) y se rechaza sin re-aplicar. Si el pago falla por otra causa, la fila se
 // revierte con la tx y un reintento legítimo con la misma clave funciona.
@@ -1050,4 +1079,88 @@ model PagoIdempotencia {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// ─────────────────────────── Guardianía / Seguridad ───────────────────────────
+//
+// Ingresos por guardianía: una cuota MENSUAL por puesto que cobra un responsable
+// emitiendo un recibo (N° RECIBO). Un mismo recibo puede cubrir varios meses y
+// varios puestos. Modela la matriz histórica del Excel de seguridad 2023-2025 +
+// los pagos nuevos que se registren.
+//
+// - GuardianiaPago  = una LÍNEA de pago (recibo · mes cubierto · importe). Es la
+//   unidad atómica y la fuente de verdad de los INGRESOS.
+// - GuardianiaCuenta = la cuenta por puesto del padrón OFICIAL vigente; sostiene
+//   el cálculo de MOROSIDAD (meses esperados − meses cubiertos).
+enum GuardianiaOrigen {
+  import // migrado del Excel histórico
+  manual // registrado desde el sistema
+}
+
+model GuardianiaPago {
+  id String @id @default(cuid())
+
+  // Fecha en que se COBRÓ (calendario, medianoche UTC — ver src/lib/fecha.ts).
+  fecha       DateTime
+  nroRecibo   String? // N° RECIBO emitido por el responsable
+  // Mes CUBIERTO por el pago "YYYY-MM". Se deriva de la POSICIÓN de la columna en
+  // la matriz (no del texto "MARZO"/"JUL-OCT"), que es inequívoca.
+  periodo     String
+  mesEtiqueta String? // etiqueta cruda del Excel, para trazabilidad
+  importe     Decimal @db.Decimal(10, 2)
+
+  // Vínculo con el padrón/puestos OFICIAL (SetNull) + snapshot para robustez:
+  // aunque el socio/puesto cambie o el pago sea de alguien ya no empadronado, la
+  // línea histórica conserva a quién/qué correspondía.
+  socioId      String?
+  puestoId     String?
+  etapa        Int?
+  bloque       String?
+  numeroPuesto Int?
+  parcela      String?
+  socioNombre  String
+  numeroPadron Int?
+
+  responsable String?
+  metodoPago  String?
+  origen      GuardianiaOrigen @default(manual)
+  observacion String?
+  searchKey   String           @default("")
+
+  registradoPorId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  socio         Socio?  @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  puesto        Puesto? @relation(fields: [puestoId], references: [id], onDelete: SetNull)
+  registradoPor User?   @relation("GuardianiaPagoBy", fields: [registradoPorId], references: [id], onDelete: SetNull)
+
+  @@index([periodo])
+  @@index([fecha])
+  @@index([nroRecibo])
+  @@index([socioId])
+  @@index([puestoId])
+  @@index([searchKey])
+}
+
+model GuardianiaCuenta {
+  id       String  @id @default(cuid())
+  puestoId String  @unique
+  socioId  String?
+
+  tarifaMensual Decimal  @db.Decimal(10, 2) // tarifa vigente (3×5=45, 3×3=30)
+  inicioPeriodo String // "YYYY-MM" desde cuándo se debe guardianía
+  activo        Boolean  @default(true)
+  // "DEUDA PENDIENTE" que traía el Excel: solo referencia (la deuda real la
+  // calcula el módulo a partir de los pagos).
+  deudaBaseline Decimal? @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  puesto Puesto @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  socio  Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
+
+  @@index([socioId])
+  @@index([activo])
 }

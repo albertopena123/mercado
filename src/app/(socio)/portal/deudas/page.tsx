@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DeudasPage() {
   const { socio } = await requireSocio();
-  const { deuda, saldoAFavor, cuotas } = await getMisCuotas(socio.id);
+  const { deuda, cuotas } = await getMisCuotas(socio.id);
 
   return (
     <>
@@ -27,11 +27,6 @@ export default async function DeudasPage() {
       <div className={`pt-banner ${deuda > 0 ? "pt-banner--debt" : "pt-banner--ok"}`}>
         <span>{deuda > 0 ? "Debes" : "Estás al día"}</span>
         {deuda > 0 && <span className="pt-banner__amount">{formatSoles(deuda)}</span>}
-        {saldoAFavor > 0 && (
-          <span style={{ marginLeft: "auto", fontWeight: 600 }}>
-            Saldo a favor: {formatSoles(saldoAFavor)}
-          </span>
-        )}
       </div>
 
       <section className="pt-panel">

@@ -98,6 +98,39 @@ export type FormalizarResult = {
   transferenteRetirado: boolean;
 };
 
+// Datos del adquiriente de UNA línea del lote (un puesto).
+export type AdquirienteInput = {
+  adqTipoDocumento: TipoDocumento;
+  adqNumeroDocumento: string;
+  adqApellidoPaterno: string;
+  adqApellidoMaterno?: string;
+  adqNombres: string;
+  adqEstadoCivil?: string;
+  adqDireccion?: string;
+  adqDistrito?: string;
+  adqProvincia?: string;
+  adqDepartamento?: string;
+  adqTelefono?: string;
+};
+
+// Una línea del lote: un puesto del vendedor con su adquiriente y precio.
+export type LineaTransferenciaInput = AdquirienteInput & {
+  puestoId: string;
+  monto?: number | null;
+};
+
+// Creación en lote: varios puestos de un mismo vendedor, cada uno su expediente.
+export type CreateLoteInput = {
+  transferenteId: string;
+  fecha: string;
+  lineas: LineaTransferenciaInput[];
+};
+
+export type LoteResult = {
+  created: { puestoId: string; id: string }[];
+  failed: { puestoId: string; error: string }[];
+};
+
 export type TransferenteOption = {
   id: string;
   codigo: string;

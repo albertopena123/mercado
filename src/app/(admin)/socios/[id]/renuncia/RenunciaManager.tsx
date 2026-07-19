@@ -26,9 +26,10 @@ type Carta = {
   nombreCompleto: string;
   tipoDocumento: string;
   numeroDocumento: string;
-  puestos: { codigo: string; dimension: DimensionPuesto }[];
   alDia: boolean;
 };
+
+type PuestoOpcion = { id: string; codigo: string; dimension: DimensionPuesto };
 
 const BADGE: Record<string, { bg: string; fg: string }> = {
   solicitada: { bg: "#fef3c7", fg: "#92400e" },
@@ -62,6 +63,7 @@ export function RenunciaManager({
   renuncia,
   canWrite,
   canChangeState,
+  puestosOpciones,
   carta,
 }: {
   socioId: string;
@@ -69,6 +71,7 @@ export function RenunciaManager({
   renuncia: RenunciaData | null;
   canWrite: boolean;
   canChangeState: boolean;
+  puestosOpciones: PuestoOpcion[];
   carta: Carta;
 }) {
   const router = useRouter();
@@ -85,6 +88,43 @@ export function RenunciaManager({
   const [rechazando, setRechazando] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState("");
   const [confirmEfectivizar, setConfirmEfectivizar] = useState(false);
+
+  // Alcance de una NUEVA solicitud. "TOTAL" = renuncia a la condición de socio
+  // (libera todos). Un id = cesión de ese puesto. Con 0 o 1 puesto, ceder = irse
+  // → default TOTAL. Con varios, default al primero (elegible), sin pisar todo.
+  const soloUnPuesto = puestosOpciones.length <= 1;
+  const [alcance, setAlcance] = useState<string>(
+    soloUnPuesto ? "TOTAL" : puestosOpciones[0].id,
+  );
+
+  // Scope efectivo: si ya existe el expediente, manda su puestoId; si se está
+  // creando, la selección de arriba. Es "total" cuando no hay puesto acotado o
+  // cuando el socio tiene un solo puesto (cederlo equivale a irse).
+  const scopePuestoId = renuncia
+    ? renuncia.puestoId
+    : alcance === "TOTAL"
+      ? null
+      : alcance;
+  const esTotal = scopePuestoId == null || soloUnPuesto;
+  const puestoScoped =
+    scopePuestoId != null
+      ? (puestosOpciones.find((p) => p.id === scopePuestoId) ?? null)
+      : null;
+  const codigoScoped =
+    puestoScoped?.codigo ?? renuncia?.puestoCodigo ?? null;
+  const cartaPuestos: { codigo: string; dimension: DimensionPuesto }[] = esTotal
+    ? puestosOpciones.map((p) => ({ codigo: p.codigo, dimension: p.dimension }))
+    : puestoScoped
+      ? [{ codigo: puestoScoped.codigo, dimension: puestoScoped.dimension }]
+      : renuncia?.puestoCodigo && renuncia.puestoDimension
+        ? [
+            {
+              codigo: renuncia.puestoCodigo,
+              dimension: renuncia.puestoDimension,
+            },
+          ]
+        : [];
+  const conservaOtros = !esTotal && puestosOpciones.length > 1;
 
   const estado = renuncia?.estado ?? null;
   const enTramite =
@@ -110,7 +150,12 @@ export function RenunciaManager({
 
   async function onCrear() {
     await run(
-      () => crearRenuncia(socioId, { motivo, observaciones }),
+      () =>
+        crearRenuncia(socioId, {
+          motivo,
+          observaciones,
+          puestoId: alcance === "TOTAL" ? null : alcance,
+        }),
       "Solicitud de renuncia registrada.",
     );
   }
@@ -211,8 +256,17 @@ export function RenunciaManager({
           <Icon name="check" size={16} />
           <span>
             Renuncia <b>efectiva</b>
-            {renuncia?.efectivaEn ? ` (${fechaHora(renuncia.efectivaEn)})` : ""}.
-            El socio quedó <b>retirado</b> y sus puestos fueron liberados.
+            {renuncia?.efectivaEn ? ` (${fechaHora(renuncia.efectivaEn)})` : ""}.{" "}
+            {estadoSocio === "retirado" ? (
+              <>
+                El socio quedó <b>retirado</b> y sus puestos fueron liberados.
+              </>
+            ) : (
+              <>
+                Se liberó el puesto <b>{codigoScoped ?? "—"}</b> (cesión
+                registrada). El socio <b>conserva</b> su condición.
+              </>
+            )}
           </span>
         </div>
       )}
@@ -263,6 +317,14 @@ export function RenunciaManager({
             })}
           </div>
           <Row label="Solicitada" value={fechaHora(renuncia.fechaSolicitud)} />
+          <Row
+            label="Alcance"
+            value={
+              renuncia.puestoId
+                ? `Cesión del puesto ${renuncia.puestoCodigo ?? "—"}`
+                : "Renuncia total (condición de socio)"
+            }
+          />
           {renuncia.motivo && <Row label="Motivo" value={renuncia.motivo} />}
           <Row
             label="Acta Consejo Directivo"
@@ -295,6 +357,65 @@ export function RenunciaManager({
             por el Consejo Directivo y ratificada por la Asamblea General
             (Estatuto Art. 8).
           </p>
+
+          {puestosOpciones.length > 1 && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Alcance de la renuncia</label>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  marginTop: 8,
+                }}
+              >
+                {puestosOpciones.map((p) => (
+                  <label
+                    key={p.id}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "flex-start",
+                      fontSize: 14,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="alcance-renuncia"
+                      checked={alcance === p.id}
+                      onChange={() => setAlcance(p.id)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      Ceder solo el puesto <b>{p.codigo}</b> — conserva su
+                      condición de socio y sus demás puestos.
+                    </span>
+                  </label>
+                ))}
+                <label
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-start",
+                    fontSize: 14,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="alcance-renuncia"
+                    checked={alcance === "TOTAL"}
+                    onChange={() => setAlcance("TOTAL")}
+                    style={{ marginTop: 3 }}
+                  />
+                  <span>
+                    <b>Renuncia total</b> a la condición de socio — libera todos
+                    sus puestos y causa baja.
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
           <label style={labelStyle}>
             Motivo (opcional)
             <textarea
@@ -421,8 +542,18 @@ export function RenunciaManager({
         <section className="pt-panel" style={{ marginBottom: 20 }}>
           <h2 style={{ marginTop: 0 }}>Efectivizar renuncia</h2>
           <p style={{ color: "var(--text-muted)", fontSize: 13.5, marginTop: 0 }}>
-            Al efectivizar, el socio pasa a <b>retirado</b> y se liberan todos sus
-            puestos (quedan vacíos). Esta acción es definitiva.
+            {esTotal ? (
+              <>
+                Al efectivizar, el socio pasa a <b>retirado</b> y se liberan
+                todos sus puestos (quedan vacíos). Esta acción es definitiva.
+              </>
+            ) : (
+              <>
+                Al efectivizar, se libera el puesto <b>{codigoScoped ?? "—"}</b>{" "}
+                (queda vacío). El socio <b>conserva</b> su condición y sus demás
+                puestos. Esta acción es definitiva.
+              </>
+            )}
           </p>
           {canChangeState ? (
             <button
@@ -493,20 +624,44 @@ export function RenunciaManager({
 
       {/* Carta imprimible: única parte que sale en la impresión. RenunciaView
           trae su propia barra (no-print) con el botón Imprimir / Guardar PDF. */}
-      <RenunciaView data={carta} />
+      <RenunciaView
+        data={{
+          nombreCompleto: carta.nombreCompleto,
+          tipoDocumento: carta.tipoDocumento,
+          numeroDocumento: carta.numeroDocumento,
+          alDia: carta.alDia,
+          puestos: cartaPuestos,
+          alcanceTotal: esTotal,
+          conservaOtros,
+        }}
+      />
 
       {confirmEfectivizar && renuncia && (
         <ConfirmDialog
           title="Efectivizar renuncia"
           description={
-            <>
-              Esta acción es <b>definitiva</b>. Se hará, en una sola operación:
-              <div style={{ marginTop: 8 }}>
-                · El socio <b>{carta.nombreCompleto}</b> pasa a estado{" "}
-                <b>retirado</b>.
-              </div>
-              <div>· Se liberan todos sus puestos (quedan vacíos).</div>
-            </>
+            esTotal ? (
+              <>
+                Esta acción es <b>definitiva</b>. Se hará, en una sola operación:
+                <div style={{ marginTop: 8 }}>
+                  · El socio <b>{carta.nombreCompleto}</b> pasa a estado{" "}
+                  <b>retirado</b>.
+                </div>
+                <div>· Se liberan todos sus puestos (quedan vacíos).</div>
+              </>
+            ) : (
+              <>
+                Esta acción es <b>definitiva</b>. Se hará, en una sola operación:
+                <div style={{ marginTop: 8 }}>
+                  · Se libera el puesto <b>{codigoScoped ?? "—"}</b> (queda
+                  vacío) y se registra su cesión.
+                </div>
+                <div>
+                  · El socio <b>{carta.nombreCompleto}</b> <b>conserva</b> su
+                  condición de socio y sus demás puestos.
+                </div>
+              </>
+            )
           }
           confirmLabel="Efectivizar"
           busy={pending}

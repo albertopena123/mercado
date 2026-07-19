@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import type { TipoMovBien } from "@/generated/prisma/client";
 import { registrarMovimiento } from "./actions";
@@ -25,8 +26,8 @@ export function MovimientoBienModal({
   const [tipo, setTipo] = useState<TipoMovBien>("entrada");
   const [cantidad, setCantidad] = useState("1");
   const [motivo, setMotivo] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
   useEscClose(true, onClose, submitting);
 
@@ -47,7 +48,6 @@ export function MovimientoBienModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setError(null);
     const res = await registrarMovimiento({
       bienId: bien.id,
       tipo,
@@ -55,10 +55,11 @@ export function MovimientoBienModal({
       motivo: motivo.trim() || undefined,
     });
     if (!res.ok) {
-      setError(res.error);
+      toast.error(res.error);
       setSubmitting(false);
       return;
     }
+    toast.success("Movimiento registrado.");
     onSaved();
   }
 
@@ -81,13 +82,6 @@ export function MovimientoBienModal({
           <p className="modal__intro">
             {bien.codigo} · <b>{bien.nombre}</b>
           </p>
-
-          {error && (
-            <div className="inv-error" role="alert">
-              <Icon name="info" size={16} />
-              <span>{error}</span>
-            </div>
-          )}
 
           <label className="field">
             <span className="field__label">Tipo de movimiento</span>

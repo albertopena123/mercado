@@ -65,6 +65,12 @@ parte) quedan **fuera de alcance** de este spec (ver §9).
    puestos vigentes tras la venta). Si conserva otros puestos, no se exige (evita la
    contradicción de "renuncia total" vendiendo 1 de varios). Caso mayoritario en el mercado:
    1 puesto → siempre se exige.
+   > **Actualización (2026-07-19):** el expediente `Renuncia` ya es **por puesto** (migración
+   > `20260719173258_renuncia_por_puesto`, ver memoria `renuncia-por-puesto`): con `puestoId`
+   > cede solo ese puesto y retira al socio únicamente si era el último. Al construir esta
+   > Parte 1, **revisar** esta decisión: ahora una transferencia del puesto X puede enlazar
+   > una renuncia **acotada a X** siempre (no solo cuando se retira), lo cual es más fiel al
+   > reglamento y más simple. Confirmar con el usuario antes de implementar el enlace.
 3. **Evidencia física:** se **mantienen** ambos escaneos firmados (carta de renuncia +
    contrato) **además** de los expedientes vinculados (Renuncia ratificada + Constancia con
    QR). Máximo respaldo documental.
@@ -145,6 +151,12 @@ lo indicado.
   documenta en el aviso de la UI).
 
 ## 7. `formalizarTransferencia` — candados nuevos
+
+> **Actualización (2026-07-19):** ya se implementó la **venta en lote** (varios puestos, 1
+> expediente c/u — `createTransferenciasLote`) y un cambio en `formalizarTransferencia`: si el
+> documento del adquiriente **ya pertenece a un socio**, se le **asigna** el puesto (Art. 26-i)
+> en vez de rechazar; si no, se da de alta. Ver memoria `transferencia-multipuesto`. Al añadir
+> los candados de abajo, respetar esa resolución del adquiriente (existente vs nuevo).
 
 Dentro de la transacción existente (tras `FOR UPDATE` del puesto), además de los actuales
 (deuda = 0, `renunciaUrl` + `contratoUrl` subidos, asignación vigente):

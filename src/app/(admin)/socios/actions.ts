@@ -10,6 +10,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { esDocumentoPendiente } from "@/lib/socios/document";
 import { nextCodigoFromList } from "@/lib/socios/codigo";
 import { buildStyledXlsx, type XlsxColumn, type XlsxValue } from "@/lib/xlsx";
+import { ORG } from "@/lib/org";
 import {
   buildSocioSearchKey,
   normalizeToken,
@@ -375,7 +376,7 @@ export async function exportSociosXlsx(params: {
     const buf = buildStyledXlsx({
       sheetName: "Padrón de socios",
       title: "Padrón de socios",
-      subtitle: "Feria Mayorista Internacional Milagros",
+      subtitle: ORG.nombre,
       meta: [
         `Generado el ${generado} (hora de Lima)`,
         filtros.length ? `Filtros: ${filtros.join(" · ")}` : "Sin filtros — padrón completo",

@@ -1,0 +1,284 @@
+/* Estado de cuenta del socio — vista de detalle de deuda y pagos. Reutiliza las
+   clases de socios/cuotas (socios-page, soc-stats, socios-table, cuo-*) y añade
+   solo lo propio de esta página. */
+
+.ec-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+/* Acciones por fila (Pagar / Exonerar / Revertir) */
+.ec-rowactions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Celda de pago cuando la cuota está exonerada */
+.ec-pago--exon {
+  color: #3730a3;
+}
+.ec-exon-label {
+  font-weight: 600;
+}
+.ec-exon-motivo {
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 260px;
+}
+
+/* Solo hay 3 indicadores (no 5 como en el listado), y no son filtros clicables:
+   grilla de 3 y sin cursor de botón para no confundir. */
+.ec-page .soc-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 520px;
+}
+.ec-page .soc-stat {
+  cursor: default;
+}
+.ec-page .soc-stat:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.ec-page .soc-stat:active {
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .ec-page .soc-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ec-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.ec-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ec-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Panel guía "Cómo registrar un pago" */
+.ec-how {
+  margin: 4px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  border-radius: 12px;
+}
+
+.ec-how__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #075985;
+}
+
+.ec-how__list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #0c4a6e;
+}
+
+.ec-how__list b {
+  color: #082f49;
+}
+
+.ec-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.ec-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* Filtros de la tabla (búsqueda + chips por estado) */
+.ec-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0 12px;
+}
+.ec-search {
+  position: relative;
+  flex: 1 1 300px;
+  min-width: 200px;
+  max-width: 400px;
+}
+.ec-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.ec-search input {
+  width: 100%;
+  padding: 8px 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ec-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ec-search__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ec-search__clear:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.ec-fchips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ec-fchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ec-fchip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.ec-fchip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ec-fchip span {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.ec-countline {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.ec-countline b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabla de cuotas */
+.ec-concepto {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ec-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ec-tag--auto {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ec-venc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.ec-pago {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.ec-nroop {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .ec-how__list {
+    font-size: 12.5px;
+  }
+}

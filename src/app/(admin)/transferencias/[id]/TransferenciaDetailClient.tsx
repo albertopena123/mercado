@@ -54,6 +54,38 @@ export function TransferenciaDetailClient({
   const editable = esBorrador && canWrite;
   const faltanDocs = !t.renunciaUrl || !t.contratoUrl;
   const puedeFormalizar = !conDeuda && !faltanDocs;
+
+  const requisitos: {
+    ok: boolean;
+    label: string;
+    okText: React.ReactNode;
+    pendiente: React.ReactNode;
+  }[] = [
+    {
+      ok: !conDeuda,
+      label: "Transferente sin deuda",
+      okText: "Al día",
+      pendiente: (
+        <>
+          Debe <b>{formatSoles(t.transferenteDeuda)}</b> ·{" "}
+          <a href={`/socios/${t.transferenteId}/deudas`}>ver estado de cuenta</a>
+        </>
+      ),
+    },
+    {
+      ok: !!t.renunciaUrl,
+      label: "Carta de renuncia firmada",
+      okText: "Firmada y cargada",
+      pendiente: "Imprime la plantilla, fírmala, escanéala y súbela abajo",
+    },
+    {
+      ok: !!t.contratoUrl,
+      label: "Contrato de transferencia firmado",
+      okText: "Firmado y cargado",
+      pendiente: "Imprime la plantilla, fírmalo, escanéalo y súbelo abajo",
+    },
+  ];
+  const pendientes = requisitos.filter((r) => !r.ok).length;
   const adq = t.adquiriente;
   const adqNombre = `${adq.nombres} ${adq.apellidoPaterno} ${adq.apellidoMaterno ?? ""}`
     .replace(/\s+/g, " ")
@@ -226,14 +258,44 @@ export function TransferenciaDetailClient({
           </span>
         </div>
       )}
-      {esBorrador && conDeuda && (
-        <div className="tr-note tr-note--warn">
-          <Icon name="info" size={16} />
-          <span>
-            El transferente mantiene una deuda de{" "}
-            <b>{formatSoles(t.transferenteDeuda)}</b>. Debe regularizarla antes de
-            poder formalizar la transferencia.
-          </span>
+      {esBorrador && (
+        <div className={`tr-gate${puedeFormalizar ? " tr-gate--ready" : ""}`}>
+          <div className="tr-gate__head">
+            <Icon name="check" size={16} />
+            <span className="tr-gate__title">
+              Requisitos para formalizar
+            </span>
+            {puedeFormalizar ? (
+              <span className="tr-gate__chip tr-gate__chip--ready">
+                <Icon name="check" size={13} /> Listo para formalizar
+              </span>
+            ) : (
+              <span className="tr-gate__chip tr-gate__chip--pending">
+                {pendientes} {pendientes === 1 ? "pendiente" : "pendientes"}
+              </span>
+            )}
+          </div>
+          {requisitos.map((r, i) => (
+            <div className="tr-gate__req" key={i}>
+              <span
+                className={`tr-gate__reqicon ${
+                  r.ok ? "tr-gate__reqicon--ok" : "tr-gate__reqicon--pending"
+                }`}
+              >
+                <Icon name={r.ok ? "check" : "info"} size={16} />
+              </span>
+              <span className="tr-gate__reqtxt">
+                <span className="tr-gate__reqlabel">{r.label}</span>
+                <span
+                  className={`tr-gate__reqstate${
+                    r.ok ? " tr-gate__reqstate--ok" : ""
+                  }`}
+                >
+                  {r.ok ? r.okText : r.pendiente}
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -387,13 +449,6 @@ export function TransferenciaDetailClient({
               <span>Anular</span>
             </button>
           </div>
-          {faltanDocs && !conDeuda && (
-            <p className="tr-gatehint" style={{ marginTop: 10 }}>
-              <Icon name="info" size={13} />
-              Sube la carta de renuncia y el contrato <b>firmados</b> para
-              habilitar la formalización.
-            </p>
-          )}
         </div>
       )}
 

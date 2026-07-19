@@ -16,7 +16,8 @@ import { generarCodigoVerificacion, anioLima } from "@/lib/constancia/codigo";
 import { generarQrSvg } from "@/lib/constancia/qr";
 import { appBaseUrl } from "@/lib/url";
 import { currentQrToken } from "@/lib/asambleas/qrToken";
-import { buildXlsx } from "@/lib/xlsx";
+import { buildStyledXlsx, type XlsxColumn } from "@/lib/xlsx";
+import { ORG } from "@/lib/org";
 import { esDocumentoPendiente } from "@/lib/socios/document";
 import type {
   ActionResult,
@@ -143,6 +144,7 @@ export async function getAsamblea(
               select: {
                 id: true,
                 codigo: true,
+                numeroDocumento: true,
                 apellidoPaterno: true,
                 apellidoMaterno: true,
                 nombres: true,
@@ -187,6 +189,12 @@ export async function getAsamblea(
         socioId: x.socioId,
         socioNombre: socioNombre(x.socio),
         socioCodigo: x.socio.codigo,
+        // Documento real para buscar/escanear en el check-in; los socios sin DNI
+        // llevan el placeholder SIN-DNI-#### que NO debe matchear una búsqueda por
+        // número, así que lo dejamos en null (se busca por nombre/código).
+        socioDni: esDocumentoPendiente(x.socio.numeroDocumento)
+          ? null
+          : x.socio.numeroDocumento,
         estado: x.estado,
         observacion: x.observacion,
       })),
@@ -392,6 +400,92 @@ export async function deleteAsamblea(id: string): Promise<ActionResult> {
   }
 }
 
+// Núcleo del check-in: dado un socioId ya resuelto, sella su asistencia por la
+// puerta. Compartido por el registro por DNI (escáner) y por nombre (selección
+// desde el buscador). Devuelve el resultado o un fallo de negocio.
+async function registrarAsistencia(
+  byUserId: string,
+  asambleaId: string,
+  socioId: string,
+): Promise<ActionResult<CheckInResult>> {
+  const asamblea = await prisma.asamblea.findUnique({
+    where: { id: asambleaId },
+    select: { fecha: true, toleranciaMin: true, estado: true },
+  });
+  if (!asamblea) return fail("Asamblea no encontrada.");
+  // Una asamblea cerrada tiene la asistencia finalizada: no se registra por la
+  // puerta. Las correcciones puntuales se hacen con las pastillas manuales.
+  if (asamblea.estado === "cerrada")
+    return fail("La asamblea está cerrada; no se puede registrar asistencia.");
+
+  // Buscar la fila de asistencia de ese socio en esta asamblea.
+  const asis = await prisma.asistencia.findFirst({
+    where: { asambleaId, socioId },
+    include: {
+      socio: {
+        select: {
+          codigo: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+          nombres: true,
+        },
+      },
+    },
+  });
+
+  if (!asis) {
+    return fail("El socio no está en la lista de esta asamblea.");
+  }
+
+  const yaRegistrado = asis.estado === "presente" || asis.estado === "tardanza";
+
+  let estado: "presente" | "tardanza";
+  let hora: Date;
+
+  if (yaRegistrado) {
+    // El primer registro manda: un re-escaneo NO cambia el estado ni la hora.
+    // Su llegada ya quedó sellada (presente/tardanza). Las correcciones se
+    // hacen con las pastillas manuales, no por la puerta.
+    estado = asis.estado === "presente" ? "presente" : "tardanza";
+    hora = asis.updatedAt;
+  } else {
+    // Primer registro: presente si llega dentro de inicio + tolerancia; si
+    // no, tardanza. (Un socio "ausente" o "justificado" que aparece y escanea
+    // queda registrado según la hora real de llegada.)
+    const now = new Date();
+    const cutoff = new Date(
+      asamblea.fecha.getTime() + (asamblea.toleranciaMin ?? 15) * 60000,
+    );
+    estado = now.getTime() <= cutoff.getTime() ? "presente" : "tardanza";
+    hora = now;
+    await prisma.asistencia.update({
+      where: { id: asis.id },
+      data: { estado, byUserId },
+    });
+    // La primera marca "inicia" la reunión: programada → en_curso para que el
+    // estado refleje que el registro está activo. No bloqueante.
+    if (asamblea.estado === "programada") {
+      try {
+        await prisma.asamblea.update({
+          where: { id: asambleaId },
+          data: { estado: "en_curso" },
+        });
+      } catch (e) {
+        console.error("registrarAsistencia: auto-promover estado", e);
+      }
+    }
+    refresh(asambleaId);
+  }
+
+  return ok({
+    socioNombre: socioNombre(asis.socio),
+    socioCodigo: asis.socio.codigo,
+    estado,
+    hora: hora.toISOString(),
+    yaRegistrado,
+  });
+}
+
 export async function checkInByDni(
   asambleaId: string,
   dni: string,
@@ -401,16 +495,6 @@ export async function checkInByDni(
     const num = (dni ?? "").trim();
     if (!/^\d{6,12}$/.test(num))
       return fail("Ingresa un número de documento válido.");
-
-    const asamblea = await prisma.asamblea.findUnique({
-      where: { id: asambleaId },
-      select: { fecha: true, toleranciaMin: true, estado: true },
-    });
-    if (!asamblea) return fail("Asamblea no encontrada.");
-    // Una asamblea cerrada tiene la asistencia finalizada: no se registra por la
-    // puerta. Las correcciones puntuales se hacen con las pastillas manuales.
-    if (asamblea.estado === "cerrada")
-      return fail("La asamblea está cerrada; no se puede registrar asistencia.");
 
     // Resolver el socio por número de documento. numeroDocumento NO es único por
     // sí solo (la unicidad es por tipoDocumento + numeroDocumento), así que si
@@ -427,78 +511,30 @@ export async function checkInByDni(
       return fail(
         "Hay más de un socio con ese número de documento. Regístralo desde la lista de la asamblea.",
       );
-    const socioId = socios[0].id;
 
-    // Buscar la fila de asistencia de ese socio en esta asamblea.
-    const asis = await prisma.asistencia.findFirst({
-      where: { asambleaId, socioId },
-      include: {
-        socio: {
-          select: {
-            codigo: true,
-            apellidoPaterno: true,
-            apellidoMaterno: true,
-            nombres: true,
-          },
-        },
-      },
-    });
-
-    if (!asis) {
-      return fail("El socio no está en la lista de esta asamblea.");
-    }
-
-    const yaRegistrado =
-      asis.estado === "presente" || asis.estado === "tardanza";
-
-    let estado: "presente" | "tardanza";
-    let hora: Date;
-
-    if (yaRegistrado) {
-      // El primer registro manda: un re-escaneo NO cambia el estado ni la hora.
-      // Su llegada ya quedó sellada (presente/tardanza). Las correcciones se
-      // hacen con las pastillas manuales, no por la puerta.
-      estado = asis.estado === "presente" ? "presente" : "tardanza";
-      hora = asis.updatedAt;
-    } else {
-      // Primer registro: presente si llega dentro de inicio + tolerancia; si
-      // no, tardanza. (Un socio "ausente" o "justificado" que aparece y escanea
-      // queda registrado según la hora real de llegada.)
-      const now = new Date();
-      const cutoff = new Date(
-        asamblea.fecha.getTime() + (asamblea.toleranciaMin ?? 15) * 60000,
-      );
-      estado = now.getTime() <= cutoff.getTime() ? "presente" : "tardanza";
-      hora = now;
-      await prisma.asistencia.update({
-        where: { id: asis.id },
-        data: { estado, byUserId: me.id },
-      });
-      // La primera marca "inicia" la reunión: programada → en_curso para que el
-      // estado refleje que el registro está activo. No bloqueante.
-      if (asamblea.estado === "programada") {
-        try {
-          await prisma.asamblea.update({
-            where: { id: asambleaId },
-            data: { estado: "en_curso" },
-          });
-        } catch (e) {
-          console.error("checkInByDni: auto-promover estado", e);
-        }
-      }
-      refresh(asambleaId);
-    }
-
-    return ok({
-      socioNombre: socioNombre(asis.socio),
-      socioCodigo: asis.socio.codigo,
-      estado,
-      hora: hora.toISOString(),
-      yaRegistrado,
-    });
+    return registrarAsistencia(me.id, asambleaId, socios[0].id);
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
     console.error("checkInByDni", e);
+    return fail("No se pudo registrar el check-in.");
+  }
+}
+
+// Check-in seleccionando al socio desde el buscador por nombre/apellidos. Resuelve
+// directo por socioId (no hay ambigüedad de documento, y funciona para socios sin
+// DNI que no se pueden escanear).
+export async function checkInBySocio(
+  asambleaId: string,
+  socioId: string,
+): Promise<ActionResult<CheckInResult>> {
+  try {
+    const me = await authorize("asambleas.attendance");
+    if (!socioId || typeof socioId !== "string")
+      return fail("Selecciona un socio de la lista.");
+    return registrarAsistencia(me.id, asambleaId, socioId);
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("checkInBySocio", e);
     return fail("No se pudo registrar el check-in.");
   }
 }
@@ -739,7 +775,12 @@ export async function exportAsistenciaXlsx(
     });
     if (!a) return fail("Asamblea no encontrada.");
 
-    const headers = ["N°", "Apellidos y Nombres", "DNI", "Firma"];
+    const columns: XlsxColumn[] = [
+      { header: "N°", align: "center", width: 6 },
+      { header: "Apellidos y Nombres", width: 42 },
+      { header: "DNI", align: "center", width: 14 },
+      { header: "Firma", width: 40 },
+    ];
     const rows = a.asistencias.map((x, i) => {
       const nombre = [
         x.socio.apellidoPaterno,
@@ -754,7 +795,21 @@ export async function exportAsistenciaXlsx(
       return [i + 1, nombre, dni, ""];
     });
 
-    const buf = buildXlsx("Asistencia", headers, rows, [6, 42, 14, 40]);
+    const fechaLegible = new Intl.DateTimeFormat("es-PE", {
+      timeZone: "America/Lima",
+      dateStyle: "long",
+    }).format(a.fecha);
+    const buf = buildStyledXlsx({
+      sheetName: "Asistencia",
+      title: `Asistencia — ${a.titulo}`,
+      subtitle: ORG.nombre,
+      meta: [
+        `Fecha: ${fechaLegible}`,
+        `Registrados: ${rows.length} ${rows.length === 1 ? "socio" : "socios"}`,
+      ],
+      columns,
+      rows,
+    });
     const stamp = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Lima",
     }).format(a.fecha); // YYYY-MM-DD

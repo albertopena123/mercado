@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { TipoDocumento } from "@/generated/prisma/client";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { DocumentoInput } from "../socios/DocumentoInput";
 import { RolePicker } from "./RolePicker";
@@ -28,13 +29,13 @@ type Props = {
 };
 
 export function CreateUserModal({ roles, onClose, onSubmit }: Props) {
+  const toast = useToast();
   const [mode, setMode] = useState<"socio" | "staff">("socio");
   const [password, setPassword] = useState("");
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({});
-  const [topError, setTopError] = useState<string | null>(null);
 
   // staff
   const [name, setName] = useState("");
@@ -75,7 +76,6 @@ export function CreateUserModal({ roles, onClose, onSubmit }: Props) {
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFieldErrors({});
     const input: CreateInput =
       mode === "socio"
@@ -91,7 +91,7 @@ export function CreateUserModal({ roles, onClose, onSubmit }: Props) {
           };
     const res = await onSubmit(input);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo crear el usuario.");
+      toast.error(res.error ?? "No se pudo crear el usuario.");
       setFieldErrors(res.fieldErrors ?? {});
       setSubmitting(false);
       return;
@@ -125,13 +125,6 @@ export function CreateUserModal({ roles, onClose, onSubmit }: Props) {
               Personal (staff)
             </button>
           </div>
-
-          {topError && (
-            <div className="login__error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
 
           {mode === "socio" ? (
             picked ? (

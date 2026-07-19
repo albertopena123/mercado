@@ -28,6 +28,7 @@ const ESTADO_LABEL: Record<EstadoCuota, string> = {
   pendiente: "Pendiente",
   pagada: "Pagada",
   anulada: "Anulada",
+  exonerada: "Exonerada",
 };
 
 export function CuotasClient({

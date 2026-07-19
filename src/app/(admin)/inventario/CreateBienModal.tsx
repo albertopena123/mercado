@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import type { UbicacionBien, EstadoBien } from "@/generated/prisma/client";
 import { createBien, updateBien } from "./actions";
@@ -30,9 +31,9 @@ export function CreateBienModal({
   const [estado, setEstado] = useState<EstadoBien>(bien?.estado ?? "conservado");
   const [observaciones, setObservaciones] = useState(bien?.observaciones ?? "");
 
-  const [topError, setTopError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
   useEscClose(true, onClose, submitting);
 
@@ -42,7 +43,6 @@ export function CreateBienModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFieldErrors({});
 
     const res = isEdit
@@ -65,11 +65,12 @@ export function CreateBienModal({
         } satisfies CreateBienInput);
 
     if (!res.ok) {
-      setTopError(res.error);
+      toast.error(res.error);
       setFieldErrors((res.fieldErrors as Record<string, string>) ?? {});
       setSubmitting(false);
       return;
     }
+    toast.success(isEdit ? "Bien actualizado." : "Bien registrado.");
     onSaved();
   }
 
@@ -90,13 +91,6 @@ export function CreateBienModal({
         </header>
 
         <div className="modal__body">
-          {topError && (
-            <div className="inv-error" role="alert">
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <label className="field">
             <span className="field__label">
               Nombre del bien<span className="field__req">*</span>

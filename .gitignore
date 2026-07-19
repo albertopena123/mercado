@@ -84,3 +84,6 @@ next-env.d.ts
 
 # Scratch temporal de sesiones de agente (extractos de PDF, diagnósticos, etc.)
 /tmp_*
+
+# Backups de datos (contienen datos personales/financieros; no versionar)
+prisma/backups/

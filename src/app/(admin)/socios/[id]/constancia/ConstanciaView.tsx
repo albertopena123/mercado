@@ -12,9 +12,15 @@ import { emitirConstancia } from "./actions";
 import {
   VIGENCIA_DIAS,
   TIPO_CONSTANCIA_LABEL,
+  MOTIVOS_CONSTANCIA_SOCIO,
+  CONSTANCIA_SOCIO_DISCLAIMER,
   type EmitResult,
   type TipoConstancia,
 } from "./shared";
+import {
+  ConstanciasHistorial,
+  type HistorialItem,
+} from "./ConstanciasHistorial";
 import { DIMENSION_LABEL } from "@/lib/puestos/giro";
 import type { DimensionPuesto } from "@/generated/prisma/client";
 import type { FirmasConsejo } from "@/lib/organos/firmas";
@@ -39,6 +45,7 @@ export function ConstanciaView({
   motivoBloqueo,
   inasistencias,
   firmas,
+  historial,
 }: {
   socioId: string;
   data: Data;
@@ -47,12 +54,15 @@ export function ConstanciaView({
   // Inasistencias injustificadas a asambleas concluidas (bloquean la de no adeudo).
   inasistencias: number;
   firmas: FirmasConsejo;
+  historial: HistorialItem[];
 }) {
   const router = useRouter();
   const toast = useToast();
   const [emitida, setEmitida] = useState<EmitResult | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
   const [tipo, setTipo] = useState<TipoConstancia>("socio_habil");
+  // Finalidad (para qué se solicita). Obligatoria en la constancia de socio.
+  const [motivo, setMotivo] = useState("");
 
   const hoy = hoyLarga();
   const noAdeudo = tipo === "no_adeudo";
@@ -68,8 +78,12 @@ export function ConstanciaView({
 
   async function onEmitir() {
     if (noAdeudoBloqueado) return;
+    if (!noAdeudo && !motivo.trim()) {
+      toast.error("Indica la finalidad de la constancia (para qué se solicita).");
+      return;
+    }
     setEmitiendo(true);
-    const res = await emitirConstancia(socioId, tipo);
+    const res = await emitirConstancia(socioId, tipo, motivo.trim() || undefined);
     setEmitiendo(false);
     if (!res.ok) {
       toast.error(res.error);
@@ -79,6 +93,8 @@ export function ConstanciaView({
     toast.success(
       `${TIPO_CONSTANCIA_LABEL[tipo]} emitida · Folio ${res.data!.folio}`,
     );
+    // Refresca el historial (la nueva puede haber anulado la vigente anterior).
+    router.refresh();
   }
 
   // Socio no activo: ninguna constancia es emitible.
@@ -113,6 +129,8 @@ export function ConstanciaView({
             </button>
           </div>
         </div>
+
+        <ConstanciasHistorial items={historial} />
       </div>
     );
   }
@@ -140,7 +158,9 @@ export function ConstanciaView({
           <button
             className="btn--cta"
             onClick={onEmitir}
-            disabled={emitiendo || noAdeudoBloqueado}
+            disabled={
+              emitiendo || noAdeudoBloqueado || (!noAdeudo && !motivo.trim())
+            }
           >
             <Icon name="check" size={16} />
             <span>{emitiendo ? "Emitiendo…" : "Emitir constancia"}</span>
@@ -181,6 +201,31 @@ export function ConstanciaView({
             </button>
           ))}
         </div>
+      )}
+
+      {!emitida && !noAdeudo && (
+        <label className="field no-print constancia-motivo">
+          <span className="field__label">
+            Finalidad (¿para qué se solicita?)
+            <span className="field__req">*</span>
+          </span>
+          <input
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ej. trámite bancario, municipal, notarial…"
+            list="motivos-constancia"
+          />
+          <datalist id="motivos-constancia">
+            {MOTIVOS_CONSTANCIA_SOCIO.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          <span className="constancia-motivo__hint">
+            Se imprime en la constancia y se muestra al verificar el QR. Recuerda:
+            la constancia de socio <b>no autoriza</b> vender ni transferir un
+            puesto.
+          </span>
+        </label>
       )}
 
       {!emitida && noAdeudoBloqueado && (
@@ -241,8 +286,8 @@ export function ConstanciaView({
         <div className="constancia__banner">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logos_sistema/logo_header.png"
-            alt="Gran Feria Mayorista Internacional MDD"
+            src="/logo-feria-milagros.png"
+            alt="Feria Mayorista Internacional Milagros"
           />
         </div>
 
@@ -322,7 +367,15 @@ export function ConstanciaView({
 
               <p>
                 Se le expide la presente constancia a solicitud del(la)
-                interesado(a) para los fines pertinentes.
+                interesado(a)
+                {motivo.trim() ? (
+                  <>
+                    {" "}
+                    para el siguiente fin: <b>{motivo.trim()}</b>.
+                  </>
+                ) : (
+                  <> para los fines pertinentes.</>
+                )}
               </p>
 
               <p className="constancia__fecha">
@@ -331,6 +384,12 @@ export function ConstanciaView({
             </>
           )}
         </div>
+
+        {!noAdeudo && (
+          <div className="constancia__disclaimer">
+            {CONSTANCIA_SOCIO_DISCLAIMER}
+          </div>
+        )}
 
         <div className="constancia__firmas">
           {noAdeudo ? (
@@ -439,6 +498,8 @@ export function ConstanciaView({
           Domicilio: {ORG.domicilio} · Celular: {ORG.celular}
         </div>
       </article>
+
+      <ConstanciasHistorial items={historial} />
     </div>
   );
 }

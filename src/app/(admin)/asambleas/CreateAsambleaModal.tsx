@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { createAsamblea } from "./actions";
 import type { TipoAsamblea } from "@/generated/prisma/client";
@@ -14,6 +15,7 @@ export function CreateAsambleaModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   // Fecha de hoy en horario de Perú (America/Lima). toISOString() usa UTC y, de
 // noche en Perú (UTC-5), adelantaría la fecha al día siguiente.
 const today = new Intl.DateTimeFormat("en-CA", {
@@ -29,7 +31,6 @@ const today = new Intl.DateTimeFormat("en-CA", {
   const [quorum, setQuorum] = useState("50");
   const [multaTardanza, setMultaTardanza] = useState("");
   const [multaInasistencia, setMultaInasistencia] = useState("");
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,7 +42,6 @@ const today = new Intl.DateTimeFormat("en-CA", {
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const input: CreateAsambleaInput = {
       titulo: titulo.trim(),
@@ -59,7 +59,7 @@ const today = new Intl.DateTimeFormat("en-CA", {
     };
     const res = await createAsamblea(input);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo crear la asamblea.");
+      toast.error(res.error ?? "No se pudo crear la asamblea.");
       setFe((res.fieldErrors as Record<string, string>) ?? {});
       setSubmitting(false);
       return;
@@ -93,13 +93,6 @@ const today = new Intl.DateTimeFormat("en-CA", {
             <b>todos los socios activos</b> (marcados como ausentes). Luego
             registras quién asistió.
           </p>
-
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
 
           <label className="field">
             <span className="field__label">

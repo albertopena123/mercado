@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { hoyISOPeru } from "@/lib/fecha";
 import { listSocios } from "../socios/actions";
@@ -27,6 +28,7 @@ export function CreateMovimientoModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   // Día de hoy en Perú (UTC-5), no en UTC ni en la zona del navegador.
   const today = hoyISOPeru();
   const [tipo, setTipo] = useState<TipoMovimiento>("egreso");
@@ -43,7 +45,6 @@ export function CreateMovimientoModal({
   const [socioQuery, setSocioQuery] = useState("");
   const [socioResults, setSocioResults] = useState<SocioRow[]>([]);
 
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,7 +73,6 @@ export function CreateMovimientoModal({
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const res = await createMovimiento({
       tipo,
@@ -87,7 +87,7 @@ export function CreateMovimientoModal({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error);
+      toast.error(res.error);
       if (res.fieldErrors) setFe(res.fieldErrors as Record<string, string>);
       return;
     }
@@ -109,13 +109,6 @@ export function CreateMovimientoModal({
           </button>
         </header>
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <div className="caja-seg">
             <button
               type="button"

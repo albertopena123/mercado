@@ -578,19 +578,165 @@
 .tr-note {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 13px 16px;
   font-size: 13.5px;
+  line-height: 1.45;
   margin-bottom: 20px;
+  border: 1px solid transparent;
+}
+.tr-note svg {
+  flex: none;
 }
 .tr-note--ok {
   background: #dcfce7;
-  color: #166534;
+  color: #14532d;
+  border-color: #86efac;
 }
 .tr-note--warn {
   background: #fef3c7;
+  color: #78350f;
+  border-color: #fcd34d;
+}
+html[data-theme="dark"] .tr-note--ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+html[data-theme="dark"] .tr-note--warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Panel de requisitos para formalizar (borrador) */
+.tr-gate {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.tr-gate--ready {
+  border-color: #86efac;
+}
+html[data-theme="dark"] .tr-gate--ready {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+.tr-gate__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+.tr-gate__head svg {
+  flex: none;
+  color: var(--text-muted);
+}
+.tr-gate__title {
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--text);
+}
+.tr-gate__chip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 4px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tr-gate__chip--pending {
+  background: #fef3c7;
   color: #92400e;
+}
+.tr-gate__chip--ready {
+  background: #dcfce7;
+  color: #166534;
+}
+html[data-theme="dark"] .tr-gate__chip--pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+html[data-theme="dark"] .tr-gate__chip--ready {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+.tr-gate__req {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+}
+.tr-gate__req + .tr-gate__req {
+  border-top: 1px solid var(--border);
+}
+.tr-gate__reqicon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.tr-gate__reqicon--ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+.tr-gate__reqicon--pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+html[data-theme="dark"] .tr-gate__reqicon--ok {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+html[data-theme="dark"] .tr-gate__reqicon--pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+}
+.tr-gate__reqtxt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.tr-gate__reqlabel {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tr-gate__reqstate {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.tr-gate__reqstate--ok {
+  color: #15803d;
+}
+html[data-theme="dark"] .tr-gate__reqstate--ok {
+  color: #4ade80;
+}
+.tr-gate__reqstate b {
+  color: #b45309;
+  font-weight: 650;
+}
+html[data-theme="dark"] .tr-gate__reqstate b {
+  color: #fbbf24;
+}
+.tr-gate__reqstate a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.tr-gate__reqstate a:hover {
+  text-decoration: underline;
 }
 
 /* Acciones del expediente */
@@ -631,4 +777,119 @@
     transform: rotate(90deg);
     margin: 4px 0;
   }
+}
+
+/* ─────────── Selector de puestos a transferir (modal) ─────────── */
+.tr-pick {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.tr-pick__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: var(--surface);
+  transition: background 0.12s;
+}
+.tr-pick__row + .tr-pick__row {
+  border-top: 1px solid var(--border);
+}
+.tr-pick__row:hover {
+  background: var(--bg-soft);
+}
+/* Barra de acento a la izquierda: el 5% de tinte solo no se distingue. */
+.tr-pick__row.is-on {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.tr-pick__row.is-on .tr-pick__code {
+  color: var(--accent);
+}
+.tr-pick__txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.tr-pick__code {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+.tr-pick__meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+/* El precio deja de ser un input suelto: sólo aparece en la fila elegida. */
+.tr-pick__price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.tr-pick__price span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.tr-pick__price input {
+  width: 110px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+}
+.tr-pick__price input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.tr-pick__empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tr-pick__hint {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+@media (max-width: 560px) {
+  .tr-pick__row {
+    flex-wrap: wrap;
+  }
+  .tr-pick__price {
+    width: 100%;
+    padding-left: 28px;
+  }
+  .tr-pick__price input {
+    width: 100%;
+  }
+}
+
+/* El checkbox vive dentro de .field, cuya regla global estira los inputs a
+   width:100% + padding. Lo neutralizamos aquí (misma especificidad, va después). */
+.tr-pick__row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  box-shadow: none;
+  appearance: auto;
+  accent-color: var(--accent);
+  cursor: pointer;
 }

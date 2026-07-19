@@ -23,6 +23,10 @@
   color: var(--text-muted);
   text-decoration: line-through;
 }
+.cuo-badge--exonerada {
+  background: #e0e7ff;
+  color: #3730a3;
+}
 
 .cuo-monto {
   font-variant-numeric: tabular-nums;
@@ -211,4 +215,28 @@
 }
 .cuo-picker__estado {
   color: #b45309;
+}
+
+/* Pago por monto: bloque de N.° de operación por autovalúo cubierto. */
+.ppm-auto {
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+.ppm-auto__head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #075985;
+}
+.ppm-auto__field {
+  margin: 0;
+}
+.ppm-auto__field input {
+  font-variant-numeric: tabular-nums;
 }

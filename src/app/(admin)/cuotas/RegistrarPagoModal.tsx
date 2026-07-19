@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
 import { esAutovaluo } from "@/lib/cuotas/autovaluo";
@@ -24,11 +25,11 @@ export function RegistrarPagoModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const toast = useToast();
   const [monto, setMonto] = useState(String(cuota.monto));
   const [metodo, setMetodo] = useState("efectivo");
   const [nroOperacion, setNroOperacion] = useState("");
   const [fecha, setFecha] = useState(today());
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [done, setDone] = useState<{
@@ -47,11 +48,10 @@ export function RegistrarPagoModal({
     e.preventDefault();
     if (submitting) return;
     if (faltaNroAuto) {
-      setError("Para el autovalúo, ingresa el N.° de operación del recibo.");
+      toast.error("Para el autovalúo, ingresa el N.° de operación del recibo.");
       return;
     }
     setSubmitting(true);
-    setError(null);
     const res = await registrarPago(cuota.id, {
       monto: Number(monto),
       metodoPago: metodo,
@@ -60,7 +60,7 @@ export function RegistrarPagoModal({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setError(res.error);
+      toast.error(res.error);
       return;
     }
     setDone({
@@ -72,7 +72,6 @@ export function RegistrarPagoModal({
   async function retryComprobante() {
     if (!done?.movimientoCajaId || retrying) return;
     setRetrying(true);
-    setError(null);
     const res = await reemitirComprobantePago(done.movimientoCajaId);
     setRetrying(false);
     if (res.ok && res.data) {
@@ -81,7 +80,7 @@ export function RegistrarPagoModal({
         movimientoCajaId: done.movimientoCajaId,
       });
     } else {
-      setError(res.ok ? "No se pudo emitir el comprobante." : res.error);
+      toast.error(res.ok ? "No se pudo emitir el comprobante." : res.error);
     }
   }
 
@@ -125,11 +124,6 @@ export function RegistrarPagoModal({
                   ? "Se generó el comprobante de pago. Puedes imprimirlo y entregarlo al socio."
                   : "El pago se registró, pero no se pudo generar el comprobante. Puedes reintentar su emisión."}
               </p>
-              {!done.comprobanteId && error && (
-                <p style={{ fontSize: 12.5, color: "#b91c1c", marginTop: 8 }}>
-                  {error}
-                </p>
-              )}
             </div>
           ) : (
             <>
@@ -153,16 +147,6 @@ export function RegistrarPagoModal({
                     Autovalúo: el N.° de operación del recibo es obligatorio y no
                     puede repetirse en otro año/socio.
                   </span>
-                </div>
-              )}
-              {error && (
-                <div
-                  className="soc-error"
-                  role="alert"
-                  style={{ marginBottom: 12 }}
-                >
-                  <Icon name="info" size={16} />
-                  <span>{error}</span>
                 </div>
               )}
               <div className="soc-formgrid soc-formgrid--2col">

@@ -9,6 +9,8 @@ import { Icon } from "@/components/admin/Icon";
 import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast";
 import { fechaLargaTS, horaLima } from "@/lib/fecha";
+import { normalizeToken, splitSearchTokens } from "@/lib/socios/normalize";
+import { useEscClose } from "@/lib/ui/useEscClose";
 import { ConfirmDialog } from "../../socios/ConfirmDialog";
 import { EditMultasModal } from "./EditMultasModal";
 import {
@@ -16,10 +18,12 @@ import {
   deleteAsamblea,
   marcarTodosAsistencia,
   checkInByDni,
+  checkInBySocio,
   aplicarMultasAsamblea,
   exportAsistenciaXlsx,
   setEstadoAsamblea,
 } from "../actions";
+import type { CheckInResult } from "../types";
 import type {
   EstadoAsistencia,
   EstadoAsamblea,
@@ -111,37 +115,51 @@ export function AsambleaDetailClient({
     router.refresh();
   }
 
-  // Modo puerta (check-in por DNI)
-  const [dni, setDni] = useState("");
+  // Modo puerta (check-in por DNI, nombre o apellidos)
+  const [query, setQuery] = useState("");
   const [checking, setChecking] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [success, setSuccess] = useState<CheckInResult | null>(null);
   const [log, setLog] = useState<CheckLog[]>([]);
   const logSeq = useRef(0);
-  const dniRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  async function doCheckIn() {
-    const num = dni.trim();
-    if (checking) return;
-    if (!/^\d{6,12}$/.test(num)) {
-      toast.error("Ingresa un documento de 6 a 12 dígitos.");
-      return;
-    }
-    setChecking(true);
-    const res = await checkInByDni(initial.id, num);
-    setChecking(false);
-    setDni("");
-    dniRef.current?.focus();
+  // Coincidencias contra la lista de la asamblea (ya está toda en memoria):
+  // por nombre/apellidos, código o DNI, tolerando acentos y puntuación.
+  const matches = useMemo(() => {
+    const tokens = splitSearchTokens(query).map(normalizeToken).filter(Boolean);
+    if (tokens.length === 0) return [];
+    return asistencias
+      .filter((a) => {
+        const hay = normalizeToken(
+          `${a.socioNombre} ${a.socioCodigo} ${a.socioDni ?? ""}`,
+        );
+        return tokens.every((t) => hay.includes(t));
+      })
+      .slice(0, 8);
+  }, [asistencias, query]);
+
+  // Procesa el resultado del servidor (por DNI o por socio): refleja en la lista,
+  // apila el log de la puerta y abre el modal de confirmación.
+  function procesarResultado(
+    res: Awaited<ReturnType<typeof checkInBySocio>>,
+    errorPrefix = "",
+  ) {
     if (!res.ok) {
       setLog((prev) =>
         [
-          { id: logSeq.current++, ok: false, text: `DNI ${num}: ${res.error}` },
+          {
+            id: logSeq.current++,
+            ok: false,
+            text: `${errorPrefix}${res.error}`,
+          },
           ...prev,
         ].slice(0, 8),
       );
-      toast.error(`DNI ${num}: ${res.error}`);
+      toast.error(`${errorPrefix}${res.error}`);
       return;
     }
     const d = res.data!;
-    // Reflejar en la lista local
     setAsistencias((prev) =>
       prev.map((a) =>
         a.socioCodigo === d.socioCodigo ? { ...a, estado: d.estado } : a,
@@ -162,10 +180,43 @@ export function AsambleaDetailClient({
         ...prev,
       ].slice(0, 8),
     );
-    toast.success(
-      `${estadoTxt}: ${d.socioNombre}${d.yaRegistrado ? " (ya registrado)" : ""}`,
-    );
+    setSuccess(d);
+    setQuery("");
+    setActiveIdx(0);
     router.refresh();
+  }
+
+  // Registra por socioId (selección desde el buscador por nombre).
+  async function registrarSocio(socioId: string) {
+    if (checking) return;
+    setChecking(true);
+    const res = await checkInBySocio(initial.id, socioId);
+    setChecking(false);
+    searchRef.current?.focus();
+    procesarResultado(res);
+  }
+
+  // Enter/Registrar: si hay coincidencias, marca la seleccionada; si no hay pero
+  // el texto es un DNI, cae al servidor por DNI (da errores precisos: socio que no
+  // existe o no pertenece a la asamblea). Para escáneres de DNI el flujo es directo.
+  async function doCheckIn() {
+    if (checking) return;
+    const raw = query.trim();
+    if (!raw) return;
+    if (matches.length > 0) {
+      const chosen = matches[Math.min(activeIdx, matches.length - 1)];
+      await registrarSocio(chosen.socioId);
+      return;
+    }
+    if (/^\d{6,12}$/.test(raw)) {
+      setChecking(true);
+      const res = await checkInByDni(initial.id, raw);
+      setChecking(false);
+      searchRef.current?.focus();
+      procesarResultado(res, `DNI ${raw}: `);
+      return;
+    }
+    toast.error("Sin coincidencias. Escribe DNI, nombre o apellidos.");
   }
 
   const counts = useMemo(() => {
@@ -532,20 +583,72 @@ export function AsambleaDetailClient({
               doCheckIn();
             }}
           >
-            <input
-              ref={dniRef}
-              className="checkin__input"
-              inputMode="numeric"
-              autoFocus
-              placeholder="Escanea o escribe el DNI y presiona Enter"
-              value={dni}
-              onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
-              disabled={checking}
-            />
+            <div className="checkin__search">
+              <input
+                ref={searchRef}
+                className="checkin__input"
+                autoFocus
+                autoComplete="off"
+                placeholder="Escanea el DNI o escribe nombre / apellidos y presiona Enter"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActiveIdx(0);
+                }}
+                onKeyDown={(e) => {
+                  if (matches.length === 0) return;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIdx((i) => Math.min(i + 1, matches.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIdx((i) => Math.max(i - 1, 0));
+                  }
+                }}
+                disabled={checking}
+              />
+              {matches.length > 0 && (
+                <ul className="checkin__dropdown">
+                  {matches.map((m, i) => {
+                    const marcado =
+                      m.estado === "presente" || m.estado === "tardanza";
+                    return (
+                      <li key={m.id}>
+                        <button
+                          type="button"
+                          className={`checkin__opt${
+                            i === activeIdx ? " is-active" : ""
+                          }`}
+                          onMouseEnter={() => setActiveIdx(i)}
+                          onClick={() => registrarSocio(m.socioId)}
+                          disabled={checking}
+                        >
+                          <span className="checkin__opt-name">
+                            {m.socioNombre}
+                          </span>
+                          <span className="checkin__opt-meta">
+                            {m.socioDni ? `DNI ${m.socioDni}` : "Sin DNI"} ·{" "}
+                            {m.socioCodigo}
+                            {marcado && (
+                              <span className="checkin__opt-flag">
+                                ✓{" "}
+                                {m.estado === "presente"
+                                  ? "Presente"
+                                  : "Tardanza"}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={checking || !/^\d{6,12}$/.test(dni)}
+              disabled={checking || query.trim() === ""}
             >
               {checking ? "Registrando…" : "Registrar"}
             </button>
@@ -808,6 +911,58 @@ export function AsambleaDetailClient({
           onClose={() => !deleting && setConfirmingDelete(false)}
         />
       )}
+
+      {success && (
+        <CheckinSuccessModal
+          result={success}
+          onClose={() => {
+            setSuccess(null);
+            searchRef.current?.focus();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Modal de confirmación tras registrar la asistencia por la puerta. Se cierra con
+// Esc, clic fuera o el botón "Listo" (autoenfocado para poder cerrarlo con Enter y
+// seguir escaneando).
+function CheckinSuccessModal({
+  result,
+  onClose,
+}: {
+  result: CheckInResult;
+  onClose: () => void;
+}) {
+  useEscClose(true, onClose, false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    btnRef.current?.focus();
+  }, []);
+  const estadoTxt = result.estado === "tardanza" ? "Tardanza" : "Presente";
+  return (
+    <div className="confirm-backdrop" onClick={onClose}>
+      <div className="confirm checkin-ok" onClick={(e) => e.stopPropagation()}>
+        <div className={`checkin-ok__icon checkin-ok__icon--${result.estado}`}>
+          <Icon name="check" size={34} />
+        </div>
+        <h3 className="checkin-ok__title">¡Asistencia registrada!</h3>
+        <p className="checkin-ok__name">{result.socioNombre}</p>
+        <div className={`checkin-ok__badge checkin-ok__badge--${result.estado}`}>
+          {estadoTxt} · {horaLima(result.hora)}
+        </div>
+        {result.yaRegistrado && (
+          <p className="checkin-ok__note">Ya estaba registrado antes.</p>
+        )}
+        <button
+          ref={btnRef}
+          className="btn btn--primary checkin-ok__done"
+          onClick={onClose}
+        >
+          Listo
+        </button>
+      </div>
     </div>
   );
 }

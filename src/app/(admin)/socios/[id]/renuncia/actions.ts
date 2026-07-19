@@ -28,14 +28,27 @@ const ABIERTOS = ["solicitada", "aceptada_cd", "ratificada_ag"] as const;
  */
 export async function crearRenuncia(
   socioId: string,
-  input: { motivo?: string; observaciones?: string },
+  input: {
+    motivo?: string;
+    observaciones?: string;
+    // Alcance: puestoId => cesión de ese puesto (conserva membresía y demás
+    // puestos); null/ausente => renuncia TOTAL a la condición de socio.
+    puestoId?: string | null;
+  },
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const me = await requirePermission("socios.write");
 
     const socio = await prisma.socio.findUnique({
       where: { id: socioId },
-      select: { id: true, estado: true },
+      select: {
+        id: true,
+        estado: true,
+        asignacionesPuesto: {
+          where: { hasta: null },
+          select: { puestoId: true },
+        },
+      },
     });
     if (!socio) return fail("Socio no encontrado.");
     if (socio.estado !== "activo")
@@ -48,9 +61,17 @@ export async function crearRenuncia(
     if (abierta)
       return fail("Este socio ya tiene un expediente de renuncia en trámite.");
 
+    // Si es cesión de un puesto, debe estar asignado AHORA al socio.
+    const puestoId = input.puestoId ?? null;
+    if (puestoId && !socio.asignacionesPuesto.some((a) => a.puestoId === puestoId))
+      return fail(
+        "El puesto seleccionado no está asignado actualmente al socio.",
+      );
+
     const created = await prisma.renuncia.create({
       data: {
         socioId,
+        puestoId,
         estado: "solicitada",
         motivo: input.motivo?.trim() || null,
         observaciones: input.observaciones?.trim() || null,
@@ -159,7 +180,12 @@ export async function efectivizarRenuncia(
     const me = await requirePermission("socios.change-state");
     const r = await prisma.renuncia.findUnique({
       where: { id: renunciaId },
-      select: { socioId: true, estado: true, actaAgNumero: true },
+      select: {
+        socioId: true,
+        estado: true,
+        actaAgNumero: true,
+        puestoId: true,
+      },
     });
     if (!r) return fail("Expediente de renuncia no encontrado.");
     if (r.estado !== "ratificada_ag")
@@ -191,8 +217,46 @@ export async function efectivizarRenuncia(
       if (upd.count === 0) return { puestosLiberados: 0, socioRetirado: false };
 
       const ahora = new Date();
+
+      // Alcance: con puestoId se libera SOLO ese puesto (cesión); sin él, todos
+      // los vigentes (renuncia total a la condición de socio).
+      let puestoIds: string[];
+      if (r.puestoId) {
+        const asig = await tx.puestoAsignacion.findFirst({
+          where: { socioId: socio.id, puestoId: r.puestoId, hasta: null },
+          select: { puestoId: true },
+        });
+        puestoIds = asig ? [asig.puestoId] : [];
+      } else {
+        const asigs = await tx.puestoAsignacion.findMany({
+          where: { socioId: socio.id, hasta: null },
+          select: { puestoId: true },
+        });
+        puestoIds = asigs.map((a) => a.puestoId);
+      }
+
+      if (puestoIds.length > 0) {
+        await tx.puestoAsignacion.updateMany({
+          where: { socioId: socio.id, puestoId: { in: puestoIds }, hasta: null },
+          data: {
+            hasta: ahora,
+            motivo: r.puestoId ? "Renuncia al puesto" : "Renuncia del socio",
+          },
+        });
+        await tx.puesto.updateMany({
+          where: { id: { in: puestoIds } },
+          data: { estado: "vacio" },
+        });
+      }
+
+      // Retirar al socio solo si ya no le quedan puestos vigentes: en la
+      // renuncia total siempre; en la cesión de un puesto, únicamente si era el
+      // último. Si conserva otros puestos, mantiene su condición de socio.
+      const restantes = await tx.puestoAsignacion.count({
+        where: { socioId: socio.id, hasta: null },
+      });
       let socioRetirado = false;
-      if (socio.estado === "activo") {
+      if (restantes === 0 && socio.estado === "activo") {
         await tx.socio.update({
           where: { id: socio.id },
           data: { estado: "retirado" },
@@ -210,23 +274,7 @@ export async function efectivizarRenuncia(
         });
         socioRetirado = true;
       }
-
-      // Liberar puestos vigentes del socio.
-      const asigs = await tx.puestoAsignacion.findMany({
-        where: { socioId: socio.id, hasta: null },
-        select: { puestoId: true },
-      });
-      if (asigs.length > 0) {
-        await tx.puestoAsignacion.updateMany({
-          where: { socioId: socio.id, hasta: null },
-          data: { hasta: ahora, motivo: "Renuncia del socio" },
-        });
-        await tx.puesto.updateMany({
-          where: { id: { in: asigs.map((a) => a.puestoId) } },
-          data: { estado: "vacio" },
-        });
-      }
-      return { puestosLiberados: asigs.length, socioRetirado };
+      return { puestosLiberados: puestoIds.length, socioRetirado };
     });
 
     refresh(r.socioId);

@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { hoyISOPeru } from "@/lib/fecha";
 import { CARGO_LABEL, CARGOS } from "@/lib/empleados/labels";
@@ -24,6 +25,7 @@ export function CreateEmpleadoModal({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const toast = useToast();
   const today = hoyISOPeru();
   const [tipoDocumento, setTipoDocumento] = useState<TipoDocumento>("DNI");
   const [numeroDocumento, setNumeroDocumento] = useState("");
@@ -39,7 +41,6 @@ export function CreateEmpleadoModal({
   const [salario, setSalario] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -104,7 +105,6 @@ export function CreateEmpleadoModal({
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const input: CreateEmpleadoInput = {
       tipoDocumento,
@@ -124,7 +124,7 @@ export function CreateEmpleadoModal({
     const res = await createEmpleado(input);
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error);
+      toast.error(res.error);
       if (res.fieldErrors) setFe(res.fieldErrors as Record<string, string>);
       return;
     }
@@ -146,13 +146,6 @@ export function CreateEmpleadoModal({
           </button>
         </header>
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <div className="soc-formgrid">
             <label className="field">
               <span className="field__label">Tipo de documento</span>

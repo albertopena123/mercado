@@ -2,8 +2,10 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
+import { esAutovaluo } from "@/lib/cuotas/autovaluo";
 import { pagarPorMonto, reemitirComprobantePago } from "./actions";
 
 function today(): string {
@@ -13,32 +15,35 @@ function today(): string {
   ).padStart(2, "0")}`;
 }
 
+type Pendiente = {
+  id: string;
+  periodo: string;
+  monto: number;
+  concepto: string;
+};
+
 export function PagoPorMontoModal({
   socioId,
   socioNombre,
   deuda,
-  saldoAFavor,
   pendientes,
-  tieneAutovaluo = false,
   onClose,
   onDone,
 }: {
   socioId: string;
   socioNombre: string;
   deuda: number;
-  saldoAFavor: number;
-  // cuotas pendientes (monto), de la más antigua a la más reciente
-  pendientes: { id: string; periodo: string; monto: number }[];
-  // true si hay cuotas de autovalúo pendientes: no se pagan "por monto"
-  tieneAutovaluo?: boolean;
+  // cuotas pendientes, de la más antigua a la más reciente
+  pendientes: Pendiente[];
   onClose: () => void;
   onDone: (msg: string) => void;
 }) {
   const [monto, setMonto] = useState(String(deuda > 0 ? deuda : 20));
   const [metodo, setMetodo] = useState("efectivo");
   const [nroOperacion, setNroOperacion] = useState("");
+  // N.° de operación del recibo por cada autovalúo cubierto (cuotaId → valor).
+  const [autoOps, setAutoOps] = useState<Record<string, string>>({});
   const [fecha, setFecha] = useState(today());
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [done, setDone] = useState<{
@@ -46,52 +51,79 @@ export function PagoPorMontoModal({
     comprobanteId: string | null;
     movimientoCajaId: string | null;
   } | null>(null);
+  const toast = useToast();
   // Clave de idempotencia: estable mientras viva esta apertura del modal. Un
   // doble-clic o un reintento tras error usan la MISMA clave, así el servidor no
-  // duplica el crédito de saldo a favor. Se acuña al primer envío (no en render,
-  // para no romper la pureza).
+  // vuelve a saldar cuotas (cobrar dos veces). Se acuña al primer envío (no en
+  // render, para no romper la pureza).
   const idemKey = useRef<string | null>(null);
 
   useEscClose(true, onClose, submitting);
 
-  // Preview: cuántas cuotas cubre (saldo previo + monto), saldo resultante.
-  const preview = useMemo(() => {
-    let pozo = saldoAFavor + (Number(monto) || 0);
-    let cubre = 0;
+  // Preview de la cascada (cuotas más antiguas primero): cuántas cuotas cubre el
+  // monto, cuánto sobra y qué autovalúos quedan cubiertos (esos exigen su N.° de
+  // operación). El mismo orden que aplica el servidor. No se maneja saldo a
+  // favor: si sobra dinero, el monto no coincide con cuotas completas y el pago
+  // se bloquea (hay que ingresar un importe que salde cuotas enteras).
+  const { cubre, sobrante, coveredAuto } = useMemo(() => {
+    let pozo = Number(monto) || 0;
+    let n = 0;
+    const auto: Pendiente[] = [];
     for (const c of pendientes) {
       if (pozo + 1e-9 >= c.monto) {
         pozo = Math.round((pozo - c.monto) * 100) / 100;
-        cubre++;
+        n++;
+        if (esAutovaluo(c.concepto)) auto.push(c);
       } else break;
     }
-    return { cubre, sobrante: pozo };
-  }, [monto, saldoAFavor, pendientes]);
+    return { cubre: n, sobrante: pozo, coveredAuto: auto };
+  }, [monto, pendientes]);
+
+  const faltanNros = coveredAuto.some((c) => !(autoOps[c.id] ?? "").trim());
+  // El monto debe saldar cuotas completas: si sobra algo, se bloquea el envío.
+  const sobra = sobrante > 0.0001;
+  const montoValido = (Number(monto) || 0) > 0;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    if (!montoValido) {
+      toast.error("Ingresa un monto mayor a 0.");
+      return;
+    }
+    if (sobra) {
+      toast.error(
+        `El monto sobra ${formatSoles(sobrante)} tras saldar ${cubre} cuota(s). Ingresa un importe que cubra cuotas completas (no se maneja saldo a favor).`,
+      );
+      return;
+    }
+    if (faltanNros) {
+      toast.error(
+        "Ingresa el N.° de operación del recibo de cada autovalúo incluido en el pago.",
+      );
+      return;
+    }
     setSubmitting(true);
-    setError(null);
     if (!idemKey.current) idemKey.current = crypto.randomUUID();
+    const autovaluoOps = Object.fromEntries(
+      coveredAuto.map((c) => [c.id, (autoOps[c.id] ?? "").trim()]),
+    );
     const res = await pagarPorMonto(socioId, {
       monto: Number(monto) || 0,
       metodoPago: metodo,
       fecha,
       nroOperacion: nroOperacion.trim() || undefined,
+      autovaluoOps,
       idempotencyKey: idemKey.current,
     });
     setSubmitting(false);
     if (!res.ok) {
-      setError(res.error);
+      toast.error(res.error);
       return;
     }
     const d = res.data!;
     setDone({
-      msg:
-        `Pago registrado: ${d.pagadas} cuota(s) saldada(s)` +
-        (d.saldoAFavor > 0
-          ? `. Saldo a favor: ${formatSoles(d.saldoAFavor)}.`
-          : "."),
+      msg: `Pago registrado: ${d.pagadas} cuota(s) saldada(s).`,
       comprobanteId: d.comprobante?.id ?? null,
       movimientoCajaId: d.movimientoCajaId ?? null,
     });
@@ -101,14 +133,13 @@ export function PagoPorMontoModal({
     const movId = done?.movimientoCajaId;
     if (!movId || retrying) return;
     setRetrying(true);
-    setError(null);
     const res = await reemitirComprobantePago(movId);
     setRetrying(false);
     if (res.ok && res.data) {
       const cid = res.data.id;
       setDone((d) => (d ? { ...d, comprobanteId: cid } : d));
     } else {
-      setError(res.ok ? "No se pudo emitir el comprobante." : res.error);
+      toast.error(res.ok ? "No se pudo emitir el comprobante." : res.error);
     }
   }
 
@@ -156,129 +187,134 @@ export function PagoPorMontoModal({
               >
                 {done.comprobanteId
                   ? "Se generó el comprobante de pago. Puedes imprimirlo y entregarlo al socio."
-                  : done.movimientoCajaId
-                    ? "El pago se registró, pero no se pudo generar el comprobante. Puedes reintentar su emisión."
-                    : "No se generó comprobante (el monto quedó como saldo a favor)."}
+                  : "El pago se registró, pero no se pudo generar el comprobante. Puedes reintentar su emisión."}
               </p>
-              {!done.comprobanteId && done.movimientoCajaId && error && (
-                <p style={{ fontSize: 12.5, color: "#b91c1c", marginTop: 8 }}>
-                  {error}
-                </p>
-              )}
             </div>
           ) : (
             <>
-          <p className="modal__intro">
-            <b>{socioNombre}</b> · deuda actual <b>{formatSoles(deuda)}</b>
-            {saldoAFavor > 0 && (
-              <> · saldo a favor {formatSoles(saldoAFavor)}</>
-            )}
-            . El monto se aplica a las cuotas pendientes más antiguas; lo que
-            sobre queda como saldo a favor.
-          </p>
+              <p className="modal__intro">
+                <b>{socioNombre}</b> · deuda actual <b>{formatSoles(deuda)}</b>.
+                El monto se aplica a las cuotas pendientes más antiguas y debe
+                cubrir cuotas completas (no se maneja saldo a favor).
+              </p>
 
-          {tieneAutovaluo && (
-            <div
-              className="soc-error"
-              role="note"
-              style={{
-                marginBottom: 12,
-                background: "#fef3c7",
-                color: "#92400e",
-                borderColor: "#fde68a",
-              }}
-            >
-              <Icon name="info" size={16} />
-              <span>
-                Este socio tiene autovalúo pendiente. El autovalúo se paga
-                individualmente con «Pagar» (registra su N.° de recibo). Como es
-                la deuda más antigua, el pago por monto se <b>rechazará</b> al
-                llegar a él: paga primero el/los autovalúo(s).
-              </span>
-            </div>
-          )}
+              <div className="soc-formgrid soc-formgrid--2col">
+                <label className="field">
+                  <span className="field__label">Monto recibido (S/)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={monto}
+                    onChange={(e) => setMonto(e.target.value)}
+                    autoFocus
+                    disabled={submitting}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field__label">Fecha</span>
+                  <input
+                    type="date"
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    disabled={submitting}
+                  />
+                </label>
+              </div>
 
-          {error && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 12 }}>
-              <Icon name="info" size={16} />
-              <span>{error}</span>
-            </div>
-          )}
+              <label className="field">
+                <span className="field__label">Método de pago</span>
+                <select
+                  value={metodo}
+                  onChange={(e) => setMetodo(e.target.value)}
+                  disabled={submitting}
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="yape">Yape / Plin</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </label>
 
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">Monto recibido (S/)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-                autoFocus
-                disabled={submitting}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">Fecha</span>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-          </div>
+              {/* Siempre visible: en efectivo es el N.° del recibo físico que
+                  entrega tesorería (antes se ocultaba y no había dónde anotarlo). */}
+              <label className="field">
+                <span className="field__label">N.° de recibo (opcional)</span>
+                <input
+                  value={nroOperacion}
+                  onChange={(e) => setNroOperacion(e.target.value)}
+                  placeholder="Recibo de tesorería / N.° de operación"
+                  disabled={submitting}
+                />
+              </label>
 
-          <label className="field">
-            <span className="field__label">Método de pago</span>
-            <select
-              value={metodo}
-              onChange={(e) => setMetodo(e.target.value)}
-              disabled={submitting}
-            >
-              <option value="efectivo">Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="yape">Yape / Plin</option>
-              <option value="otro">Otro</option>
-            </select>
-          </label>
+              {/* Autovalúo(s) incluidos en el pago: cada recibo exige su N.° de
+                  operación (obligatorio, único). Suele ser uno solo. */}
+              {coveredAuto.length > 0 && (
+                <div
+                  className="ppm-auto"
+                  role="group"
+                  aria-label="N.° de operación de autovalúo"
+                >
+                  <div className="ppm-auto__head">
+                    <Icon name="info" size={15} />
+                    <span>
+                      Este pago incluye {coveredAuto.length} autovalúo(s).
+                      Ingresa el N.° de operación de cada recibo (obligatorio, no
+                      se puede repetir).
+                    </span>
+                  </div>
+                  {coveredAuto.map((c) => (
+                    <label className="field ppm-auto__field" key={c.id}>
+                      <span className="field__label">
+                        {c.concepto} ({c.periodo}) — {formatSoles(c.monto)} *
+                      </span>
+                      <input
+                        value={autoOps[c.id] ?? ""}
+                        onChange={(e) =>
+                          setAutoOps((prev) => ({
+                            ...prev,
+                            [c.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="N.° de recibo / operación del autovalúo"
+                        aria-invalid={!(autoOps[c.id] ?? "").trim()}
+                        disabled={submitting}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
 
-          {metodo !== "efectivo" && (
-            <label className="field">
-              <span className="field__label">N.° de operación (opcional)</span>
-              <input
-                value={nroOperacion}
-                onChange={(e) => setNroOperacion(e.target.value)}
-                placeholder="N.° de transferencia / Yape / depósito"
-                disabled={submitting}
-              />
-            </label>
-          )}
-
-          <div
-            style={{
-              background: "var(--bg-soft)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: "12px 14px",
-              fontSize: 13.5,
-            }}
-          >
-            <Icon
-              name="info"
-              size={14}
-              style={{ verticalAlign: "-2px", marginRight: 6, color: "var(--accent)" }}
-            />
-            Cubrirá <b>{preview.cubre}</b> de {pendientes.length} cuota(s)
-            pendiente(s)
-            {preview.sobrante > 0 && (
-              <>
-                {" "}
-                y dejará <b>{formatSoles(preview.sobrante)}</b> de saldo a favor
-              </>
-            )}
-            .
-          </div>
+              <div
+                style={{
+                  background: sobra ? "#fef3c7" : "var(--bg-soft)",
+                  border: `1px solid ${sobra ? "#fde68a" : "var(--border)"}`,
+                  color: sobra ? "#92400e" : undefined,
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  fontSize: 13.5,
+                }}
+              >
+                <Icon
+                  name="info"
+                  size={14}
+                  style={{
+                    verticalAlign: "-2px",
+                    marginRight: 6,
+                    color: sobra ? "#92400e" : "var(--accent)",
+                  }}
+                />
+                Cubrirá <b>{cubre}</b> de {pendientes.length} cuota(s)
+                pendiente(s).
+                {sobra && (
+                  <>
+                    {" "}
+                    Sobran <b>{formatSoles(sobrante)}</b>: ajusta el monto para
+                    saldar cuotas completas (no se maneja saldo a favor).
+                  </>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -329,7 +365,14 @@ export function PagoPorMontoModal({
               <button
                 type="submit"
                 className="btn btn--primary"
-                disabled={submitting}
+                disabled={submitting || faltanNros || sobra || !montoValido}
+                title={
+                  sobra
+                    ? "El monto debe saldar cuotas completas (no se maneja saldo a favor)"
+                    : faltanNros
+                      ? "Ingresa el N.° de operación de cada autovalúo incluido"
+                      : undefined
+                }
               >
                 {submitting ? "Registrando…" : "Registrar pago"}
               </button>

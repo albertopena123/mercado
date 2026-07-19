@@ -9,6 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { hoyISOPeru } from "@/lib/fecha";
 import { DocumentoInput } from "./DocumentoInput";
@@ -34,6 +35,7 @@ export function CreateSocioModal({
   onCreated: (id: string) => void;
   canCreateUser: boolean;
 }) {
+  const toast = useToast();
   const today = hoyISOPeru(); // hoy en Perú (no UTC) para el max de fechas
   const [tipo, setTipo] = useState<TipoDocumento>("DNI");
   const [numero, setNumero] = useState("");
@@ -59,7 +61,6 @@ export function CreateSocioModal({
   const [montoInscripcion, setMontoInscripcion] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [topError, setTopError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<string, string>>
   >({});
@@ -190,7 +191,6 @@ export function CreateSocioModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFieldErrors({});
     const input: CreateSocioInput = {
       tipoDocumento: tipo,
@@ -219,7 +219,7 @@ export function CreateSocioModal({
     };
     const res = await createSocio(input);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo crear el socio.");
+      toast.error(res.error ?? "No se pudo crear el socio.");
       setFieldErrors((res.fieldErrors as Record<string, string>) ?? {});
       setSubmitting(false);
       return;
@@ -260,13 +260,6 @@ export function CreateSocioModal({
         </header>
 
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <h4 className="modal__section">Identificación</h4>
           <DocumentoInput
             tipo={tipo}

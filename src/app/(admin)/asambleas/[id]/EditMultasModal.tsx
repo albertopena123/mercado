@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { updateAsamblea } from "../actions";
 
@@ -20,6 +21,7 @@ export function EditMultasModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const toast = useToast();
   const [tardanza, setTardanza] = useState(
     initialTardanza != null ? String(initialTardanza) : "",
   );
@@ -27,7 +29,6 @@ export function EditMultasModal({
     initialInasistencia != null ? String(initialInasistencia) : "",
   );
   const [fe, setFe] = useState<Record<string, string>>({});
-  const [topError, setTopError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEscClose(true, onClose, saving);
@@ -36,7 +37,6 @@ export function EditMultasModal({
     e.preventDefault();
     if (saving) return;
     setSaving(true);
-    setTopError(null);
     setFe({});
     // null = sin multa de ese tipo (el server normaliza 0 → null también).
     const res = await updateAsamblea(asambleaId, {
@@ -45,7 +45,7 @@ export function EditMultasModal({
     });
     setSaving(false);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudieron guardar las multas.");
+      toast.error(res.error ?? "No se pudieron guardar las multas.");
       setFe((res.fieldErrors as Record<string, string>) ?? {});
       return;
     }
@@ -77,12 +77,6 @@ export function EditMultasModal({
             cada socio en tardanza y a cada ausente. Deja en blanco (o 0) para no
             cobrar ese concepto.
           </p>
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
           {yaAplicadas && (
             <div
               className="soc-error"

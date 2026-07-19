@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import type { EstadoSocio } from "@/generated/prisma/client";
 import { changeEstadoSocio } from "./actions";
@@ -40,12 +41,12 @@ export function ChangeEstadoModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const toast = useToast();
   const allowed = OPTS.filter((o) => TRANSICIONES[current].includes(o.v));
   const [toEstado, setToEstado] = useState<EstadoSocio>(
     allowed[0]?.v ?? current,
   );
   const [motivo, setMotivo] = useState("");
-  const [topError, setTopError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -56,12 +57,11 @@ export function ChangeEstadoModal({
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!valid || pending) return;
-    setTopError(null);
     setFieldErrors({});
     startTransition(async () => {
       const r = await changeEstadoSocio(socioId, toEstado, motivo.trim());
       if (!r.ok) {
-        setTopError(r.error);
+        toast.error(r.error);
         setFieldErrors((r.fieldErrors as Record<string, string>) ?? {});
         return;
       }
@@ -93,13 +93,6 @@ export function ChangeEstadoModal({
             El cambio queda registrado en el historial con el motivo y tu
             usuario. Para volver atrás necesitarás registrar otra transición.
           </p>
-
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
 
           <label className="field">
             <span className="field__label">Estado actual</span>

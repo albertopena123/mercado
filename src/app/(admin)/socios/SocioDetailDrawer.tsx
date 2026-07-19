@@ -384,12 +384,7 @@ export function SocioDetailDrawer({
               onChanged={reload}
             />
           )}
-          {tab === "cuotas" && (
-            <SocioCuotasTab
-              socioId={socio.id}
-              socioNombre={`${socio.apellidoPaterno} ${socio.nombres}`}
-            />
-          )}
+          {tab === "cuotas" && <SocioCuotasTab socioId={socio.id} />}
           {tab === "historial" && (
             <ol className="historial">
               {socio.estadoLog.map((l) => (
@@ -586,7 +581,6 @@ function DatosForm({
   const [fechaIngreso, setFI] = useState(initial.fechaIngreso);
   const [observaciones, setObs] = useState(initial.observaciones);
 
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
 
@@ -665,7 +659,6 @@ function DatosForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isDirty || pending) return;
-    setError(null);
     setFieldErrors({});
 
     const patch: UpdateSocioPatch = {
@@ -692,7 +685,6 @@ function DatosForm({
     const res = await updateSocio(socio.id, patch);
     setPending(false);
     if (!res.ok) {
-      setError(res.error);
       setFieldErrors((res.fieldErrors as Record<string, string>) ?? {});
       toast.error(res.error);
       return;
@@ -707,13 +699,6 @@ function DatosForm({
 
   return (
     <form onSubmit={submit} className="soc-formgrid">
-      {error && (
-        <div className="soc-error" role="alert">
-          <Icon name="info" size={16} />
-          <span>{error}</span>
-        </div>
-      )}
-
       <h4>Identificación</h4>
       <DocumentoInput
         tipo={tipo}

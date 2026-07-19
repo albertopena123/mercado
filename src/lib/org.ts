@@ -2,9 +2,12 @@
 // (constancias y comprobantes). Centralizada acá para tener un solo lugar de
 // verdad: cambia aquí y se actualiza en todos los documentos.
 export const ORG = {
-  // Nombre que aparece en los documentos oficiales.
-  nombre: "Gran Feria Mayorista Internacional MDD",
-  // Nombre legal completo (para textos formales).
+  // Nombre visible / comercial de la feria. Aparece en TODOS los documentos que
+  // emite el sistema (constancia, comprobante, proforma, renuncia, reportes) y en
+  // la marca del sitio. Para la razón social registrada usar `nombreLegal`.
+  nombre: "Feria Mayorista Internacional Milagros",
+  // Nombre legal / razón social registrada (Partida N.° 11018461). Se usa donde se
+  // exige la entidad jurídica, p. ej. el contrato de transferencia.
   nombreLegal: "Asociación Gran Feria Mayorista Internacional Madre de Dios",
   // Partida registral de la asociación.
   partida: "11018461",

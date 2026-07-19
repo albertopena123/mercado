@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
 import { pagarCuotasSeleccionadas, reemitirComprobantePago } from "./actions";
@@ -39,10 +40,10 @@ export function PagarSeleccionModal({
     () => Math.round(cuotas.reduce((a, c) => a + c.monto, 0) * 100) / 100,
     [cuotas],
   );
+  const toast = useToast();
   const [metodo, setMetodo] = useState("efectivo");
   const [nroOperacion, setNroOperacion] = useState("");
   const [fecha, setFecha] = useState(today());
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [done, setDone] = useState<{
@@ -57,7 +58,6 @@ export function PagarSeleccionModal({
     e.preventDefault();
     if (submitting || cuotas.length === 0) return;
     setSubmitting(true);
-    setError(null);
     const res = await pagarCuotasSeleccionadas(
       socioId,
       cuotas.map((c) => c.id),
@@ -65,7 +65,7 @@ export function PagarSeleccionModal({
     );
     setSubmitting(false);
     if (!res.ok) {
-      setError(res.error);
+      toast.error(res.error);
       return;
     }
     const d = res.data!;
@@ -82,14 +82,13 @@ export function PagarSeleccionModal({
     const movId = done?.movimientoCajaId;
     if (!movId || retrying) return;
     setRetrying(true);
-    setError(null);
     const res = await reemitirComprobantePago(movId);
     setRetrying(false);
     if (res.ok && res.data) {
       const cid = res.data.id;
       setDone((d) => (d ? { ...d, comprobanteId: cid } : d));
     } else {
-      setError(res.ok ? "No se pudo emitir el comprobante." : res.error);
+      toast.error(res.ok ? "No se pudo emitir el comprobante." : res.error);
     }
   }
 
@@ -137,11 +136,6 @@ export function PagarSeleccionModal({
                   ? "Se generó el comprobante de pago. Puedes imprimirlo y entregarlo al socio."
                   : "El pago se registró, pero no se pudo generar el comprobante. Puedes reintentar su emisión."}
               </p>
-              {!done.comprobanteId && done.movimientoCajaId && error && (
-                <p style={{ fontSize: 12.5, color: "#b91c1c", marginTop: 8 }}>
-                  {error}
-                </p>
-              )}
             </div>
           ) : (
             <>
@@ -164,13 +158,6 @@ export function PagarSeleccionModal({
                   </div>
                 ))}
               </div>
-
-              {error && (
-                <div className="soc-error" role="alert" style={{ margin: "12px 0" }}>
-                  <Icon name="info" size={16} />
-                  <span>{error}</span>
-                </div>
-              )}
 
               <div className="soc-formgrid soc-formgrid--2col">
                 <label className="field">
@@ -197,17 +184,17 @@ export function PagarSeleccionModal({
                 </label>
               </div>
 
-              {metodo !== "efectivo" && (
-                <label className="field">
-                  <span className="field__label">N.° de operación (opcional)</span>
-                  <input
-                    value={nroOperacion}
-                    onChange={(e) => setNroOperacion(e.target.value)}
-                    placeholder="N.° de transferencia / Yape / depósito"
-                    disabled={submitting}
-                  />
-                </label>
-              )}
+              {/* Siempre visible: en efectivo es el N.° del recibo físico que
+                  entrega tesorería (antes se ocultaba y no había dónde anotarlo). */}
+              <label className="field">
+                <span className="field__label">N.° de recibo (opcional)</span>
+                <input
+                  value={nroOperacion}
+                  onChange={(e) => setNroOperacion(e.target.value)}
+                  placeholder="Recibo de tesorería / N.° de operación"
+                  disabled={submitting}
+                />
+              </label>
             </>
           )}
         </div>

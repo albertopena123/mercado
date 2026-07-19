@@ -3,15 +3,15 @@ import assert from "node:assert/strict";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-// Replica del algoritmo de pagarPorMonto para validar el comportamiento
-// contra la BD real (sin pasar por el server / sesión).
+// Replica del algoritmo de pagarPorMonto para validar el comportamiento contra
+// la BD real (sin pasar por el server / sesión). No se maneja saldo a favor: el
+// monto debe saldar cuotas COMPLETAS; si sobra dinero, el pago se rechaza y la
+// transacción no toca ninguna cuota.
+class SobraError extends Error {}
+
 async function pagar(prisma: PrismaClient, socioId: string, monto: number) {
   return prisma.$transaction(async (tx) => {
-    const socio = await tx.socio.findUnique({
-      where: { id: socioId },
-      select: { saldoAFavor: true },
-    });
-    let pozo = Number(socio!.saldoAFavor) + monto;
+    let pozo = monto;
     const pend = await tx.cuota.findMany({
       where: { socioId, estado: "pendiente" },
       orderBy: [{ periodo: "asc" }],
@@ -29,8 +29,9 @@ async function pagar(prisma: PrismaClient, socioId: string, monto: number) {
         pagadas++;
       } else break;
     }
-    await tx.socio.update({ where: { id: socioId }, data: { saldoAFavor: pozo } });
-    return { pagadas, saldoAFavor: pozo };
+    if (pozo > 0.0001)
+      throw new SobraError(`sobra S/${pozo.toFixed(2)} (no se maneja saldo a favor)`);
+    return { pagadas };
   });
 }
 
@@ -62,31 +63,31 @@ async function main() {
     })),
   });
 
-  console.log("→ Pagar S/200 → 10 cuotas, saldo 0");
+  console.log("→ Pagar S/200 → 10 cuotas exactas (sin sobra)");
   let r = await pagar(prisma, s.id, 200);
   assert.equal(r.pagadas, 10, "200/20 = 10 cuotas");
-  assert.equal(r.saldoAFavor, 0, "saldo 0");
   let pend = await prisma.cuota.count({ where: { socioId: s.id, estado: "pendiente" } });
   assert.equal(pend, 2, "quedan 2 pendientes");
-  console.log(`  ✓ pagadas=${r.pagadas}, pendientes=${pend}, saldo=S/${r.saldoAFavor}`);
+  console.log(`  ✓ pagadas=${r.pagadas}, pendientes=${pend}`);
 
-  console.log("→ Pagar S/50 → 2 cuotas (40), saldo 10");
-  r = await pagar(prisma, s.id, 50);
-  assert.equal(r.pagadas, 2, "50 cubre 2 cuotas de 20");
-  assert.equal(r.saldoAFavor, 10, "sobra 10 → saldo a favor");
+  console.log("→ Pagar S/50 → sobran S/10 → RECHAZO, nada cambia");
+  await assert.rejects(
+    () => pagar(prisma, s.id, 50),
+    (e) => e instanceof SobraError,
+    "un monto con sobrante debe rechazarse",
+  );
+  pend = await prisma.cuota.count({ where: { socioId: s.id, estado: "pendiente" } });
+  assert.equal(pend, 2, "el rechazo revierte la tx: siguen 2 pendientes");
+  console.log(`  ✓ rechazado, pendientes intactas=${pend}`);
+
+  console.log("→ Pagar S/40 → 2 cuotas exactas → sin pendientes");
+  r = await pagar(prisma, s.id, 40);
+  assert.equal(r.pagadas, 2, "40 cubre las 2 cuotas restantes");
   pend = await prisma.cuota.count({ where: { socioId: s.id, estado: "pendiente" } });
   assert.equal(pend, 0, "sin pendientes");
-  console.log(`  ✓ pagadas=${r.pagadas}, pendientes=${pend}, saldo=S/${r.saldoAFavor}`);
+  console.log(`  ✓ pagadas=${r.pagadas}, pendientes=${pend}`);
 
-  console.log("→ Nueva cuota + pagar S/10 (usa saldo 10 + 10 = 20) → 1 cuota");
-  await prisma.cuota.create({
-    data: { socioId: s.id, periodo: "2027-01", concepto: "Test", monto: 20 },
-  });
-  r = await pagar(prisma, s.id, 10);
-  assert.equal(r.pagadas, 1, "saldo 10 + 10 = 20 cubre 1 cuota");
-  assert.equal(r.saldoAFavor, 0, "saldo consumido");
-  console.log(`  ✓ pagadas=${r.pagadas}, saldo=S/${r.saldoAFavor}`);
-
+  await prisma.cuota.deleteMany({ where: { socioId: s.id } });
   await prisma.socio.delete({ where: { id: s.id } });
   console.log("\n✅ verify-pago-monto OK.");
   await prisma.$disconnect();

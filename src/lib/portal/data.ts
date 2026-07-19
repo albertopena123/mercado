@@ -28,36 +28,28 @@ export type MiCuota = {
 };
 export type MisCuotas = {
   deuda: number;
-  saldoAFavor: number;
   cuotas: MiCuota[];
 };
 
 export async function getMisCuotas(socioId: string): Promise<MisCuotas> {
-  const [cuotas, socio] = await Promise.all([
-    prisma.cuota.findMany({
-      where: { socioId },
-      orderBy: [{ periodo: "desc" }],
-      select: {
-        id: true,
-        periodo: true,
-        concepto: true,
-        monto: true,
-        estado: true,
-        vencimiento: true,
-        pagadoEn: true,
-      },
-    }),
-    prisma.socio.findUnique({
-      where: { id: socioId },
-      select: { saldoAFavor: true },
-    }),
-  ]);
+  const cuotas = await prisma.cuota.findMany({
+    where: { socioId },
+    orderBy: [{ periodo: "desc" }],
+    select: {
+      id: true,
+      periodo: true,
+      concepto: true,
+      monto: true,
+      estado: true,
+      vencimiento: true,
+      pagadoEn: true,
+    },
+  });
   const deuda = cuotas
     .filter((c) => c.estado === "pendiente")
     .reduce((acc, c) => acc + toNumber(c.monto), 0);
   return {
     deuda,
-    saldoAFavor: toNumber(socio?.saldoAFavor),
     cuotas: cuotas.map((c) => ({
       id: c.id,
       periodo: c.periodo,
@@ -350,7 +342,6 @@ export async function getMisNotificaciones(
 /* ───────────────────────── Resumen del dashboard ───────────────────────── */
 export type MiResumen = {
   deuda: number;
-  saldoAFavor: number;
   comunicados: number;
   puestos: number;
   reuniones: number;
@@ -362,14 +353,10 @@ export type MiResumen = {
 
 export async function getMiResumen(socioId: string): Promise<MiResumen> {
   const hoy = inicioDiaUTC(hoyISOPeru());
-  const [cuotas, socio, comunicados, puestos, reuniones] = await Promise.all([
+  const [cuotas, comunicados, puestos, reuniones] = await Promise.all([
     prisma.cuota.findMany({
       where: { socioId },
       select: { monto: true, estado: true, vencimiento: true, pagadoEn: true },
-    }),
-    prisma.socio.findUnique({
-      where: { id: socioId },
-      select: { saldoAFavor: true },
     }),
     prisma.anuncio.count({
       where: {
@@ -415,7 +402,6 @@ export async function getMiResumen(socioId: string): Promise<MiResumen> {
 
   return {
     deuda,
-    saldoAFavor: toNumber(socio?.saldoAFavor),
     comunicados: Math.min(comunicados, COMUNICADOS_LIMIT),
     puestos,
     reuniones,

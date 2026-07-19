@@ -3,6 +3,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/server";
+import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { toNumber } from "@/lib/money";
 import { appBaseUrl } from "@/lib/url";
@@ -45,12 +46,20 @@ const EPS = 0.005;
 export async function emitirConstancia(
   socioId: string,
   tipo: TipoConstancia = "socio_habil",
+  motivo?: string,
 ): Promise<ActionResult<EmitResult>> {
   try {
     // Emitir CREA un registro oficial y consume un folio: exige permiso de
     // escritura, no solo lectura. (La vista previa en page.tsx sí usa
     // "socios.read": ver la previa no genera nada.)
     const me = await requirePermission("socios.write");
+
+    // Finalidad: obligatoria en la constancia de socio (nominatividad: el
+    // documento se emite "para" algo concreto, no genérico). Opcional en la de
+    // no adeudo, cuyo fin (transferencia / acreditar estar al día) es implícito.
+    const motivoClean = (motivo ?? "").trim();
+    if (tipo === "socio_habil" && !motivoClean)
+      return fail("Indica la finalidad de la constancia (para qué se solicita).");
 
     const socio = await prisma.socio.findUnique({
       where: { id: socioId },
@@ -124,11 +133,34 @@ export async function emitirConstancia(
               "El socio mantiene deuda pendiente; no se puede emitir la constancia de no adeudo.",
             );
           const habil = socio.estado === "activo" && deudaTx <= EPS;
+
+          // Una sola vigente por socio (solo la de socio/membresía, que es la
+          // que se presta al mal uso): al emitir una nueva, se anulan las
+          // vigentes anteriores del mismo socio. Así toda copia/fotocopia previa
+          // pasa a verificarse como ANULADA por su QR.
+          if (tipo === "socio_habil") {
+            await tx.constancia.updateMany({
+              where: {
+                socioId: socio.id,
+                tipo: "socio_habil",
+                anulada: false,
+                validoHasta: { gt: now },
+              },
+              data: {
+                anulada: true,
+                anuladaEn: now,
+                anuladaPorId: me.id,
+                motivoAnulacion: `Reemplazada por la constancia ${folio}`,
+              },
+            });
+          }
+
           return tx.constancia.create({
             data: {
               folio,
               codigo,
               tipo,
+              motivo: motivoClean || null,
               socioId: socio.id,
               socioCodigo: socio.codigo,
               socioNombre: nombre,
@@ -154,6 +186,10 @@ export async function emitirConstancia(
     const verifyUrl = `${await appBaseUrl()}/verificar/${row.codigo}`;
     const qrSvg = await generarQrSvg(verifyUrl);
 
+    // Refresca el historial de constancias del socio (una emisión puede haber
+    // anulado la vigente anterior).
+    revalidatePath(`/socios/${socioId}/constancia`);
+
     return ok({
       folio: row.folio,
       codigo: row.codigo,
@@ -169,5 +205,51 @@ export async function emitirConstancia(
     if (e instanceof DeudaError) return fail(e.message);
     console.error("emitirConstancia", e);
     return fail("No se pudo emitir la constancia.");
+  }
+}
+
+/**
+ * Anula (revoca) una constancia. Al anularla, su verificación pública por QR
+ * pasa a mostrar "ANULADA" para toda copia impresa/fotocopia. Se usa cuando el
+ * mercado detecta un mal uso (p. ej. una constancia de socio exhibida para
+ * "vender" un puesto). Registra quién, cuándo y por qué (auditoría).
+ */
+export async function anularConstancia(
+  constanciaId: string,
+  motivo: string,
+): Promise<ActionResult> {
+  try {
+    const me = await requirePermission("socios.write");
+    const motivoClean = (motivo ?? "").trim();
+    if (!motivoClean)
+      return { ok: false, error: "Indica el motivo de la anulación." };
+
+    const c = await prisma.constancia.findUnique({
+      where: { id: constanciaId },
+      select: { socioId: true, anulada: true },
+    });
+    if (!c) return { ok: false, error: "Constancia no encontrada." };
+    if (c.anulada) return { ok: false, error: "La constancia ya estaba anulada." };
+
+    // Transición condicional (anulada=false → true) para no pisar una anulación
+    // concurrente ni re-anular.
+    const res = await prisma.constancia.updateMany({
+      where: { id: constanciaId, anulada: false },
+      data: {
+        anulada: true,
+        anuladaEn: new Date(),
+        anuladaPorId: me.id,
+        motivoAnulacion: motivoClean,
+      },
+    });
+    if (res.count !== 1)
+      return { ok: false, error: "La constancia ya estaba anulada." };
+
+    if (c.socioId) revalidatePath(`/socios/${c.socioId}/constancia`);
+    return { ok: true };
+  } catch (e) {
+    unstable_rethrow(e);
+    console.error("anularConstancia", e);
+    return { ok: false, error: "No se pudo anular la constancia." };
   }
 }

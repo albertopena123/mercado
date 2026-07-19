@@ -28,6 +28,7 @@ export type AsistenciaRow = {
   socioId: string;
   socioNombre: string;
   socioCodigo: string;
+  socioDni: string | null;
   estado: EstadoAsistencia;
   observacion: string | null;
 };

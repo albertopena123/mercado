@@ -72,8 +72,8 @@ export function ContratoView({ data }: { data: Data }) {
         <div className="constancia__banner">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logos_sistema/logo_header.png"
-            alt="Gran Feria Mayorista Internacional MDD"
+            src="/logo-feria-milagros.png"
+            alt="Feria Mayorista Internacional Milagros"
           />
         </div>
         <div className="constancia__membrete">

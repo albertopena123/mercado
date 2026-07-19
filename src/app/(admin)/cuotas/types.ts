@@ -21,6 +21,8 @@ export type CuotaRow = {
   pagadoEn: string | null;
   pagadoMonto: number | null;
   metodoPago: string | null;
+  nroOperacion: string | null;
+  motivo: string | null;
 };
 
 export type ListCuotasParams = {
@@ -47,8 +49,8 @@ export type CuotaStats = {
 
 export type SocioCuotas = {
   deuda: number;
-  saldoAFavor: number;
   canPay: boolean;
+  canWrite: boolean;
   cuotas: CuotaRow[];
 };
 
@@ -60,7 +62,6 @@ export type ComprobanteRef = {
 
 export type PagoPorMontoResult = {
   pagadas: number;
-  saldoAFavor: number;
   montoAplicado: number;
   comprobante: ComprobanteRef | null;
   movimientoCajaId: string | null;

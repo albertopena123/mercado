@@ -27,6 +27,9 @@ import type {
   ListTransferenciasResult,
   TransferenciaDetail,
   CreateTransferenciaInput,
+  CreateLoteInput,
+  LineaTransferenciaInput,
+  LoteResult,
   FormalizarResult,
   TransferenteOption,
 } from "./types";
@@ -389,6 +392,156 @@ export async function createTransferencia(
   }
 }
 
+// Crea UN expediente (una línea del lote). El transferente ya fue validado como
+// activo por quien llama. Devuelve el id o un error legible por línea. Mismo
+// conjunto de validaciones que createTransferencia (puesto asignado, sin
+// borrador duplicado, adquiriente válido y aún no socio).
+async function crearExpedienteLinea(
+  meId: string,
+  transferenteId: string,
+  fecha: Date,
+  linea: LineaTransferenciaInput,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const asig = await prisma.puestoAsignacion.findFirst({
+    where: { socioId: transferenteId, puestoId: linea.puestoId, hasta: null },
+    select: { id: true },
+  });
+  if (!asig)
+    return { ok: false, error: "El puesto ya no está asignado al transferente." };
+
+  const yaBorrador = await prisma.transferencia.findFirst({
+    where: { puestoId: linea.puestoId, estado: "borrador" },
+    select: { codigo: true },
+  });
+  if (yaBorrador)
+    return {
+      ok: false,
+      error: `Ya existe un expediente en borrador (${yaBorrador.codigo}) para este puesto.`,
+    };
+
+  if (!esTipoDocumentoValido(linea.adqTipoDocumento))
+    return { ok: false, error: "Tipo de documento del adquiriente inválido." };
+  const adqDoc = (linea.adqNumeroDocumento ?? "").trim();
+  if (linea.adqTipoDocumento === "DNI" && !/^\d{8}$/.test(adqDoc))
+    return { ok: false, error: "El DNI del adquiriente debe tener 8 dígitos." };
+  if (!adqDoc) return { ok: false, error: "Falta el documento del adquiriente." };
+  if (!(linea.adqApellidoPaterno ?? "").trim())
+    return { ok: false, error: "Falta el apellido paterno del adquiriente." };
+  if (!(linea.adqNombres ?? "").trim())
+    return { ok: false, error: "Faltan los nombres del adquiriente." };
+
+  const existe = await prisma.socio.findUnique({
+    where: {
+      tipoDocumento_numeroDocumento: {
+        tipoDocumento: linea.adqTipoDocumento,
+        numeroDocumento: adqDoc,
+      },
+    },
+    select: { codigo: true },
+  });
+  if (existe)
+    return {
+      ok: false,
+      error: `Ese documento ya pertenece al socio ${existe.codigo}.`,
+    };
+
+  let monto: number | null = null;
+  if (linea.monto != null && String(linea.monto) !== "") {
+    const m = Number(linea.monto);
+    if (isNaN(m) || m < 0) return { ok: false, error: "Monto inválido." };
+    monto = m > 0 ? m : null;
+  }
+
+  const anio = anioLima(new Date());
+  for (let intento = 0; intento < 5; intento++) {
+    const n = await prisma.transferencia.count({
+      where: { codigo: { startsWith: `TR-${anio}-` } },
+    });
+    const codigo = `TR-${anio}-${String(n + 1).padStart(4, "0")}`;
+    try {
+      const created = await prisma.transferencia.create({
+        data: {
+          codigo,
+          transferenteId,
+          puestoId: linea.puestoId,
+          adqTipoDocumento: linea.adqTipoDocumento,
+          adqNumeroDocumento: adqDoc,
+          adqApellidoPaterno: linea.adqApellidoPaterno.trim(),
+          adqApellidoMaterno: linea.adqApellidoMaterno?.trim() || null,
+          adqNombres: linea.adqNombres.trim(),
+          adqEstadoCivil: linea.adqEstadoCivil?.trim() || null,
+          adqDireccion: linea.adqDireccion?.trim() || null,
+          adqDistrito: linea.adqDistrito?.trim() || null,
+          adqProvincia: linea.adqProvincia?.trim() || null,
+          adqDepartamento: linea.adqDepartamento?.trim() || null,
+          adqTelefono: linea.adqTelefono?.trim() || null,
+          monto: monto != null ? new Prisma.Decimal(monto.toFixed(2)) : null,
+          fecha,
+          createdById: meId,
+        },
+        select: { id: true },
+      });
+      return { ok: true, id: created.id };
+    } catch (e) {
+      if (isP2002(e) && intento < 4) continue;
+      throw e;
+    }
+  }
+  return { ok: false, error: "No se pudo generar el código de la transferencia." };
+}
+
+// Crea VARIOS expedientes (uno por puesto) de un mismo vendedor en un solo paso.
+// Cada puesto conserva su expediente/contrato/formalización independientes. El
+// comprador puede ser el mismo o distinto por puesto (lo arma quien llama). Cada
+// línea se valida y crea por separado: reporta las creadas y las que fallaron.
+export async function createTransferenciasLote(
+  input: CreateLoteInput,
+): Promise<ActionResult<LoteResult>> {
+  try {
+    const me = await authorize("transferencias.write");
+
+    const transferente = await prisma.socio.findUnique({
+      where: { id: input.transferenteId },
+      select: { estado: true },
+    });
+    if (!transferente) return fail("Transferente no encontrado.");
+    if (transferente.estado !== "activo")
+      return fail("El transferente debe ser un socio activo.");
+
+    const lineas = input.lineas ?? [];
+    if (lineas.length === 0) return fail("Selecciona al menos un puesto.");
+
+    const vistos = new Set<string>();
+    for (const l of lineas) {
+      if (vistos.has(l.puestoId))
+        return fail("Hay un puesto repetido en el lote.");
+      vistos.add(l.puestoId);
+    }
+
+    const fecha = inicioDiaUTC(input.fecha);
+    if (isNaN(fecha.getTime())) return fail("Fecha inválida.");
+
+    const created: { puestoId: string; id: string }[] = [];
+    const failed: { puestoId: string; error: string }[] = [];
+    for (const linea of lineas) {
+      const res = await crearExpedienteLinea(
+        me.id,
+        input.transferenteId,
+        fecha,
+        linea,
+      );
+      if (res.ok) created.push({ puestoId: linea.puestoId, id: res.id });
+      else failed.push({ puestoId: linea.puestoId, error: res.error });
+    }
+    if (created.length > 0) refresh();
+    return ok({ created, failed });
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("createTransferenciasLote", e);
+    return fail("No se pudo crear el lote de transferencias.");
+  }
+}
+
 // FORMALIZAR: en UNA transacción → da de alta al adquiriente como socio nuevo,
 // mueve el puesto (cierra la asignación del transferente, abre la del nuevo) y,
 // si el transferente queda sin puestos, lo retira.
@@ -426,21 +579,6 @@ export async function formalizarTransferencia(
           // otras formalizaciones del mismo puesto.
           await tx.$queryRaw`SELECT id FROM "Puesto" WHERE id = ${t.puestoId} FOR UPDATE`;
 
-          // El documento del adquiriente no debe pertenecer ya a un socio.
-          const dup = await tx.socio.findUnique({
-            where: {
-              tipoDocumento_numeroDocumento: {
-                tipoDocumento: t.adqTipoDocumento,
-                numeroDocumento: t.adqNumeroDocumento,
-              },
-            },
-            select: { codigo: true },
-          });
-          if (dup)
-            throw new Denied(
-              `El documento del adquiriente ya pertenece al socio ${dup.codigo}.`,
-            );
-
           // El transferente no debe tener deuda (igual que la constancia de no adeudo).
           const pend = await tx.cuota.findMany({
             where: { socioId: t.transferenteId, estado: "pendiente" },
@@ -466,52 +604,93 @@ export async function formalizarTransferencia(
           if (!asig)
             throw new Denied("El transferente ya no tiene asignado ese puesto.");
 
-          // 1. Alta del adquiriente como socio nuevo. El código se calcula por
-          // valor numérico (no lexicográfico) para no duplicar pasado 6 dígitos.
-          const codigos = await tx.socio.findMany({
-            where: { codigo: { startsWith: "SOC-" } },
-            select: { codigo: true },
+          // 1. Resolver al adquiriente. Si su documento YA pertenece a un socio
+          // (p. ej. compró otro puesto en un expediente hermano ya formalizado,
+          // o es un socio existente), se le ASIGNA el puesto —Art. 26-i: un
+          // asociado puede tener más de un puesto—, reactivándolo si no estaba
+          // activo. Si no existe, se da de alta como socio nuevo (código por
+          // valor numérico, no lexicográfico, para no duplicar pasado 6 dígitos).
+          const existente = await tx.socio.findUnique({
+            where: {
+              tipoDocumento_numeroDocumento: {
+                tipoDocumento: t.adqTipoDocumento,
+                numeroDocumento: t.adqNumeroDocumento,
+              },
+            },
+            select: { id: true, codigo: true, estado: true },
           });
-          const codigo = nextCodigoFromList(codigos.map((s) => s.codigo));
-          const searchKey = buildSocioSearchKey({
-            codigo,
-            numeroDocumento: t.adqNumeroDocumento,
-            numeroPadron: null,
-            apellidoPaterno: t.adqApellidoPaterno,
-            apellidoMaterno: t.adqApellidoMaterno,
-            nombres: t.adqNombres,
-          });
-          const nuevo = await tx.socio.create({
-            data: {
-              codigo,
-              searchKey,
-              tipoDocumento: t.adqTipoDocumento,
+          if (existente && existente.id === t.transferenteId)
+            throw new Denied(
+              "El adquiriente no puede ser el mismo transferente.",
+            );
+
+          let nuevoId: string;
+          let adqCodigo: string;
+          if (existente) {
+            nuevoId = existente.id;
+            adqCodigo = existente.codigo;
+            if (existente.estado !== "activo") {
+              await tx.socio.update({
+                where: { id: existente.id },
+                data: { estado: "activo" },
+              });
+              await tx.socioEstadoLog.create({
+                data: {
+                  socioId: existente.id,
+                  fromEstado: existente.estado,
+                  toEstado: "activo",
+                  motivo: `Reactivación por adquisición de puesto vía transferencia ${t.codigo}`,
+                  byUserId: me.id,
+                },
+              });
+            }
+          } else {
+            const codigos = await tx.socio.findMany({
+              where: { codigo: { startsWith: "SOC-" } },
+              select: { codigo: true },
+            });
+            adqCodigo = nextCodigoFromList(codigos.map((s) => s.codigo));
+            const searchKey = buildSocioSearchKey({
+              codigo: adqCodigo,
               numeroDocumento: t.adqNumeroDocumento,
+              numeroPadron: null,
               apellidoPaterno: t.adqApellidoPaterno,
               apellidoMaterno: t.adqApellidoMaterno,
               nombres: t.adqNombres,
-              estadoCivil: t.adqEstadoCivil,
-              direccion: t.adqDireccion,
-              distrito: t.adqDistrito,
-              provincia: t.adqProvincia,
-              departamento: t.adqDepartamento,
-              telefono: t.adqTelefono,
-              fechaIngreso: t.fecha,
-              observaciones: `Alta por transferencia ${t.codigo}`,
-              createdById: me.id,
-              updatedById: me.id,
-            },
-            select: { id: true, estado: true },
-          });
-          await tx.socioEstadoLog.create({
-            data: {
-              socioId: nuevo.id,
-              fromEstado: nuevo.estado,
-              toEstado: nuevo.estado,
-              motivo: `Alta por transferencia ${t.codigo} del puesto ${t.puestoId}`,
-              byUserId: me.id,
-            },
-          });
+            });
+            const nuevo = await tx.socio.create({
+              data: {
+                codigo: adqCodigo,
+                searchKey,
+                tipoDocumento: t.adqTipoDocumento,
+                numeroDocumento: t.adqNumeroDocumento,
+                apellidoPaterno: t.adqApellidoPaterno,
+                apellidoMaterno: t.adqApellidoMaterno,
+                nombres: t.adqNombres,
+                estadoCivil: t.adqEstadoCivil,
+                direccion: t.adqDireccion,
+                distrito: t.adqDistrito,
+                provincia: t.adqProvincia,
+                departamento: t.adqDepartamento,
+                telefono: t.adqTelefono,
+                fechaIngreso: t.fecha,
+                observaciones: `Alta por transferencia ${t.codigo}`,
+                createdById: me.id,
+                updatedById: me.id,
+              },
+              select: { id: true, estado: true },
+            });
+            nuevoId = nuevo.id;
+            await tx.socioEstadoLog.create({
+              data: {
+                socioId: nuevo.id,
+                fromEstado: nuevo.estado,
+                toEstado: nuevo.estado,
+                motivo: `Alta por transferencia ${t.codigo} del puesto ${t.puestoId}`,
+                byUserId: me.id,
+              },
+            });
+          }
 
           // 2. Cerrar SOLO la asignación vigente del transferente para ESTE
           // puesto (scoped por socioId) y abrir la del nuevo. Si no cierra
@@ -531,7 +710,7 @@ export async function formalizarTransferencia(
           await tx.puestoAsignacion.create({
             data: {
               puestoId: t.puestoId,
-              socioId: nuevo.id,
+              socioId: nuevoId,
               desde: t.fecha,
               motivo: `Transferencia ${t.codigo}`,
               byUserId: me.id,
@@ -570,7 +749,7 @@ export async function formalizarTransferencia(
             where: { id, estado: "borrador" },
             data: {
               estado: "completada",
-              adquirienteSocioId: nuevo.id,
+              adquirienteSocioId: nuevoId,
               completadaEn: new Date(),
             },
           });
@@ -578,7 +757,7 @@ export async function formalizarTransferencia(
             throw new Denied("La transferencia ya fue procesada.");
 
           return {
-            adquirienteSocioCodigo: codigo,
+            adquirienteSocioCodigo: adqCodigo,
             transferenteRetirado: retirado,
           };
         });

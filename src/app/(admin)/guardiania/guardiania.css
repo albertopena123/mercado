@@ -1,0 +1,732 @@
+/* Módulo Guardianía — hereda de socios.css (.socios-page, .btn, .table, .input,
+   .field, .pagination, .modal) y globals.css (tokens). Aquí solo lo propio del
+   módulo: KPIs, tabs, gráfico de ingresos y vistas de recibos/deuda. Todo con los
+   tokens del tema (var(--surface/--text-muted/--bg-sunken/…)) para respetar claro
+   y oscuro. */
+
+/* ─────────── KPIs ─────────── */
+.gd-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0 4px;
+}
+@media (max-width: 900px) {
+  .gd-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.gd-kpi {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+button.gd-kpi {
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+button.gd-kpi:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.gd-kpi__icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.gd-kpi--warn .gd-kpi__icon {
+  background: #fef3c7;
+  color: #b45309;
+}
+.gd-kpi__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.gd-kpi__value {
+  font-family: "Google Sans", sans-serif;
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.gd-kpi--warn .gd-kpi__value {
+  color: #b45309;
+}
+.gd-kpi__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.gd-kpi__hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+
+/* ─────────── Tabs ─────────── */
+.gd-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 20px 0 0;
+  border-bottom: 1px solid var(--border);
+}
+.gd-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.gd-tab:hover {
+  color: var(--text);
+}
+.gd-tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ─────────── Paneles ─────────── */
+.gd-panel {
+  padding: 20px 0 8px;
+}
+.gd-panel__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.gd-panel__bar .gd-spacer {
+  margin-left: auto;
+}
+
+/* Segmented toggle (cobro / cubierto) */
+.gd-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+}
+.gd-seg button {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.gd-seg button.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─────────── Gráfico de ingresos (columnas por mes, agrupadas por año) ─────────── */
+.gd-chart {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 18px 20px 14px;
+}
+.gd-chart__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.gd-chart__peak {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.gd-chart__peak b {
+  color: var(--text);
+  font-weight: 600;
+}
+.gd-chart__scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.gd-chart__plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  min-height: 172px;
+  border-bottom: 1px solid var(--border);
+}
+.gd-year {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gd-year__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 150px;
+}
+.gd-col {
+  position: relative;
+  width: 15px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.gd-col__bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 62%, #7db0ff) 100%);
+  transition: filter 0.15s;
+}
+.gd-col:hover .gd-col__bar {
+  filter: brightness(1.12);
+}
+.gd-col__tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  z-index: 3;
+  font-variant-numeric: tabular-nums;
+}
+.gd-col:hover .gd-col__tip {
+  opacity: 1;
+}
+.gd-year__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.gd-year__label b {
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  color: var(--text);
+}
+.gd-year__label span {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────── Filtros (recibos) ─────────── */
+.gd-filterbar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.gd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.gd-toolbar__excel {
+  margin-left: auto;
+}
+.gd-search {
+  position: relative;
+  flex: 1 1 320px;
+  min-width: 220px;
+  max-width: 440px;
+}
+.gd-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.gd-search input {
+  padding-left: 34px;
+  padding-right: 34px;
+}
+.gd-search__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.gd-search__clear:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+/* Grupos de período: cobro (rango) + mes cubierto */
+.gd-periodrow {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.gd-fgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gd-fgroup__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.gd-fgroup__label em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+.gd-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gd-fchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.gd-fchip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.gd-fchip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.gd-daterange {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+.gd-daterange label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.gd-monthinput {
+  max-width: 190px;
+}
+
+/* Chips de filtros activos */
+.gd-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.gd-active__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.gd-tagchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px 4px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.gd-tagchip:hover {
+  background: var(--accent-softer);
+}
+.gd-tagchip svg {
+  opacity: 0.7;
+}
+.gd-active__clear {
+  appearance: none;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 4px;
+}
+.gd-active__clear:hover {
+  color: var(--text);
+}
+.gd-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.gd-sumline {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 2px 0 10px;
+}
+.gd-sumline b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────── Tabla (sobre .socios-table) ─────────── */
+.gd-tablewrap {
+  overflow-x: auto;
+}
+.gd-table {
+  min-width: 720px;
+}
+.gd-table th {
+  padding: 11px 16px;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+.gd-table td {
+  padding: 10px 16px;
+  vertical-align: middle;
+}
+.gd-table tbody tr {
+  cursor: default;
+}
+.gd-table .gd-num,
+.gd-table .gd-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.gd-table .gd-money {
+  font-weight: 600;
+  color: var(--text);
+}
+.gd-table td.gd-nowrap {
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.gd-puesto {
+  display: inline-block;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.gd-socio {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.gd-flag {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+  cursor: help;
+}
+.gd-recibo {
+  font-family: "Roboto Mono", ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.gd-sub {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.gd-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.gd-chip--mes {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.gd-chip--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+.gd-chip--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.gd-chip--muted {
+  background: var(--bg-sunken);
+  color: var(--text-faint);
+}
+
+/* Barra de progreso de meses cubiertos en Deudas */
+.gd-meses {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gd-meses__track {
+  width: 70px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.gd-meses__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.gd-meses__fill.is-due {
+  background: #d97706;
+}
+.gd-meses__txt {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: right;
+}
+
+/* ─────────── Empty ─────────── */
+.gd-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.gd-empty strong {
+  display: block;
+  color: var(--text);
+  font-family: "Google Sans", sans-serif;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Acciones a la derecha en la barra de un panel */
+.gd-baractions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─────────── Modal: generar cargos a socios ─────────── */
+.gd-cargos__lead {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+.gd-cargos__lead b {
+  color: var(--text);
+  font-weight: 600;
+}
+.gd-cargos__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (max-width: 520px) {
+  .gd-cargos__grid {
+    grid-template-columns: 1fr;
+  }
+}
+.gd-cargos__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.gd-cargos__stat--new {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.gd-cargos__num {
+  font-family: "Google Sans", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.gd-cargos__stat--new .gd-cargos__num {
+  color: var(--accent);
+}
+.gd-cargos__lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.gd-cargos__detail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.gd-cargos__detail li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.gd-cargos__detail li:last-child {
+  border-bottom: none;
+}
+.gd-cargos__detail li b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.gd-cargos__detail li.gd-cargos__warn {
+  background: #fffbeb;
+  color: #92400e;
+}
+.gd-cargos__detail li.gd-cargos__warn b {
+  color: #92400e;
+}
+.gd-cargos__warn span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─────────── Picker de puesto (modal) ─────────── */
+.gd-picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+}
+.gd-picklist {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.gd-pickitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.gd-pickitem:last-child {
+  border-bottom: none;
+}
+.gd-pickitem:hover {
+  background: var(--accent-softer);
+}
+.gd-pickitem span {
+  color: var(--text-muted);
+  flex: 1;
+}
+.gd-pickitem em {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 600;
+}

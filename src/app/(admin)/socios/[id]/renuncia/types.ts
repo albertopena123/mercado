@@ -1,7 +1,10 @@
 // Tipos compartidos del expediente de renuncia entre el server (actions/page) y
 // el cliente (RenunciaManager). Vive aparte porque un archivo "use server" solo
 // puede exportar funciones async.
-import type { EstadoRenuncia } from "@/generated/prisma/client";
+import type {
+  EstadoRenuncia,
+  DimensionPuesto,
+} from "@/generated/prisma/client";
 
 export type { EstadoRenuncia };
 
@@ -25,6 +28,10 @@ export const FLUJO_RENUNCIA: EstadoRenuncia[] = [
 export type RenunciaData = {
   id: string;
   estado: EstadoRenuncia;
+  // Alcance: puestoId => cesión de ese puesto; null => renuncia total.
+  puestoId: string | null;
+  puestoCodigo: string | null;
+  puestoDimension: DimensionPuesto | null;
   motivo: string | null;
   fechaSolicitud: string; // ISO
   actaCdNumero: string | null;

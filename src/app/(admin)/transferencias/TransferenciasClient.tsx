@@ -235,9 +235,10 @@ export function TransferenciasClient({
       {creating && (
         <CreateTransferenciaModal
           onClose={() => setCreating(false)}
-          onCreated={(id) => {
+          onCreated={(ids) => {
             setCreating(false);
-            router.push(`/transferencias/${id}`);
+            if (ids.length === 1) router.push(`/transferencias/${ids[0]}`);
+            else router.refresh();
           }}
         />
       )}

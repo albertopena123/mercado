@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { generarCuotasPeriodo } from "./actions";
 
@@ -18,11 +19,11 @@ export function GenerarCuotasModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const toast = useToast();
   const [periodo, setPeriodo] = useState(currentPeriodo());
   const [monto, setMonto] = useState("20");
   const [concepto, setConcepto] = useState("");
   const [vencimiento, setVenc] = useState("");
-  const [topError, setTopError] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
@@ -35,7 +36,6 @@ export function GenerarCuotasModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const res = await generarCuotasPeriodo({
       periodo,
@@ -45,7 +45,7 @@ export function GenerarCuotasModal({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudieron generar las cuotas.");
+      toast.error(res.error ?? "No se pudieron generar las cuotas.");
       setFe((res.fieldErrors as Record<string, string>) ?? {});
       return;
     }
@@ -84,12 +84,6 @@ export function GenerarCuotasModal({
                 Crea una cuota <b>pendiente</b> para cada socio activo. Si un
                 socio ya tiene cuota de este periodo, se omite (no se duplica).
               </p>
-              {topError && (
-                <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-                  <Icon name="info" size={16} />
-                  <span>{topError}</span>
-                </div>
-              )}
               <div className="soc-formgrid soc-formgrid--2col">
                 <label className="field">
                   <span className="field__label">

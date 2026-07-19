@@ -75,7 +75,7 @@ export function AdminShell({ user, children }: Props) {
       </div>
 
       <footer className="footer">
-        <span>© 2026 UNAMAD · Oficina de Tecnologías de la Información</span>
+        <span>© 2026 Feria Mayorista Internacional Milagros</span>
         <span className="footer__sep">·</span>
         <span>Términos del Servicio</span>
         <span className="footer__sep">·</span>

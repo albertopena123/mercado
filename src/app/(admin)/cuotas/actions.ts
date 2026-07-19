@@ -75,22 +75,15 @@ function socioNombre(s: {
   );
 }
 
-// Texto del comprobante: qué cuotas se saldaron + cómo se financió el pago.
-// `saldoAplicado` es el saldo a favor PREVIO consumido para saldar cuotas (cuando
-// el efectivo no cubría el total); `saldoAFavor` es el EXCEDENTE nuevo que quedó a
-// favor. Listar ambos hace que el importe del recibo cuadre con las cuotas.
+// Texto del comprobante: qué cuotas se saldaron. El importe del recibo es la suma
+// de las cuotas listadas (no se maneja saldo a favor: el pago cubre cuotas
+// completas, sin excedente).
 function buildDetallePago(
   cuotas: { periodo: string; concepto: string; monto: number }[],
-  saldoAFavor: number,
-  saldoAplicado = 0,
 ): string {
   const lineas = cuotas.map(
     (c) => `${c.concepto} (${c.periodo}) — S/ ${c.monto.toFixed(2)}`,
   );
-  if (saldoAplicado > 0.0001)
-    lineas.push(`Aplicado de saldo a favor: S/ ${saldoAplicado.toFixed(2)}`);
-  if (saldoAFavor > 0.0001)
-    lineas.push(`Saldo a favor: S/ ${saldoAFavor.toFixed(2)}`);
   return lineas.length ? lineas.join("\n") : "Pago a cuenta";
 }
 
@@ -138,8 +131,7 @@ async function emitirComprobanteSocio(args: {
 // Fase 2 — integración con Caja: cada pago de cuota registra un INGRESO en el
 // libro de caja (categoría "cuota", origen "cuota") dentro de la MISMA
 // transacción del pago, para que la recaudación quede reflejada atómicamente.
-// El reconocimiento es por monto NOMINAL de cuota saldada (el excedente que va a
-// saldo a favor no es ingreso aún; se reconoce cuando salda una cuota después).
+// El reconocimiento es por monto NOMINAL de las cuotas saldadas.
 async function registrarIngresoCuota(
   tx: Prisma.TransactionClient,
   args: {
@@ -185,6 +177,8 @@ function toRow(c: {
   pagadoEn: Date | null;
   pagadoMonto: Prisma.Decimal | null;
   metodoPago: string | null;
+  nroOperacion: string | null;
+  motivo: string | null;
   socio: { codigo: string; apellidoPaterno: string; apellidoMaterno: string | null; nombres: string };
 }): CuotaRow {
   return {
@@ -200,6 +194,8 @@ function toRow(c: {
     pagadoEn: c.pagadoEn ? c.pagadoEn.toISOString() : null,
     pagadoMonto: c.pagadoMonto != null ? toNumber(c.pagadoMonto) : null,
     metodoPago: c.metodoPago,
+    nroOperacion: c.nroOperacion,
+    motivo: c.motivo,
   };
 }
 
@@ -266,24 +262,18 @@ export async function getCuotasBySocio(
 ): Promise<ActionResult<SocioCuotas>> {
   try {
     const me = await authorize("cuotas.read");
-    const [cuotas, socio] = await Promise.all([
-      prisma.cuota.findMany({
-        where: { socioId },
-        orderBy: [{ periodo: "desc" }],
-        include: { socio: { select: SOCIO_SELECT } },
-      }),
-      prisma.socio.findUnique({
-        where: { id: socioId },
-        select: { saldoAFavor: true },
-      }),
-    ]);
+    const cuotas = await prisma.cuota.findMany({
+      where: { socioId },
+      orderBy: [{ periodo: "desc" }],
+      include: { socio: { select: SOCIO_SELECT } },
+    });
     const deuda = cuotas
       .filter((c) => c.estado === "pendiente")
       .reduce((acc, c) => acc + toNumber(c.monto), 0);
     return ok({
       deuda,
-      saldoAFavor: toNumber(socio?.saldoAFavor),
       canPay: me.permissions.has("cuotas.pay"),
+      canWrite: me.permissions.has("cuotas.write"),
       cuotas: cuotas.map(toRow),
     });
   } catch (e) {
@@ -300,15 +290,19 @@ export async function pagarPorMonto(
     metodoPago?: string;
     fecha?: string;
     nroOperacion?: string;
+    // N.° de operación del recibo por cada cuota de autovalúo que este pago vaya
+    // a saldar (cuotaId → N.°). El autovalúo exige su recibo único (antifraude),
+    // así que "por monto" solo puede saldarlo si aquí viene su número.
+    autovaluoOps?: Record<string, string>;
     // Clave de idempotencia (UUID del cliente, una por apertura del modal):
-    // evita que un doble-submit acredite dos veces el saldo a favor.
+    // evita que un doble-submit vuelva a saldar cuotas (cobrar dos veces).
     idempotencyKey?: string;
   },
 ): Promise<ActionResult<PagoPorMontoResult>> {
   try {
     const me = await authorize("cuotas.pay");
     const monto = Number(input.monto);
-    if (isNaN(monto) || monto < 0) return fail("Monto inválido.");
+    if (isNaN(monto) || monto <= 0) return fail("Ingresa un monto mayor a 0.");
     const metodoPago = input.metodoPago?.trim() || "efectivo";
     const nroOperacion = input.nroOperacion?.trim() || null;
     // pagadoEn es una fecha de calendario (la del comprobante): medianoche UTC,
@@ -317,14 +311,14 @@ export async function pagarPorMonto(
 
     const result = await prisma.$transaction(async (tx) => {
       // Bloquea la fila del socio para serializar pagos concurrentes del mismo
-      // socio: sin esto, dos pagos simultáneos leen el mismo saldoAFavor y el
-      // último en escribir pisa al otro (lost update → dinero perdido).
+      // socio: sin esto, dos pagos simultáneos leen las mismas cuotas pendientes
+      // y podrían saldar/recontar de más (estado inconsistente).
       await tx.$queryRaw`SELECT id FROM "Socio" WHERE id = ${socioId} FOR UPDATE`;
 
       // Idempotencia anti doble-submit: la primera llamada con esta clave inserta
       // la fila; una segunda con la MISMA clave choca con el @id y aborta sin
-      // re-aplicar (evita duplicar el crédito de saldo a favor cuando el monto va
-      // a saldo). Va DENTRO de la tx: si el pago falla por otra causa, la clave
+      // re-aplicar (evita que un doble-clic vuelva a saldar cuotas y cobre dos
+      // veces). Va DENTRO de la tx: si el pago falla por otra causa, la clave
       // también se revierte y un reintento legítimo con la misma clave funciona.
       if (input.idempotencyKey) {
         try {
@@ -343,7 +337,6 @@ export async function pagarPorMonto(
       const socio = await tx.socio.findUnique({
         where: { id: socioId },
         select: {
-          saldoAFavor: true,
           codigo: true,
           numeroDocumento: true,
           apellidoPaterno: true,
@@ -353,8 +346,9 @@ export async function pagarPorMonto(
       });
       if (!socio) throw new Denied("Socio no encontrado.");
 
-      // Pozo = saldo a favor previo + lo que paga ahora.
-      let pozo = toNumber(socio.saldoAFavor) + monto;
+      // El monto se aplica a las cuotas más antiguas primero. No se maneja saldo
+      // a favor: debe cubrir cuotas COMPLETAS, sin excedente (se valida abajo).
+      let pozo = monto;
 
       // Cuotas pendientes, de la más antigua a la más reciente.
       const pendientes = await tx.cuota.findMany({
@@ -363,22 +357,43 @@ export async function pagarPorMonto(
         select: { id: true, monto: true, periodo: true, concepto: true },
       });
 
+      // N.° de operación del recibo por cada autovalúo saldado (normalizado).
+      const autovaluoOps = input.autovaluoOps ?? {};
+
       let recaudado = 0; // suma nominal de cuotas saldadas (ingreso a caja)
       const saldadas: { periodo: string; concepto: string; monto: number }[] = [];
       for (const c of pendientes) {
         const m = toNumber(c.monto);
         if (pozo + 1e-9 >= m) {
-          // El autovalúo no se paga "por monto": cada año tiene su recibo y exige
-          // su N.° de operación único. Como es la deuda más antigua, se saldaría
-          // primero aquí — se bloquea para forzar el pago individual ("Pagar").
-          if (esAutovaluo(c.concepto))
-            throw new Denied(
-              "Hay cuotas de autovalúo en la deuda. Págalas individualmente con «Pagar» para registrar el N.° de operación del recibo.",
-            );
+          // El autovalúo SÍ puede saldarse "por monto", pero cada recibo exige su
+          // N.° de operación único (antifraude). Debe venir en autovaluoOps y no
+          // puede reusarse en otro autovalúo (otro año/socio) ni repetirse entre
+          // los autovalúos de este mismo pago.
+          let nroOpCuota: string | null = null;
+          if (esAutovaluo(c.concepto)) {
+            const raw = autovaluoOps[c.id];
+            if (!raw || !raw.trim())
+              throw new Denied(
+                `Ingresa el N.° de operación del recibo del autovalúo (${c.periodo}).`,
+              );
+            nroOpCuota = normalizaNroOperacion(raw);
+            const dup = await tx.cuota.findFirst({
+              where: {
+                id: { not: c.id },
+                nroOperacion: nroOpCuota,
+                concepto: { contains: AUTOVALUO_TOKEN, mode: "insensitive" },
+              },
+              select: { id: true },
+            });
+            if (dup)
+              throw new Denied(
+                `El N.° de operación "${raw.trim()}" ya está usado en otro autovalúo.`,
+              );
+          }
           // Transición condicional pendiente → pagada: si una operación
-          // concurrente (p. ej. registrarPago, que no bloquea la fila del socio
-          // cuando no hay excedente) ya pagó/anuló esta cuota, NO la re-contamos
-          // ni gastamos el pozo en ella — evita un ingreso duplicado en caja.
+          // concurrente (p. ej. registrarPago, que no bloquea la fila del socio)
+          // ya pagó/anuló esta cuota, NO la re-contamos ni gastamos el pozo en
+          // ella — evita un ingreso duplicado en caja.
           const upd = await tx.cuota.updateMany({
             where: { id: c.id, estado: "pendiente" },
             data: {
@@ -386,6 +401,11 @@ export async function pagarPorMonto(
               pagadoEn: fecha,
               pagadoMonto: m,
               metodoPago,
+              // El autovalúo guarda su N.° propio (único, antifraude); las demás
+              // guardan el N.° de recibo de tesorería del pago.
+              ...((nroOpCuota ?? nroOperacion)
+                ? { nroOperacion: nroOpCuota ?? nroOperacion }
+                : {}),
               byUserId: me.id,
             },
           });
@@ -398,10 +418,17 @@ export async function pagarPorMonto(
         }
       }
 
-      await tx.socio.update({
-        where: { id: socioId },
-        data: { saldoAFavor: pozo },
-      });
+      // No se maneja saldo a favor: si tras saldar cuotas completas sobra dinero,
+      // el monto no coincide con las cuotas y se rechaza el pago entero (evita
+      // dejar un excedente sin destino). El cajero debe ingresar un importe que
+      // salde cuotas completas (p. ej. la deuda total).
+      if (pozo > 0.0001) {
+        throw new Denied(
+          recaudado > 0
+            ? `El monto sobra S/ ${pozo.toFixed(2)} tras saldar ${saldadas.length} cuota(s). Ingresa un importe que cubra cuotas completas (ya cubiertas: S/ ${recaudado.toFixed(2)}).`
+            : "El monto no alcanza para saldar la cuota más antigua.",
+        );
+      }
 
       // Reconoce en caja lo recaudado por cuotas saldadas (si alcanzó alguna).
       const movId = await registrarIngresoCuota(tx, {
@@ -414,29 +441,21 @@ export async function pagarPorMonto(
         registradoPorId: me.id,
       });
 
-      return { socio, saldadas, saldoAFavor: pozo, movId };
+      return { socio, saldadas, movId };
     });
 
-    // `recaudado` (suma nominal de cuotas saldadas) = importe del MovimientoCaja.
+    // El pago cubre cuotas completas (el excedente se rechazó dentro de la tx),
+    // así que lo recaudado = el monto ingresado = importe del MovimientoCaja.
     const recaudado = result.saldadas.reduce((a, c) => a + c.monto, 0);
-    // Excedente NUEVO que quedó como saldo a favor (efectivo > cuotas saldadas).
-    const saldoDelPago = Math.max(0, Math.round((monto - recaudado) * 100) / 100);
-    // Saldo a favor PREVIO consumido para saldar cuotas (cuotas saldadas > efectivo).
-    const saldoAplicado = Math.max(0, Math.round((recaudado - monto) * 100) / 100);
 
-    // Emite el comprobante (recibo) SOLO si hubo recaudación (alguna cuota
-    // saldada → movimiento de caja). Si TODO fue a saldo a favor (movId null) no
-    // se emite recibo: evita un comprobante S/0 no idempotente (que un reintento
-    // duplicaría) y concuerda con el mensaje "quedó como saldo a favor".
-    // El importe del recibo es `recaudado` (= MovimientoCaja vinculado y suma de
-    // cuotas listadas), no el efectivo nuevo: así cuadra cuando se consumió saldo
-    // previo (recaudado > monto) y no muestra S/0 si el efectivo nuevo fue 0.
+    // Emite el comprobante (recibo) con el importe recaudado y el detalle de las
+    // cuotas saldadas.
     const comprobante = result.movId
       ? await emitirComprobanteSocio({
           socioId,
           socio: result.socio,
           monto: recaudado,
-          detalle: buildDetallePago(result.saldadas, saldoDelPago, saldoAplicado),
+          detalle: buildDetallePago(result.saldadas),
           metodoPago,
           nroOperacion,
           fecha,
@@ -448,13 +467,22 @@ export async function pagarPorMonto(
     refresh();
     return ok({
       pagadas: result.saldadas.length,
-      saldoAFavor: result.saldoAFavor,
       montoAplicado: monto,
       comprobante,
       movimientoCajaId: result.movId,
     });
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
+    // Backstop del índice único parcial del autovalúo (N.° de operación repetido
+    // entre autovalúos). El pre-chequeo suele atraparlo con un mensaje claro;
+    // esto cubre carreras.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    )
+      return fail(
+        "Un N.° de operación de autovalúo ya está en uso. Revisa los números ingresados.",
+      );
     console.error("pagarPorMonto", e);
     return fail("No se pudo registrar el pago.");
   }
@@ -524,6 +552,9 @@ export async function pagarCuotasSeleccionadas(
             pagadoEn: fecha,
             pagadoMonto: m,
             metodoPago,
+            // El N.° de recibo de tesorería queda en CADA cuota saldada (un
+            // recibo puede cubrir varias, igual que en el histórico de guardianía).
+            ...(nroOperacion ? { nroOperacion } : {}),
             byUserId: me.id,
           },
         });
@@ -547,14 +578,14 @@ export async function pagarCuotasSeleccionadas(
       return { socio, saldadas, recaudado, movId };
     });
 
-    // Emite UN comprobante con el detalle de todas las cuotas saldadas (sin saldo
-    // a favor: se paga el monto exacto de lo seleccionado).
+    // Emite UN comprobante con el detalle de todas las cuotas saldadas (se paga
+    // el monto exacto de lo seleccionado).
     const comprobante = result.movId
       ? await emitirComprobanteSocio({
           socioId,
           socio: result.socio,
           monto: result.recaudado,
-          detalle: buildDetallePago(result.saldadas, 0),
+          detalle: buildDetallePago(result.saldadas),
           metodoPago,
           nroOperacion,
           fecha,
@@ -786,19 +817,19 @@ export async function registrarPago(
     // Lo que se recauda por la cuota es siempre su monto nominal.
     const cuotaMonto = toNumber(cuota.monto);
 
-    // Monto entregado: por defecto el de la cuota. Si se especifica debe ser
-    // válido (no negativo) y cubrir al menos la cuota; el excedente se acredita
-    // como saldo a favor del socio, igual que en pagarPorMonto.
-    let excedente = 0;
+    // Monto entregado: por defecto el de la cuota. No se maneja saldo a favor, así
+    // que debe ser EXACTAMENTE el de la cuota (ni menos ni más).
     if (input.monto != null) {
       const m = Number(input.monto);
       if (isNaN(m) || m < 0) return fail("Monto inválido.");
       if (m + 1e-9 < cuotaMonto)
         return fail("El monto entregado es menor al de la cuota.");
-      excedente = Math.round((m - cuotaMonto) * 100) / 100;
+      if (m > cuotaMonto + 1e-9)
+        return fail(
+          `El monto no puede exceder el de la cuota (S/ ${cuotaMonto.toFixed(2)}). No se maneja saldo a favor.`,
+        );
     }
-    const montoEntregado =
-      input.monto != null ? Number(input.monto) : cuotaMonto;
+    const montoEntregado = cuotaMonto;
 
     // pagadoEn es una fecha de calendario (la del comprobante): medianoche UTC,
     // para mostrarse con fechaCorta sin correrse un día en Perú (UTC-5).
@@ -840,7 +871,7 @@ export async function registrarPago(
 
     const result = await prisma.$transaction(async (tx) => {
       // Transición pendiente → pagada condicional: si otra operación ya la pagó
-      // o anuló, no se reaplica (evita doble acreditación del excedente).
+      // o anuló, no se reaplica (evita un ingreso duplicado en caja).
       const upd = await tx.cuota.updateMany({
         where: { id: cuotaId, estado: "pendiente" },
         data: {
@@ -853,12 +884,6 @@ export async function registrarPago(
         },
       });
       if (upd.count === 0) return null;
-      if (excedente > 0) {
-        await tx.socio.update({
-          where: { id: cuota.socioId },
-          data: { saldoAFavor: { increment: excedente } },
-        });
-      }
       // Ingreso a caja por el monto nominal de la cuota saldada.
       const movId = await registrarIngresoCuota(tx, {
         monto: cuotaMonto,
@@ -878,10 +903,9 @@ export async function registrarPago(
       socioId: cuota.socioId,
       socio: cuota.socio,
       monto: montoEntregado,
-      detalle: buildDetallePago(
-        [{ periodo: cuota.periodo, concepto: cuota.concepto, monto: cuotaMonto }],
-        excedente,
-      ),
+      detalle: buildDetallePago([
+        { periodo: cuota.periodo, concepto: cuota.concepto, monto: cuotaMonto },
+      ]),
       metodoPago,
       nroOperacion,
       fecha,
@@ -987,6 +1011,70 @@ export async function anularCuota(cuotaId: string): Promise<ActionResult> {
     if (e instanceof Denied) return fail(e.message);
     console.error("anularCuota", e);
     return fail("No se pudo anular la cuota.");
+  }
+}
+
+// Exonera (perdona) una cuota pendiente: deja de ser deuda pero NO es un pago
+// (no entra a caja ni emite comprobante). Exige una descripción/motivo que queda
+// registrada. La usa tesorería/administración para condonar cuotas puntuales.
+export async function exonerarCuota(
+  cuotaId: string,
+  motivo: string,
+): Promise<ActionResult> {
+  try {
+    const me = await authorize("cuotas.write");
+    const desc = motivo.trim();
+    if (!desc)
+      return fail("Indica el motivo de la exoneración.", {
+        motivo: "El motivo es obligatorio.",
+      });
+    if (desc.length > 500)
+      return fail("El motivo es demasiado largo (máx. 500 caracteres).");
+    // Transición condicional pendiente → exonerada (misma protección de carrera
+    // que anularCuota: no pisar una cuota que se acaba de pagar).
+    const upd = await prisma.cuota.updateMany({
+      where: { id: cuotaId, estado: "pendiente" },
+      data: { estado: "exonerada", motivo: desc, byUserId: me.id },
+    });
+    if (upd.count === 0) {
+      const cuota = await prisma.cuota.findUnique({
+        where: { id: cuotaId },
+        select: { estado: true },
+      });
+      if (!cuota) return fail("Cuota no encontrada.");
+      if (cuota.estado === "pagada")
+        return fail("No se puede exonerar una cuota ya pagada.");
+      if (cuota.estado === "exonerada")
+        return fail("La cuota ya estaba exonerada.");
+      return fail("Solo se pueden exonerar cuotas pendientes.");
+    }
+    refresh();
+    return ok();
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("exonerarCuota", e);
+    return fail("No se pudo exonerar la cuota.");
+  }
+}
+
+// Revierte una exoneración: la cuota vuelve a estar pendiente (deuda) y se borra
+// el motivo. Útil si se exoneró por error.
+export async function revertirExoneracion(
+  cuotaId: string,
+): Promise<ActionResult> {
+  try {
+    await authorize("cuotas.write");
+    const upd = await prisma.cuota.updateMany({
+      where: { id: cuotaId, estado: "exonerada" },
+      data: { estado: "pendiente", motivo: null },
+    });
+    if (upd.count === 0) return fail("La cuota no está exonerada.");
+    refresh();
+    return ok();
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("revertirExoneracion", e);
+    return fail("No se pudo revertir la exoneración.");
   }
 }
 

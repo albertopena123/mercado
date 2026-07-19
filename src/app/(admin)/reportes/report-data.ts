@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/money";
 import { normalizeToken } from "@/lib/socios/normalize";
 import { esDocumentoPendiente } from "@/lib/socios/document";
-import { buildXlsx } from "@/lib/xlsx";
+import { buildStyledXlsx, type XlsxColumn, type XlsxValue } from "@/lib/xlsx";
 import { fechaTS, hoyISOPeru } from "@/lib/fecha";
+import { ORG } from "@/lib/org";
 import type {
   DateFilters,
   ReportTab,
@@ -475,8 +476,6 @@ export async function loadAsistencia(): Promise<AsistenciaReport> {
 
 /* ════════════════════════ Construcción del .xlsx ════════════════════════ */
 
-type Cell = string | number | null | undefined;
-
 function fmtMes(mes: string): string {
   const [y, m] = mes.split("-");
   const meses = [
@@ -511,29 +510,45 @@ const TAB_FILENAME: Record<ReportTab, string> = {
 async function buildSheet(
   tab: ReportTab,
   filters: DateFilters,
-): Promise<{ sheet: string; headers: string[]; rows: Cell[][]; widths?: number[] }> {
+): Promise<{
+  sheetName: string;
+  title: string;
+  columns: XlsxColumn[];
+  rows: XlsxValue[][];
+}> {
   switch (tab) {
     case "financiero": {
       const r = await loadFinanciero(filters);
       return {
-        sheet: "Financiero por mes",
-        headers: ["Mes", "Ingresos (S/)", "Egresos (S/)", "Balance (S/)"],
+        sheetName: "Financiero por mes",
+        title: "Reporte financiero por mes",
+        columns: [
+          { header: "Mes", width: 14 },
+          { header: "Ingresos (S/)", type: "money", width: 16 },
+          { header: "Egresos (S/)", type: "money", width: 16 },
+          { header: "Balance (S/)", type: "money", width: 16 },
+        ],
         rows: r.porMes.map((m) => [fmtMes(m.mes), m.ingresos, m.egresos, m.balance]),
-        widths: [16, 16, 16, 16],
       };
     }
     case "cobranzas": {
       const deudores = await deudoresOrdenados(); // completo, sin tope
       return {
-        sheet: "Deudores",
-        headers: ["Código", "Socio", "Documento", "N° cuotas pendientes", "Deuda (S/)"],
+        sheetName: "Deudores",
+        title: "Reporte de cobranzas — deudores",
+        columns: [
+          { header: "Código", width: 12 },
+          { header: "Socio", width: 34 },
+          { header: "Documento", width: 14 },
+          { header: "N° cuotas pendientes", type: "number", width: 18 },
+          { header: "Deuda (S/)", type: "money", width: 14 },
+        ],
         rows: deudores.map((d) => [d.codigo, d.nombre, d.documento, d.cuotas, d.total]),
-        widths: [12, 34, 14, 18, 14],
       };
     }
     case "padron": {
       const r = await loadPadron();
-      const rows: Cell[][] = [];
+      const rows: XlsxValue[][] = [];
       for (const g of r.duplicados) {
         for (const s of g.socios) {
           rows.push([
@@ -547,10 +562,17 @@ async function buildSheet(
         }
       }
       return {
-        sheet: "Posibles duplicados",
-        headers: ["Grupo", "Código", "Socio", "Documento", "Estado", "Puestos"],
+        sheetName: "Posibles duplicados",
+        title: "Padrón — posibles duplicados",
+        columns: [
+          { header: "Grupo", width: 24 },
+          { header: "Código", width: 12 },
+          { header: "Socio", width: 34 },
+          { header: "Documento", width: 14 },
+          { header: "Estado", align: "center", width: 14 },
+          { header: "Puestos", type: "number", width: 10 },
+        ],
         rows,
-        widths: [24, 12, 34, 14, 14, 10],
       };
     }
     case "puestos": {
@@ -566,8 +588,16 @@ async function buildSheet(
         orderBy: [{ etapa: "asc" }, { bloque: "asc" }, { fila: "asc" }, { numero: "asc" }],
       });
       return {
-        sheet: "Puestos",
-        headers: ["Código", "Etapa", "Bloque", "Estado", "Giro", "Tipo"],
+        sheetName: "Puestos",
+        title: "Reporte de puestos",
+        columns: [
+          { header: "Código", width: 12 },
+          { header: "Etapa", align: "center", width: 8 },
+          { header: "Bloque", align: "center", width: 8 },
+          { header: "Estado", width: 16 },
+          { header: "Giro", width: 16 },
+          { header: "Tipo", width: 10 },
+        ],
         rows: puestos.map((p) => [
           p.codigo,
           p.etapa,
@@ -576,23 +606,23 @@ async function buildSheet(
           p.giro ?? "Sin giro",
           p.tipo,
         ]),
-        widths: [12, 8, 8, 16, 16, 10],
       };
     }
     case "asistencia": {
       const r = await loadAsistencia();
       return {
-        sheet: "Asistencia por asamblea",
-        headers: [
-          "Asamblea",
-          "Fecha",
-          "Presentes",
-          "Tardanza",
-          "Ausentes",
-          "Justificados",
-          "Registrados",
-          "% Asistencia",
-          "Quórum mín.",
+        sheetName: "Asistencia por asamblea",
+        title: "Reporte de asistencia por asamblea",
+        columns: [
+          { header: "Asamblea", width: 34 },
+          { header: "Fecha", align: "center", width: 12 },
+          { header: "Presentes", type: "number", width: 11 },
+          { header: "Tardanza", type: "number", width: 11 },
+          { header: "Ausentes", type: "number", width: 11 },
+          { header: "Justificados", type: "number", width: 13 },
+          { header: "Registrados", type: "number", width: 12 },
+          { header: "% Asistencia", type: "number", width: 13 },
+          { header: "Quórum mín.", type: "number", width: 12 },
         ],
         rows: r.asambleas.map((a) => [
           a.titulo,
@@ -605,7 +635,6 @@ async function buildSheet(
           a.pctAsistencia ?? "",
           a.quorumMinimo ?? "",
         ]),
-        widths: [34, 12, 11, 11, 11, 13, 12, 13, 12],
       };
     }
   }
@@ -615,8 +644,24 @@ export async function buildReportSheet(
   tab: ReportTab,
   filters: DateFilters,
 ): Promise<{ filename: string; buffer: Buffer; count: number }> {
-  const { sheet, headers, rows, widths } = await buildSheet(tab, filters);
-  const buffer = buildXlsx(sheet, headers, rows, widths);
+  const { sheetName, title, columns, rows } = await buildSheet(tab, filters);
+  // Membrete del Excel: marca de la feria + fecha de generación y total.
+  const generado = new Intl.DateTimeFormat("es-PE", {
+    timeZone: "America/Lima",
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date());
+  const buffer = buildStyledXlsx({
+    sheetName,
+    title,
+    subtitle: ORG.nombre,
+    meta: [
+      `Generado el ${generado} (hora de Lima)`,
+      `Total: ${rows.length} ${rows.length === 1 ? "fila" : "filas"}`,
+    ],
+    columns,
+    rows,
+  });
   const stamp = hoyISOPeru();
   return { filename: `${TAB_FILENAME[tab]}-${stamp}.xlsx`, buffer, count: rows.length };
 }

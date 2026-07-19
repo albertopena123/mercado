@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
   useTransition,
@@ -28,7 +27,7 @@ import {
 import { CreateUserModal } from "./CreateUserModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { UserDetailDrawer } from "./UserDetailDrawer";
-import { Toasts, type Toast } from "./Toasts";
+import { useToast } from "@/components/admin/toast";
 import type { PermFlags, RoleOption, UserRow } from "./types";
 import "./users.css";
 
@@ -65,6 +64,7 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   // URL state
   const search = (params.get("q") ?? "").toLowerCase().trim();
@@ -125,18 +125,6 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
 
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastSeq = useRef(0);
-
-  const pushToast = useCallback((kind: Toast["kind"], message: string) => {
-    toastSeq.current += 1;
-    const id = toastSeq.current;
-    setToasts((t) => [...t, { id, kind, message }]);
-  }, []);
-  const dismissToast = useCallback((id: number) => {
-    setToasts((t) => t.filter((x) => x.id !== id));
-  }, []);
 
   // Close kebab / role-chip on outside click
   useEffect(() => {
@@ -381,17 +369,13 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
                   );
                   setSelected(new Set());
                   if (res.ok) {
-                    pushToast(
-                      "success",
-                      `Se activaron ${res.data?.count ?? 0} usuario(s).`,
+                    toast.success(`Se activaron ${res.data?.count ?? 0} usuario(s).`,
                     );
                     if ((res.data?.skippedSupers ?? 0) > 0) {
-                      pushToast(
-                        "error",
-                        `Se omitieron ${res.data?.skippedSupers} superadministrador(es) — solo un superadministrador puede modificarlos.`,
+                      toast.error(`Se omitieron ${res.data?.skippedSupers} superadministrador(es) — solo un superadministrador puede modificarlos.`,
                       );
                     }
-                  } else pushToast("error", res.error);
+                  } else toast.error(res.error);
                   afterMutation();
                 }}
               >
@@ -408,17 +392,13 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
                   );
                   setSelected(new Set());
                   if (res.ok) {
-                    pushToast(
-                      "success",
-                      `Se suspendieron ${res.data?.count ?? 0} usuario(s).`,
+                    toast.success(`Se suspendieron ${res.data?.count ?? 0} usuario(s).`,
                     );
                     if ((res.data?.skippedSupers ?? 0) > 0) {
-                      pushToast(
-                        "error",
-                        `Se omitieron ${res.data?.skippedSupers} superadministrador(es) — solo un superadministrador puede modificarlos.`,
+                      toast.error(`Se omitieron ${res.data?.skippedSupers} superadministrador(es) — solo un superadministrador puede modificarlos.`,
                       );
                     }
-                  } else pushToast("error", res.error);
+                  } else toast.error(res.error);
                   afterMutation();
                 }}
               >
@@ -638,13 +618,11 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
                                 setUserActive(u.id, !u.active),
                               );
                               if (res.ok)
-                                pushToast(
-                                  "success",
-                                  u.active
+                                toast.success(u.active
                                     ? "Usuario suspendido."
                                     : "Usuario activado.",
                                 );
-                              else pushToast("error", res.error);
+                              else toast.error(res.error);
                               afterMutation();
                             }}
                           >
@@ -663,13 +641,11 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
                               );
                               if (res.ok) {
                                 const n = res.data?.count ?? 0;
-                                pushToast(
-                                  "success",
-                                  n === 0
+                                toast.success(n === 0
                                     ? "El usuario no tenía sesiones activas."
                                     : `Se cerraron ${n} sesión${n > 1 ? "es" : ""}.`,
                                 );
-                              } else pushToast("error", res.error);
+                              } else toast.error(res.error);
                               afterMutation();
                             }}
                           >
@@ -743,7 +719,7 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
           onSubmit={async (input) => {
             const res = await runAction(() => createUser(input));
             if (res.ok) {
-              pushToast("success", "Usuario creado.");
+              toast.success("Usuario creado.");
               afterMutation();
             }
             return res;
@@ -762,8 +738,8 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
             const res = await runAction(() =>
               updateUserProfile(detailUser.id, input),
             );
-            if (res.ok) pushToast("success", "Perfil actualizado.");
-            else pushToast("error", res.error);
+            if (res.ok) toast.success("Perfil actualizado.");
+            else toast.error(res.error);
             afterMutation();
             return res;
           }}
@@ -772,11 +748,9 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
               setUserActive(detailUser.id, active),
             );
             if (res.ok)
-              pushToast(
-                "success",
-                active ? "Usuario activado." : "Usuario suspendido.",
+              toast.success(active ? "Usuario activado." : "Usuario suspendido.",
               );
-            else pushToast("error", res.error);
+            else toast.error(res.error);
             afterMutation();
             return res;
           }}
@@ -784,8 +758,8 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
             const res = await runAction(() =>
               setUserRoles(detailUser.id, roleIds),
             );
-            if (res.ok) pushToast("success", "Roles actualizados.");
-            else pushToast("error", res.error);
+            if (res.ok) toast.success("Roles actualizados.");
+            else toast.error(res.error);
             afterMutation();
             return res;
           }}
@@ -795,14 +769,12 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
             );
             if (res.ok) {
               const revoked = res.data?.sessionsRevoked ?? 0;
-              pushToast(
-                "success",
-                revoked > 0
+              toast.success(revoked > 0
                   ? `Contraseña actualizada. Se cerraron ${revoked} sesión${revoked > 1 ? "es" : ""} activa${revoked > 1 ? "s" : ""}.`
                   : "Contraseña actualizada.",
               );
               afterMutation();
-            } else pushToast("error", res.error);
+            } else toast.error(res.error);
             return res;
           }}
           onRevokeSessions={async () => {
@@ -811,22 +783,20 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
             );
             if (res.ok) {
               const n = res.data?.count ?? 0;
-              pushToast(
-                "success",
-                n === 0
+              toast.success(n === 0
                   ? "El usuario no tenía sesiones activas."
                   : `Se cerraron ${n} sesión${n > 1 ? "es" : ""}.`,
               );
-            } else pushToast("error", res.error);
+            } else toast.error(res.error);
             afterMutation();
             return res;
           }}
           onDelete={async () => {
             const res = await runAction(() => deleteUser(detailUser.id));
             if (res.ok) {
-              pushToast("success", "Usuario eliminado.");
+              toast.success("Usuario eliminado.");
               setParams({ detail: null });
-            } else pushToast("error", res.error);
+            } else toast.error(res.error);
             afterMutation();
             return res;
           }}
@@ -846,8 +816,8 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
           tone="danger"
           onConfirm={async () => {
             const res = await runAction(() => deleteUser(confirmDelete.id));
-            if (res.ok) pushToast("success", "Usuario eliminado.");
-            else pushToast("error", res.error);
+            if (res.ok) toast.success("Usuario eliminado.");
+            else toast.error(res.error);
             setConfirmDelete(null);
             afterMutation();
           }}
@@ -871,17 +841,13 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
           onConfirm={async () => {
             const res = await runAction(() => bulkDelete([...selected]));
             if (res.ok) {
-              pushToast(
-                "success",
-                `Se eliminaron ${res.data?.count ?? 0} usuario(s).`,
+              toast.success(`Se eliminaron ${res.data?.count ?? 0} usuario(s).`,
               );
               if ((res.data?.skippedSupers ?? 0) > 0) {
-                pushToast(
-                  "error",
-                  `Se omitieron ${res.data?.skippedSupers} superadministrador(es).`,
+                toast.error(`Se omitieron ${res.data?.skippedSupers} superadministrador(es).`,
                 );
               }
-            } else pushToast("error", res.error);
+            } else toast.error(res.error);
             setSelected(new Set());
             setConfirmBulkDelete(false);
             afterMutation();
@@ -889,8 +855,6 @@ export function UsersClient({ rows, roles, perms, currentUserId }: Props) {
           onClose={() => setConfirmBulkDelete(false)}
         />
       )}
-
-      <Toasts items={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

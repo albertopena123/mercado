@@ -1,0 +1,262 @@
+/* Proforma de deuda imprimible (revisión de tesorería). Hoja A4 con membrete,
+   tablas de cuotas pendientes / exoneradas y total a pagar. */
+
+.prof-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.prof-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.prof {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 44px 48px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+/* Membrete */
+.prof__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  border-bottom: 2px solid #111;
+  padding-bottom: 14px;
+}
+.prof__org {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.prof__logo {
+  height: 54px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.prof__org-text {
+  min-width: 0;
+}
+.prof__org-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.prof__org-sub {
+  font-size: 11.5px;
+  color: #444;
+  margin-top: 2px;
+}
+.prof__doc {
+  text-align: right;
+  flex-shrink: 0;
+}
+.prof__doc-title {
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #b91c1c;
+}
+.prof__doc-meta {
+  font-size: 11.5px;
+  color: #444;
+  margin-top: 4px;
+}
+
+/* Datos del socio */
+.prof__socio {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 10px 20px;
+  margin: 18px 0 6px;
+  padding: 12px 14px;
+  background: #f7f7f8;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.prof__socio > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.prof__k {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #777;
+}
+.prof__v {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prof__h2 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 22px 0 8px;
+  color: #222;
+}
+.prof__hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #777;
+  font-size: 12px;
+}
+.prof__empty {
+  font-size: 13px;
+  color: #555;
+  font-style: italic;
+}
+
+/* Tablas */
+.prof__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.prof__table th {
+  text-align: left;
+  border-bottom: 1.5px solid #333;
+  padding: 7px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #444;
+}
+.prof__table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid #ececec;
+}
+.prof__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.prof__table tfoot td {
+  border-top: 1.5px solid #333;
+  border-bottom: none;
+  font-weight: 700;
+  padding-top: 9px;
+}
+.prof__totlabel {
+  color: #444;
+  font-weight: 600;
+}
+.prof__table--exon td {
+  color: #555;
+}
+
+/* Resumen final */
+.prof__resumen {
+  margin: 20px 0 8px;
+  margin-left: auto;
+  max-width: 320px;
+  display: grid;
+  gap: 6px;
+}
+.prof__resumen-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.prof__resumen-row--total {
+  border-top: 2px solid #111;
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+/* Pie */
+.prof__foot {
+  margin-top: 40px;
+}
+.prof__firma {
+  width: 240px;
+  text-align: center;
+  font-size: 12.5px;
+  margin: 24px 0 14px;
+}
+.prof__firma-line {
+  border-top: 1px solid #333;
+  margin-bottom: 4px;
+}
+.prof__nota {
+  font-size: 10.5px;
+  color: #777;
+  line-height: 1.5;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+@media print {
+  /* Oculta el chrome del panel de admin para que el PDF sea SOLO el documento
+     (mismas clases del AdminShell que usa la constancia). */
+  .topbar,
+  .sidebar,
+  .footer,
+  .sidebar__mobile-backdrop,
+  .no-print {
+    display: none !important;
+  }
+  .shell__body,
+  .main {
+    display: block !important;
+    overflow: visible !important;
+  }
+  body {
+    background: #fff;
+  }
+  .prof-page {
+    padding: 0;
+    max-width: 100%;
+  }
+  .prof {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* No partir tablas/filas entre páginas. */
+  .prof__table,
+  .prof__resumen,
+  .prof__foot {
+    break-inside: avoid;
+  }
+  .prof__table tr {
+    break-inside: avoid;
+  }
+}
+
+@media (max-width: 640px) {
+  .prof {
+    padding: 24px 18px;
+  }
+  .prof__head {
+    flex-direction: column;
+  }
+  .prof__doc {
+    text-align: left;
+  }
+  .prof__socio {
+    grid-template-columns: 1fr;
+  }
+}

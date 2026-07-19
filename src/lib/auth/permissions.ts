@@ -198,6 +198,25 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Caja",
   },
   {
+    key: "guardiania.read",
+    name: "Ver guardianía",
+    description:
+      "Ver los ingresos por guardianía/seguridad, los recibos y la morosidad por puesto",
+    category: "Guardianía",
+  },
+  {
+    key: "guardiania.write",
+    name: "Gestionar guardianía",
+    description: "Registrar y editar pagos de guardianía y sus cuentas por puesto",
+    category: "Guardianía",
+  },
+  {
+    key: "guardiania.delete",
+    name: "Eliminar pagos de guardianía",
+    description: "Eliminar pagos de guardianía",
+    category: "Guardianía",
+  },
+  {
     key: "personal.read",
     name: "Ver personal",
     description: "Ver el personal que labora en el mercado y sus documentos",
@@ -306,6 +325,9 @@ export const ROLE_DEFS = [
       "caja.read",
       "caja.write",
       "caja.delete",
+      "guardiania.read",
+      "guardiania.write",
+      "guardiania.delete",
       "personal.read",
       "personal.write",
       "personal.delete",
@@ -338,6 +360,7 @@ export const ROLE_DEFS = [
       "organos.read",
       "asambleas.read",
       "cuotas.read",
+      "guardiania.read",
       "inventario.read",
       "reportes.read",
     ],

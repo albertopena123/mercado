@@ -1,20 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-  type FormEvent,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
-import {
-  buscarSociosConPuesto,
-  lookupDniAdquiriente,
-  createTransferencia,
-} from "./actions";
-import type { TransferenteOption } from "./types";
+import { buscarSociosConPuesto, createTransferenciasLote } from "./actions";
+import { AdquirienteFields, emptyAdq, type AdqValue } from "./AdquirienteFields";
+import type { TransferenteOption, LineaTransferenciaInput } from "./types";
 
 function hoyISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(
@@ -27,36 +19,26 @@ export function CreateTransferenciaModal({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: (id: string) => void;
+  onCreated: (ids: string[]) => void;
 }) {
+  const toast = useToast();
+
   // Transferente
   const [tq, setTq] = useState("");
   const [tResults, setTResults] = useState<TransferenteOption[]>([]);
   const [tSel, setTSel] = useState<TransferenteOption | null>(null);
-  const [puestoId, setPuestoId] = useState("");
   const tReqRef = useRef(0);
 
-  // Adquiriente
-  const [dni, setDni] = useState("");
-  const [apellidoPaterno, setApellidoPaterno] = useState("");
-  const [apellidoMaterno, setApellidoMaterno] = useState("");
-  const [nombres, setNombres] = useState("");
-  const [estadoCivil, setEstadoCivil] = useState("");
-  const [direccion, setDireccion] = useState("");
-  const [distrito, setDistrito] = useState("");
-  const [provincia, setProvincia] = useState("");
-  const [departamento, setDepartamento] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [, startLookup] = useTransition();
-  const [dniMsg, setDniMsg] = useState<string | null>(null);
-  const [lookedUp, setLookedUp] = useState<string | null>(null);
-  const dniReqRef = useRef(0);
+  // Puestos seleccionados (varios) y su precio interno opcional.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [montos, setMontos] = useState<Record<string, string>>({});
 
-  const [monto, setMonto] = useState("");
+  // Comprador: mismo para todos, o uno por puesto.
+  const [sameBuyer, setSameBuyer] = useState(true);
+  const [adqShared, setAdqShared] = useState<AdqValue>(emptyAdq);
+  const [adqPorPuesto, setAdqPorPuesto] = useState<Record<string, AdqValue>>({});
+
   const [fecha, setFecha] = useState(hoyISO());
-
-  const [topError, setTopError] = useState<string | null>(null);
-  const [fe, setFe] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEscClose(true, onClose, submitting);
@@ -64,8 +46,6 @@ export function CreateTransferenciaModal({
   // Búsqueda del transferente (debounce).
   useEffect(() => {
     if (tSel || tq.trim().length < 2) {
-      // Limpia resultados cuando no hay término válido: efecto de sincronización
-      // con un input externo (debounce), no un valor derivable en render.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTResults([]);
       return;
@@ -83,100 +63,117 @@ export function CreateTransferenciaModal({
     setTSel(t);
     setTResults([]);
     setTq(`${t.nombre} (${t.codigo})`);
-    if (t.puestos.length === 1) setPuestoId(t.puestos[0].id);
+    // Preselecciona si solo tiene un puesto.
+    setSelected(t.puestos.length === 1 ? [t.puestos[0].id] : []);
+    setMontos({});
+    setAdqPorPuesto({});
   }
   function clearTransferente() {
     setTSel(null);
-    setPuestoId("");
     setTq("");
+    setSelected([]);
+    setMontos({});
+    setAdqPorPuesto({});
   }
 
-  // Lookup DNI del adquiriente (RENIEC).
-  useEffect(() => {
-    if (!/^\d{8}$/.test(dni) || lookedUp === dni) {
-      // Limpia el mensaje cuando el DNI deja de ser válido (sincroniza con input).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (!/^\d{8}$/.test(dni)) setDniMsg(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      const reqId = ++dniReqRef.current;
-      setDniMsg("Consultando RENIEC…");
-      startLookup(async () => {
-        const res = await lookupDniAdquiriente(dni);
-        if (reqId !== dniReqRef.current) return;
-        setLookedUp(dni);
-        if (!res.ok) {
-          setDniMsg(res.error);
-          return;
-        }
-        const d = res.data!;
-        setApellidoPaterno((p) => p || d.apellidoPaterno);
-        setApellidoMaterno((p) => p || d.apellidoMaterno);
-        setNombres((p) => p || d.nombres);
-        if (d.estadoCivil) setEstadoCivil((p) => p || d.estadoCivil!);
-        if (d.direccion) setDireccion((p) => p || d.direccion!);
-        // Ubigeo de nacimiento (UBIGEO_NAC, único decodificable en la API):
-        // rellena depto/prov/distrito sin pisar lo que el usuario ya escribió.
-        if (d.distrito) setDistrito((p) => p || d.distrito!);
-        if (d.provincia) setProvincia((p) => p || d.provincia!);
-        if (d.departamento) setDepartamento((p) => p || d.departamento!);
-        setDniMsg(`RENIEC · ${d.nombres} ${d.apellidoPaterno}`);
-      });
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [dni, lookedUp]);
+  function togglePuesto(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function adqFor(id: string): AdqValue {
+    return sameBuyer ? adqShared : (adqPorPuesto[id] ?? emptyAdq);
+  }
+  function setAdqFor(id: string, v: AdqValue) {
+    setAdqPorPuesto((prev) => ({ ...prev, [id]: v }));
+  }
+
+  const selPuestos = (tSel?.puestos ?? []).filter((p) => selected.includes(p.id));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
     if (!tSel) {
-      setTopError("Selecciona el socio transferente.");
+      toast.error("Selecciona el socio transferente.");
       return;
     }
-    if (!puestoId) {
-      setTopError("Selecciona el puesto a transferir.");
+    if (selected.length === 0) {
+      toast.error("Selecciona al menos un puesto a transferir.");
       return;
     }
+
+    // Validación mínima por línea (el servidor revalida todo).
+    const lineas: LineaTransferenciaInput[] = [];
+    for (const p of selPuestos) {
+      const a = adqFor(p.id);
+      const dni = a.dni.trim();
+      if (!/^\d{8}$/.test(dni) || !a.apellidoPaterno.trim() || !a.nombres.trim()) {
+        toast.error(
+          `Completa los datos del comprador del puesto ${p.codigo} (DNI, apellido paterno y nombres).`,
+        );
+        return;
+      }
+      const montoStr = (montos[p.id] ?? "").trim();
+      lineas.push({
+        puestoId: p.id,
+        monto: montoStr ? Number(montoStr) : null,
+        adqTipoDocumento: "DNI",
+        adqNumeroDocumento: dni,
+        adqApellidoPaterno: a.apellidoPaterno.trim(),
+        adqApellidoMaterno: a.apellidoMaterno.trim() || undefined,
+        adqNombres: a.nombres.trim(),
+        adqEstadoCivil: a.estadoCivil.trim() || undefined,
+        adqDireccion: a.direccion.trim() || undefined,
+        adqDistrito: a.distrito.trim() || undefined,
+        adqProvincia: a.provincia.trim() || undefined,
+        adqDepartamento: a.departamento.trim() || undefined,
+        adqTelefono: a.telefono.trim() || undefined,
+      });
+    }
+
     setSubmitting(true);
-    setTopError(null);
-    setFe({});
-    const res = await createTransferencia({
+    const res = await createTransferenciasLote({
       transferenteId: tSel.id,
-      puestoId,
       fecha,
-      monto: monto.trim() ? Number(monto) : null,
-      adqTipoDocumento: "DNI",
-      adqNumeroDocumento: dni.trim(),
-      adqApellidoPaterno: apellidoPaterno.trim(),
-      adqApellidoMaterno: apellidoMaterno.trim() || undefined,
-      adqNombres: nombres.trim(),
-      adqEstadoCivil: estadoCivil.trim() || undefined,
-      adqDireccion: direccion.trim() || undefined,
-      adqDistrito: distrito.trim() || undefined,
-      adqProvincia: provincia.trim() || undefined,
-      adqDepartamento: departamento.trim() || undefined,
-      adqTelefono: telefono.trim() || undefined,
+      lineas,
     });
     setSubmitting(false);
+
     if (!res.ok) {
-      setTopError(res.error);
-      if (res.fieldErrors) setFe(res.fieldErrors as Record<string, string>);
+      toast.error(res.error);
       return;
     }
-    onCreated(res.data!.id);
+    const { created, failed } = res.data!;
+    if (failed.length > 0) {
+      const codigoDe = (pid: string) =>
+        tSel.puestos.find((p) => p.id === pid)?.codigo ?? pid;
+      toast.error(
+        `No se crearon ${failed.length}: ${failed
+          .map((f) => `${codigoDe(f.puestoId)} (${f.error})`)
+          .join("; ")}`,
+      );
+    }
+    if (created.length > 0) {
+      toast.success(
+        created.length === 1
+          ? "Expediente creado en borrador."
+          : `${created.length} expedientes creados en borrador.`,
+      );
+      onCreated(created.map((c) => c.id));
+    }
   }
 
   return (
     <div className="modal-backdrop" onClick={() => !submitting && onClose()}>
       <form
         className="modal"
-        style={{ maxWidth: 620 }}
+        style={{ maxWidth: 640 }}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >
         <header className="modal__head">
-          <h2>Nueva transferencia de puesto</h2>
+          <h2>Nueva transferencia de puesto(s)</h2>
           <button
             type="button"
             className="iconbtn"
@@ -188,13 +185,6 @@ export function CreateTransferenciaModal({
         </header>
 
         <div className="modal__body">
-          {topError && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 16 }}>
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           {/* Transferente */}
           <h4 style={{ margin: "0 0 8px" }}>Transferente (socio actual)</h4>
           <label className="field" style={{ position: "relative" }}>
@@ -263,181 +253,142 @@ export function CreateTransferenciaModal({
             )}
           </label>
 
+          {/* Puestos a transferir (varios) */}
           {tSel && (
-            <label className="field">
+            <div className="field">
               <span className="field__label">
-                Puesto a transferir<span className="field__req">*</span>
+                Puestos a transferir<span className="field__req">*</span>
               </span>
-              <select
-                value={puestoId}
-                onChange={(e) => setPuestoId(e.target.value)}
-                disabled={submitting}
-              >
-                <option value="">Selecciona…</option>
-                {tSel.puestos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.codigo} · {p.dimensionLabel}
-                    {p.giroLabel ? ` · ${p.giroLabel}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="tr-pick">
+                {tSel.puestos.map((p) => {
+                  const on = selected.includes(p.id);
+                  return (
+                    <label
+                      key={p.id}
+                      className={`tr-pick__row${on ? " is-on" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => togglePuesto(p.id)}
+                        disabled={submitting}
+                      />
+                      <span className="tr-pick__txt">
+                        <span className="tr-pick__code">{p.codigo}</span>
+                        <span className="tr-pick__meta">
+                          {p.dimensionLabel}
+                          {p.giroLabel ? ` · ${p.giroLabel}` : ""}
+                        </span>
+                      </span>
+                      {on && (
+                        <span
+                          className="tr-pick__price"
+                          // El clic en el precio no debe alternar la casilla.
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <span>S/</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={montos[p.id] ?? ""}
+                            onChange={(e) =>
+                              setMontos((m) => ({
+                                ...m,
+                                [p.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Precio"
+                            disabled={submitting}
+                          />
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="tr-pick__hint">
+                Se crea un expediente por cada puesto seleccionado. El precio es
+                opcional y de uso interno.
+              </p>
+            </div>
           )}
 
-          {/* Adquiriente */}
-          <h4 style={{ margin: "18px 0 8px" }}>Adquiriente (nuevo dueño)</h4>
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">
-                DNI<span className="field__req">*</span>
-              </span>
-              <input
-                value={dni}
-                onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
-                placeholder="8 dígitos"
-                inputMode="numeric"
-                aria-invalid={!!fe.adqNumeroDocumento}
-                disabled={submitting}
-              />
-              {fe.adqNumeroDocumento && (
-                <span className="field-error">{fe.adqNumeroDocumento}</span>
-              )}
-              {dniMsg && (
-                <span
-                  style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}
+          {/* Comprador(es) */}
+          {tSel && selected.length > 0 && (
+            <>
+              <h4 style={{ margin: "18px 0 8px" }}>Adquiriente(s)</h4>
+              {selected.length > 1 && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 14,
+                    marginBottom: 12,
+                  }}
                 >
-                  {dniMsg}
-                </span>
+                  <input
+                    type="checkbox"
+                    checked={sameBuyer}
+                    onChange={(e) => setSameBuyer(e.target.checked)}
+                    disabled={submitting}
+                  />
+                  <span>Mismo comprador para todos los puestos</span>
+                </label>
               )}
-            </label>
-            <label className="field">
-              <span className="field__label">Estado civil</span>
-              <input
-                value={estadoCivil}
-                onChange={(e) => setEstadoCivil(e.target.value)}
-                placeholder="soltero(a), casado(a)…"
-                disabled={submitting}
-              />
-            </label>
-          </div>
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">
-                Apellido paterno<span className="field__req">*</span>
-              </span>
-              <input
-                value={apellidoPaterno}
-                onChange={(e) => setApellidoPaterno(e.target.value)}
-                aria-invalid={!!fe.adqApellidoPaterno}
-                disabled={submitting}
-              />
-              {fe.adqApellidoPaterno && (
-                <span className="field-error">{fe.adqApellidoPaterno}</span>
+
+              {sameBuyer ? (
+                <AdquirienteFields
+                  value={adqShared}
+                  onChange={setAdqShared}
+                  disabled={submitting}
+                />
+              ) : (
+                selPuestos.map((p) => (
+                  <div key={p.id} style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Comprador del puesto {p.codigo}
+                    </div>
+                    <AdquirienteFields
+                      value={adqFor(p.id)}
+                      onChange={(v) => setAdqFor(p.id, v)}
+                      disabled={submitting}
+                    />
+                  </div>
+                ))
               )}
-            </label>
-            <label className="field">
-              <span className="field__label">Apellido materno</span>
-              <input
-                value={apellidoMaterno}
-                onChange={(e) => setApellidoMaterno(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-          </div>
-          <label className="field">
-            <span className="field__label">
-              Nombres<span className="field__req">*</span>
-            </span>
-            <input
-              value={nombres}
-              onChange={(e) => setNombres(e.target.value)}
-              aria-invalid={!!fe.adqNombres}
-              disabled={submitting}
-            />
-            {fe.adqNombres && (
-              <span className="field-error">{fe.adqNombres}</span>
-            )}
-          </label>
-          <label className="field">
-            <span className="field__label">Domicilio</span>
-            <input
-              value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
-              placeholder="dirección completa"
-              disabled={submitting}
-            />
-          </label>
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">Distrito</span>
-              <input
-                value={distrito}
-                onChange={(e) => setDistrito(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">Provincia</span>
-              <input
-                value={provincia}
-                onChange={(e) => setProvincia(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-          </div>
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">Departamento</span>
-              <input
-                value={departamento}
-                onChange={(e) => setDepartamento(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">Teléfono</span>
-              <input
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                disabled={submitting}
-              />
-            </label>
-          </div>
+            </>
+          )}
 
           {/* Datos del trámite */}
-          <h4 style={{ margin: "18px 0 8px" }}>Datos del trámite</h4>
-          <div className="soc-formgrid soc-formgrid--2col">
-            <label className="field">
-              <span className="field__label">Fecha del contrato</span>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                aria-invalid={!!fe.fecha}
-                disabled={submitting}
-              />
-              {fe.fecha && <span className="field-error">{fe.fecha}</span>}
-            </label>
-            <label className="field">
-              <span className="field__label">Monto de venta (S/) · interno</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-                placeholder="opcional"
-                aria-invalid={!!fe.monto}
-                disabled={submitting}
-              />
-              {fe.monto && <span className="field-error">{fe.monto}</span>}
-            </label>
-          </div>
-          <p className="modal__intro" style={{ marginTop: 4 }}>
-            Se crea el expediente en <b>borrador</b>. Desde el detalle imprimes
-            los documentos, subes la renuncia y el contrato <b>firmados</b>, y al{" "}
-            <b>Formalizar</b> se da de alta al adquiriente y se mueve el puesto.
-          </p>
+          {tSel && selected.length > 0 && (
+            <>
+              <h4 style={{ margin: "18px 0 8px" }}>Datos del trámite</h4>
+              <label className="field" style={{ maxWidth: 260 }}>
+                <span className="field__label">Fecha del contrato</span>
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  disabled={submitting}
+                />
+              </label>
+              <p className="modal__intro" style={{ marginTop: 4 }}>
+                Se crea <b>un expediente por puesto</b> en <b>borrador</b>. Desde
+                cada detalle imprimes los documentos, subes la renuncia y el
+                contrato <b>firmados</b>, y al <b>Formalizar</b> se mueve el
+                puesto al comprador (si vende todos sus puestos, causa baja).
+              </p>
+            </>
+          )}
         </div>
 
         <footer className="modal__foot">
@@ -449,8 +400,16 @@ export function CreateTransferenciaModal({
           >
             Cancelar
           </button>
-          <button type="submit" className="btn btn--primary" disabled={submitting}>
-            {submitting ? "Creando…" : "Crear expediente"}
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={submitting || !tSel || selected.length === 0}
+          >
+            {submitting
+              ? "Creando…"
+              : selected.length > 1
+                ? `Crear ${selected.length} expedientes`
+                : "Crear expediente"}
           </button>
         </footer>
       </form>

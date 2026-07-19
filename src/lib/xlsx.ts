@@ -199,7 +199,7 @@ export function buildXlsx(
 // Color de marca de la app (globals.css → --accent). ARGB (FF + RRGGBB).
 const BRAND = "FF1A73E8";
 
-export type XlsxColType = "text" | "number" | "date";
+export type XlsxColType = "text" | "number" | "money" | "date";
 
 export interface XlsxColumn {
   header: string;
@@ -240,15 +240,17 @@ function excelSerial(d: Date): number | null {
 // numFmtId personalizados
 const NF_DATE = 164; // dd/mm/yyyy (locale PE)
 const NF_INT = 165; // #,##0 (miles)
+const NF_MONEY = 166; // #,##0.00 (miles con 2 decimales, p. ej. soles)
 
 // styles.xml — fuentes, rellenos, bordes y formatos de celda (cellXfs).
 // Los índices de cellXfs están fijados y se referencian por nombre abajo.
 const STYLES_XML =
   XML +
   '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-  `<numFmts count="2">` +
+  `<numFmts count="3">` +
   `<numFmt numFmtId="${NF_DATE}" formatCode="dd/mm/yyyy"/>` +
   `<numFmt numFmtId="${NF_INT}" formatCode="#,##0"/>` +
+  `<numFmt numFmtId="${NF_MONEY}" formatCode="#,##0.00"/>` +
   `</numFmts>` +
   // Fuentes: 0 base · 1 encabezado (blanco/negrita) · 2 título · 3 subtítulo · 4 meta
   `<fonts count="5">` +
@@ -291,6 +293,7 @@ const S_TEXT_C = 7;
 const S_TEXT_R = 9;
 const S_DATE = 11;
 const S_NUM = 13;
+const S_MONEY = 15;
 
 function bodyXf(numFmtId: number, fillId: number, horizontal: string): string {
   const applyNum = numFmtId ? ' applyNumberFormat="1"' : "";
@@ -329,6 +332,9 @@ function buildCellXfs(): string {
     // 13/14 — número der
     bodyXf(NF_INT, 0, "right"),
     bodyXf(NF_INT, 3, "right"),
+    // 15/16 — dinero der (2 decimales)
+    bodyXf(NF_MONEY, 0, "right"),
+    bodyXf(NF_MONEY, 3, "right"),
   ];
   return `<cellXfs count="${xfs.length}">${xfs.join("")}</cellXfs>`;
 }
@@ -337,6 +343,7 @@ function buildCellXfs(): string {
 function bodyStyleIndex(col: XlsxColumn, zebra: boolean): number {
   const z = zebra ? 1 : 0;
   if (col.type === "date") return S_DATE + z;
+  if (col.type === "money") return S_MONEY + z;
   if (col.type === "number") return S_NUM + z;
   const align = col.align ?? "left";
   if (align === "center") return S_TEXT_C + z;
@@ -353,7 +360,11 @@ function styledCell(ref: string, style: number, col: XlsxColumn, val: XlsxValue)
     }
     return `<c r="${ref}" s="${style}"><v>${serial}</v></c>`;
   }
-  if (col.type === "number" && typeof val === "number" && Number.isFinite(val)) {
+  if (
+    (col.type === "number" || col.type === "money") &&
+    typeof val === "number" &&
+    Number.isFinite(val)
+  ) {
     return `<c r="${ref}" s="${style}"><v>${val}</v></c>`;
   }
   return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escXml(String(val))}</t></is></c>`;

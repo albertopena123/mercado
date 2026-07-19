@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { categoryIcon } from "./category-icons";
 import type { ActionResult, AvailablePermission } from "./types";
@@ -42,6 +43,7 @@ export function CreateRoleModal({
   onSubmit,
   initial,
 }: Props) {
+  const toast = useToast();
   const [name, setName] = useState(initial?.name ?? "");
   const [key, setKey] = useState(initial?.key ?? "");
   const [keyDirty, setKeyDirty] = useState(!!initial?.key);
@@ -51,7 +53,6 @@ export function CreateRoleModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({});
-  const [topError, setTopError] = useState<string | null>(null);
 
   useEscClose(true, onClose, submitting);
 
@@ -97,7 +98,6 @@ export function CreateRoleModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFieldErrors({});
     const res = await onSubmit({
       name: name.trim(),
@@ -106,7 +106,7 @@ export function CreateRoleModal({
       permissionKeys: [...selected],
     });
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo crear el rol.");
+      toast.error(res.error ?? "No se pudo crear el rol.");
       setFieldErrors(res.fieldErrors ?? {});
       setSubmitting(false);
       return;
@@ -150,17 +150,6 @@ export function CreateRoleModal({
         </header>
 
         <div className="modal__body">
-          {topError && (
-            <div
-              className="login__error"
-              role="alert"
-              style={{ marginBottom: 16 }}
-            >
-              <Icon name="info" size={16} />
-              <span>{topError}</span>
-            </div>
-          )}
-
           <div
             style={{
               display: "grid",

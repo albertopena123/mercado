@@ -41,6 +41,36 @@ export default async function Page({
   const deuda = socio.cuotas.reduce((acc, c) => acc + toNumber(c.monto), 0);
   const inasistencias = await contarInasistenciasInjustificadas(socio.id);
   const firmas = await resolveFirmasConsejo();
+
+  // Historial de constancias emitidas al socio (para consultar/anular). La
+  // anulación revoca el documento: su QR pasará a mostrar "ANULADA".
+  const emitidas = await prisma.constancia.findMany({
+    where: { socioId: socio.id },
+    orderBy: { emitidoEn: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      tipo: true,
+      folio: true,
+      codigo: true,
+      motivo: true,
+      emitidoEn: true,
+      validoHasta: true,
+      anulada: true,
+      motivoAnulacion: true,
+    },
+  });
+  const historial = emitidas.map((c) => ({
+    id: c.id,
+    tipo: c.tipo,
+    folio: c.folio,
+    codigo: c.codigo,
+    motivo: c.motivo,
+    emitidoEn: c.emitidoEn.toISOString(),
+    validoHasta: c.validoHasta ? c.validoHasta.toISOString() : null,
+    anulada: c.anulada,
+    motivoAnulacion: c.motivoAnulacion,
+  }));
   const puestos = socio.asignacionesPuesto.map((a) => ({
     codigo: a.puesto.codigo,
     giro: a.puesto.giro,
@@ -70,6 +100,7 @@ export default async function Page({
       motivoBloqueo={motivoBloqueo}
       inasistencias={inasistencias}
       firmas={firmas}
+      historial={historial}
       data={{
         nombreCompleto,
         tipoDocumento: socio.tipoDocumento,

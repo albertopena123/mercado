@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
 import { aplicarDeudaASocios, buscarSociosParaDeuda } from "./actions";
@@ -36,9 +37,9 @@ export function AplicarDeudaModal({
   const [selected, setSelected] = useState<Map<string, SocioPick>>(new Map());
 
   const [fe, setFe] = useState<Record<string, string>>({});
-  const [topError, setTopError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   useEscClose(true, onClose, submitting);
 
@@ -52,14 +53,13 @@ export function AplicarDeudaModal({
   async function runSearch() {
     if (searching) return;
     setSearching(true);
-    setTopError(null);
     const res = await buscarSociosParaDeuda(query.trim());
     setSearching(false);
     setSearched(true);
     if (res.ok) setResults(res.data ?? []);
     else {
       setResults([]);
-      setTopError(res.error);
+      toast.error(res.error);
     }
   }
 
@@ -84,7 +84,6 @@ export function AplicarDeudaModal({
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    setTopError(null);
     setFe({});
     const res = await aplicarDeudaASocios({
       socioIds: Array.from(selected.keys()),
@@ -95,7 +94,7 @@ export function AplicarDeudaModal({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setTopError(res.error ?? "No se pudo aplicar la deuda.");
+      toast.error(res.error ?? "No se pudo aplicar la deuda.");
       setFe((res.fieldErrors as Record<string, string>) ?? {});
       return;
     }
@@ -151,13 +150,6 @@ export function AplicarDeudaModal({
                 un socio ya tiene esta misma deuda (mismo periodo y concepto), se
                 omite (no se duplica).
               </p>
-
-              {topError && (
-                <div className="soc-error" role="alert" style={{ marginBottom: 12 }}>
-                  <Icon name="info" size={16} />
-                  <span>{topError}</span>
-                </div>
-              )}
 
               <div className="soc-formgrid soc-formgrid--2col">
                 <label className="field">

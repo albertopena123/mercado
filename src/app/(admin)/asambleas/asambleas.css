@@ -307,6 +307,126 @@
   color: #991b1b;
 }
 
+/* Buscador con autocompletado (DNI / nombre / apellidos) */
+.checkin__search {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+.checkin__search .checkin__input {
+  width: 100%;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+.checkin__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.checkin__opt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.checkin__opt.is-active {
+  background: var(--accent-soft);
+}
+.checkin__opt:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.checkin__opt-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.checkin__opt-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.checkin__opt-flag {
+  margin-left: 8px;
+  color: #166534;
+  font-weight: 600;
+}
+
+/* Modal de confirmación de asistencia */
+.checkin-ok {
+  text-align: center;
+}
+.checkin-ok__icon {
+  width: 64px;
+  height: 64px;
+  margin: 4px auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.checkin-ok__icon--presente {
+  background: #16a34a;
+}
+.checkin-ok__icon--tardanza {
+  background: #2563eb;
+}
+.checkin-ok__title {
+  font-family: "Google Sans", sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.checkin-ok__name {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.checkin-ok__badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.checkin-ok__badge--presente {
+  background: #dcfce7;
+  color: #166534;
+}
+.checkin-ok__badge--tardanza {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.checkin-ok__note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.checkin-ok__done {
+  margin-top: 20px;
+  width: 100%;
+  justify-content: center;
+}
+
 .asm-toolbar {
   display: flex;
   gap: 12px;

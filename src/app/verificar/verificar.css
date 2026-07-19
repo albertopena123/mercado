@@ -163,3 +163,33 @@
   color: #475569;
   line-height: 1.5;
 }
+
+/* ── Aviso de no-autorización y alertas de realidad actual (anti-fraude) ── */
+.verif__notice {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #7c2d12;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.verif__alert {
+  margin-top: 10px;
+  padding: 11px 14px;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.verif__alert--soft {
+  border-color: #bfdbfe;
+  border-left-color: #2563eb;
+  background: #eff6ff;
+  color: #1e40af;
+}

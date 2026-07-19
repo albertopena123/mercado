@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/admin/Icon";
+import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { listSocios } from "../socios/actions";
 import { assignPuesto } from "./actions";
@@ -18,11 +19,11 @@ export function AsignarSocioModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const toast = useToast();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SocioRow[]>([]);
   const [searching, startSearch] = useTransition();
   const [assigning, startAssign] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   useEscClose(true, onClose, assigning);
 
@@ -38,23 +39,21 @@ export function AsignarSocioModal({
         });
         if (res.ok) {
           setResults(res.data!.items);
-          setError(null);
         } else {
           setResults([]);
-          setError(res.error);
+          toast.error(res.error);
         }
       });
     }, 350);
     return () => clearTimeout(timer);
-  }, [q]);
+  }, [q, toast]);
 
   function pick(socioId: string) {
     if (assigning) return;
-    setError(null);
     startAssign(async () => {
       const res = await assignPuesto(puestoId, socioId);
       if (!res.ok) {
-        setError(res.error);
+        toast.error(res.error);
         return;
       }
       onDone();
@@ -85,13 +84,6 @@ export function AsignarSocioModal({
             Busca un socio activo y selecciónalo. Si el puesto ya estaba
             asignado, la asignación anterior se cierra automáticamente.
           </p>
-
-          {error && (
-            <div className="soc-error" role="alert" style={{ marginBottom: 12 }}>
-              <Icon name="info" size={16} />
-              <span>{error}</span>
-            </div>
-          )}
 
           <label className="field" style={{ marginBottom: 0 }}>
             <span className="field__label">Buscar socio</span>
