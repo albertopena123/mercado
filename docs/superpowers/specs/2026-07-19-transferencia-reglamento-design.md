@@ -204,7 +204,45 @@ automáticamente las mejoras cobradas.
 - Concurrencia: toda formalización sigue bajo `FOR UPDATE` del puesto + claim atómico del
   estado `borrador → completada`.
 
-## 11. Pruebas / verificación
+## 11. Mejora: autocompletado de ubigeo (distrito/provincia/departamento)
+
+**Problema:** al crear una transferencia, el autocompletado por DNI rellena apellidos,
+nombres, estado civil y domicilio (texto), pero **distrito / provincia / departamento quedan
+manuales** — el lookup ignora el ubigeo.
+
+**Hallazgo confirmado (llamada real a la API):** `apidatos.unamad.edu.pe/api/consulta/{dni}`
+sí devuelve `UBIGEO_NAC` (nacimiento) **y** `UBIGEO_DIR` (domicilio), ambos códigos RENIEC de
+6 dígitos, junto a `DIRECCION`. Para los campos de **domicilio** se usa **`UBIGEO_DIR`** (no
+el de nacimiento; `UBIGEO_DIR` es el que acompaña a `DIRECCION`).
+
+**Diseño:**
+1. **Portar el mapeo ubigeo** a mercado_modelo (reutilizado de `busquedanamereniec`):
+   - `src/lib/ubigeo/ubigeo-data.ts` — mapas `DEPARTMENTS` (2 díg), `PROVINCES` (4 díg),
+     `DISTRICTS` (6 díg), generados desde `ubigeo.txt`
+     (`c:\Apache24\htdocs\busquedanamereniec\ubigeo.txt`, formato
+     `CODIGO<TAB>DEPTO / PROV / DIST`, 1893 filas) con un script único de generación.
+   - `src/lib/ubigeo/index.ts` — `lookupUbigeo(code)` → `{ departamento, provincia,
+     distrito, completo }`; normaliza no-dígitos y rellena cero perdido cuando llega con 5
+     dígitos; retorna `null` si el código es inválido/vacío.
+2. **Extender `lookupDniUnamad`** (`src/lib/socios/dni-lookup.ts`): agregar `UBIGEO_DIR` (y
+   `UBIGEO_NAC` por completitud) a `DniApiResponse`; resolver en el servidor con
+   `lookupUbigeo(UBIGEO_DIR)` y sumar a `DniLookupResult`:
+   `departamento / provincia / distrito` (strings o null). `direccion` se mantiene.
+3. **`CreateTransferenciaModal`**: al resolver el DNI, autocompletar `distrito / provincia /
+   departamento` con `(prev) => prev || valor` (respeta lo que el usuario ya escribió), igual
+   que hoy con apellidos/dirección.
+
+**Robustez:** si `UBIGEO_DIR` viene vacío o inválido, `lookupUbigeo` retorna `null` y los
+campos quedan manuales (comportamiento actual) — sin regresión. La API sigue siendo volátil;
+el parseo es defensivo (campo opcional).
+
+**Extensión opcional (fuera de este lote):** el mismo `lookupDniUnamad` alimenta el alta de
+socios; wire idéntico en el formulario de socios queda como seguimiento de bajo costo.
+
+**Pruebas:** `lookupUbigeo("150101")` → LIMA/LIMA/LIMA; `"090325"` → HUANCAVELICA/…;
+código de 5 díg con cero perdido se normaliza; código basura → `null`.
+
+## 12. Pruebas / verificación
 
 - Unit: `montoMejoras(d3x5) === 2000`, `montoMejoras(d3x3) === 1500`.
 - Integración `formalizarTransferencia`: cada prerequisito faltante (mejoras, constancia,
