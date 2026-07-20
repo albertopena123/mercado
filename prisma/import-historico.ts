@@ -144,16 +144,32 @@ async function main() {
             // calza con un socio de nombre ajeno, el dato de origen es sospechoso
             // y enlazar sería peor que no hacerlo.
             const tSocio = tokensNombre(`${s.apellidoPaterno} ${s.apellidoMaterno ?? ""} ${s.nombres}`);
-            const comparte = [...tokensNombre(nombre)].some((t) => tSocio.has(t));
-            if (comparte) {
+            const tOrigen = tokensNombre(nombre);
+            if (tOrigen.size === 0) {
+              // Celda sin nombre (en blanco, o solo una anotación entre paréntesis
+              // que `partirNombre` ya extrajo aparte): no hay nada con qué comparar.
+              // Eso NO es una contradicción — el veto solo existe para detectar un
+              // nombre ajeno, y la ausencia de nombre no es ajena a nada. El DNI
+              // sigue siendo la única fuente de verdad del enlace, así que se
+              // enlaza igual; se deja constancia para que un humano lo revise.
               socioId = s.id;
               stats.enlazados++;
-            } else {
-              stats.vetados++;
-              notas.push(`enlace vetado: DNI ${dni} corresponde a otro nombre en el padrón`);
+              notas.push(`enlazado por DNI sin nombre en origen para verificar`);
               incidencias.push(
-                `VETADO ${p.codigo}: dni=${dni} excel="${nombre}" vs bd="${s.apellidoPaterno} ${s.nombres}"`,
+                `ENLAZADO SIN NOMBRE ${p.codigo}: dni=${dni} (celda sin nombre en el Excel) -> bd="${s.apellidoPaterno} ${s.nombres}"`,
               );
+            } else {
+              const comparte = [...tOrigen].some((t) => tSocio.has(t));
+              if (comparte) {
+                socioId = s.id;
+                stats.enlazados++;
+              } else {
+                stats.vetados++;
+                notas.push(`enlace vetado: DNI ${dni} corresponde a otro nombre en el padrón`);
+                incidencias.push(
+                  `VETADO ${p.codigo}: dni=${dni} excel="${nombre}" vs bd="${s.apellidoPaterno} ${s.nombres}"`,
+                );
+              }
             }
           }
         }
