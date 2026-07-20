@@ -20,6 +20,8 @@ import {
   puestoCodigo,
   maxNumero,
 } from "@/lib/puestos/giro";
+import { getLinajePuesto } from "@/lib/padron/historico";
+import type { LinajePuesto } from "@/lib/padron/types";
 import type {
   ActionResult,
   CreatePuestoInput,
@@ -310,6 +312,19 @@ export async function getPuesto(
     if (e instanceof Denied) return fail(e.message);
     console.error("getPuesto", e);
     return fail("No se pudo cargar el puesto.");
+  }
+}
+
+export async function getHistoricoPuesto(
+  puestoId: string,
+): Promise<ActionResult<LinajePuesto | null>> {
+  try {
+    await authorize("puestos.read");
+    return ok(await getLinajePuesto(puestoId));
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("getHistoricoPuesto", e);
+    return fail("No se pudo cargar el historial del puesto.");
   }
 }
 

@@ -8,6 +8,7 @@ import { fechaTS } from "@/lib/fecha";
 import { ConfirmDialog } from "../socios/ConfirmDialog";
 import { EstadoPuestoBadge } from "./EstadoPuestoBadge";
 import { AsignarSocioModal } from "./AsignarSocioModal";
+import { PuestoHistorialTab } from "./PuestoHistorialTab";
 import { getPuesto, updatePuesto, deletePuesto, unassignPuesto } from "./actions";
 import type { EstadoPuesto, Giro } from "@/generated/prisma/client";
 import type { PuestoDetail, PermFlags, UpdatePuestoPatch } from "./types";
@@ -23,7 +24,7 @@ import {
   maxNumero,
 } from "@/lib/puestos/giro";
 
-type Tab = "datos" | "asignacion";
+type Tab = "datos" | "asignacion" | "historial";
 
 export function PuestoDetailDrawer({
   puestoId,
@@ -163,17 +164,24 @@ export function PuestoDetailDrawer({
           >
             Asignación
           </button>
+          <button
+            className={`soc-tab ${tab === "historial" ? "is-active" : ""}`}
+            onClick={() => setTab("historial")}
+          >
+            Historial
+          </button>
         </div>
 
         <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
-          {tab === "datos" ? (
+          {tab === "datos" && (
             <DatosForm
               key={puesto.updatedAt}
               puesto={puesto}
               canWrite={perms.canWrite}
               onReload={reload}
             />
-          ) : (
+          )}
+          {tab === "asignacion" && (
             <div>
               <div
                 style={{
@@ -240,6 +248,7 @@ export function PuestoDetailDrawer({
               </ul>
             </div>
           )}
+          {tab === "historial" && <PuestoHistorialTab puestoId={puesto.id} />}
         </div>
 
         <footer className="drawer__foot">
