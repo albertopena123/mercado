@@ -96,7 +96,7 @@ async function main() {
 
   const stats = {
     sinPuesto: 0, registros: 0, conDni: 0,
-    enlazados: 0, vetados: 0, dniInvalido: 0, dniSinSocio: 0,
+    enlazados: 0, enlazadosSinNombre: 0, vetados: 0, dniInvalido: 0, dniSinSocio: 0,
   };
   const incidencias: string[] = [];
 
@@ -154,6 +154,7 @@ async function main() {
               // enlaza igual; se deja constancia para que un humano lo revise.
               socioId = s.id;
               stats.enlazados++;
+              stats.enlazadosSinNombre++;
               notas.push(`enlazado por DNI sin nombre en origen para verificar`);
               incidencias.push(
                 `ENLAZADO SIN NOMBRE ${p.codigo}: dni=${dni} (celda sin nombre en el Excel) -> bd="${s.apellidoPaterno} ${s.nombres}"`,
@@ -204,6 +205,7 @@ async function main() {
   }
   console.log(`\nceldas con DNI 2021 : ${stats.conDni}`);
   console.log(`  enlazados         : ${stats.enlazados}`);
+  console.log(`    sin nombre      : ${stats.enlazadosSinNombre}`);
   console.log(`  vetados           : ${stats.vetados}`);
   console.log(`  DNI sin socio     : ${stats.dniSinSocio}`);
   console.log(`  DNI inválido      : ${stats.dniInvalido}`);
