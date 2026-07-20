@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-import sys, io, re, json
+import sys, io, re, json, warnings
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 import openpyxl
+
+# Silencia el aviso de openpyxl sobre imágenes WMF incrustadas en la fuente.
+# El formato WMF no es soportado por openpyxl pero la imagen es irrelevante
+# para la extracción de datos del padrón.
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl.reader.drawings")
 
 # Limpia la matriz histórica de la hoja "PADRON 2022" a un JSON que consume
 # prisma/import-historico.ts.
