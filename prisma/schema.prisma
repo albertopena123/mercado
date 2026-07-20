@@ -214,6 +214,7 @@ model Socio {
   registrosPublicos              SolicitudRegistroPublico[]     @relation("RegistroPublicoSocio")
   guardianiaPagos                GuardianiaPago[]
   guardianiaCuentas              GuardianiaCuenta[]
+  registrosPadron                PadronRegistro[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@index([estado])
@@ -489,6 +490,7 @@ model Puesto {
   renuncias        Renuncia[]         @relation("RenunciaPuesto")
   guardianiaPagos  GuardianiaPago[]
   guardianiaCuenta GuardianiaCuenta?
+  registrosPadron  PadronRegistro[]
 
   @@unique([etapa, bloque, fila, numero])
   @@index([estado])
@@ -1163,4 +1165,54 @@ model GuardianiaCuenta {
 
   @@index([socioId])
   @@index([activo])
+}
+
+// ─────────────────────────── Padrón histórico ───────────────────────────
+//
+// La hoja fuente (`PADRON 2022`) NO es un padrón: es una matriz indexada por
+// PUESTO con un titular por empadronamiento. Por eso el registro se ancla al
+// puesto y no al socio — su llave (etapa, bloque, número) calza 704/704 con la
+// grilla, mientras que el nombre del titular es texto libre de 2014-2019 sin
+// documento que lo respalde.
+model Empadronamiento {
+  id        String   @id @default(cuid())
+  anio      Int      @unique
+  nombre    String // "Gestión 2014", "Santos 2017", "Raymundo 2019", "Gestión Santos 2021"
+  orden     Int      @unique // ordena el linaje sin depender del año
+  fuente    String? // procedencia documental; marca los importados para el rollback
+  createdAt DateTime @default(now())
+
+  registros PadronRegistro[]
+}
+
+model PadronRegistro {
+  id                String @id @default(cuid())
+  empadronamientoId String
+  puestoId          String
+
+  // Titular tal como consta en la fuente. `nombreOriginal` NO se normaliza ni se
+  // corrige: es la evidencia (51 celdas traen anotaciones con valor legal, y una
+  // trae dos personas en la misma celda). `nombre` es la versión limpia para
+  // mostrar y `observacion` recoge la anotación entre paréntesis.
+  nombreOriginal String?
+  nombre         String?
+  observacion    String?
+
+  numeroPadron    Int?
+  numeroDocumento String? // solo el empadronamiento 2021 lo trae
+  socioId         String? // enlazado SOLO por DNI verificado; nunca por nombre
+
+  searchKey String @default("")
+  filaExcel Int? // trazabilidad a la fila de origen
+  createdAt DateTime @default(now())
+
+  empadronamiento Empadronamiento @relation(fields: [empadronamientoId], references: [id], onDelete: Cascade)
+  // Restrict, igual que PuestoAsignacion: borrar un puesto no debe arrasar su historia.
+  puesto Puesto @relation(fields: [puestoId], references: [id], onDelete: Restrict)
+  // SetNull: el registro es evidencia documental y sobrevive al borrado del socio.
+  socio Socio? @relation(fields: [socioId], references: [id], onDelete: SetNull)
+
+  @@unique([empadronamientoId, puestoId])
+  @@index([puestoId])
+  @@index([socioId])
 }
