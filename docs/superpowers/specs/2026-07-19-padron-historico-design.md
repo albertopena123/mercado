@@ -226,11 +226,17 @@ No bloquean la importación; son insumo de la Fase 2.
   tomado de la asignación vigente.
 - `getAntiguedadSocio(socioId)` → para cada puesto vigente del socio, el empadronamiento
   más antiguo en el que el titular sigue siendo el mismo nombre de forma ininterrumpida.
+  Devuelve el detalle por puesto **y** un `desde` agregado.
 
-La antigüedad se presenta **siempre atribuida a un puesto** («mismo titular desde Santos
-2017 en E1-A-12»), nunca como un dato absoluto de la persona. Es lo único que los datos
-sostienen honestamente: para 2014/2017/2019 no hay DNI, así que la identidad se infiere
-por continuidad de nombre en un puesto concreto.
+**Regla del agregado:** la antigüedad del socio es el empadronamiento **más antiguo entre
+todos sus puestos**. Un socio con un puesto desde 2014 y otro comprado en 2021 es un
+socio de 2014; es la lectura que corresponde para efectos de derechos y prioridad.
+
+**El agregado nunca se muestra solo.** Va siempre acompañado del puesto que lo justifica
+(«Socio desde Gestión 2014 — por E1-A-12»), por dos razones: la identidad previa a 2021
+se infiere por continuidad de nombre en un puesto concreto (antes de esa gestión no hay
+DNI en la fuente), y un dato de antigüedad que no se puede auditar de un vistazo es un
+dato en el que nadie va a confiar cuando se use para asignar un derecho.
 
 ## 5. Interfaz
 
@@ -280,6 +286,8 @@ escritura desde la UI, la única escritura es el importador por CLI.
 | Mismo DNI, nombres distintos | Vetado, `socioId = null`, reportado. |
 | Mismo DNI, varios puestos | Normal (140 casos). Se enlazan todos. |
 | DNI 2021 sin socio en la BD | `socioId = null`, reportado (5 casos). |
+| Socio con puestos de distinta data | Antigüedad = la del puesto más antiguo (§4), mostrando ese puesto. |
+| Socio sin ningún puesto vigente | Sin antigüedad derivable. La UI lo dice; no se inventa un valor. |
 
 ## 9. Verificación
 
