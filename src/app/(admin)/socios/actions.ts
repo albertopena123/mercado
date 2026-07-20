@@ -48,6 +48,8 @@ import {
   validateSocioInput,
   buildSocioUpdateData,
 } from "@/lib/socios/update";
+import { getAntiguedadSocio } from "@/lib/padron/historico";
+import type { AntiguedadSocio } from "@/lib/padron/types";
 
 const ESTADO_LABEL: Record<EstadoSocio, string> = {
   activo: "Activo",
@@ -1079,5 +1081,18 @@ export async function removeAdjuntoAction(
     if (e instanceof Denied) return fail(e.message);
     console.error("removeAdjuntoAction", e);
     return fail("No se pudo eliminar el adjunto.");
+  }
+}
+
+export async function getPadronHistoricoSocio(
+  socioId: string,
+): Promise<ActionResult<AntiguedadSocio>> {
+  try {
+    await authorize("socios.read");
+    return ok(await getAntiguedadSocio(socioId));
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("getPadronHistoricoSocio", e);
+    return fail("No se pudo cargar el padrón histórico del socio.");
   }
 }

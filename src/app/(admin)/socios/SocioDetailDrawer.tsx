@@ -13,6 +13,7 @@ import { AdjuntosPanel } from "./AdjuntosPanel";
 import { ChangeEstadoModal } from "./ChangeEstadoModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SocioCuotasTab } from "./SocioCuotasTab";
+import { SocioPadronTab } from "./SocioPadronTab";
 import type { SocioDetail, PermFlags, UpdateSocioPatch } from "./types";
 import type {
   TipoDocumento,
@@ -22,7 +23,7 @@ import type {
 } from "@/generated/prisma/client";
 import { GIRO_LABEL, DIMENSION_LABEL } from "@/lib/puestos/giro";
 
-type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial";
+type Tab = "datos" | "puestos" | "adjuntos" | "cuotas" | "historial" | "padron";
 type LookupStatus = "idle" | "loading" | "success" | "error";
 
 const CARGO_DIRECTIVO_LBL: Record<CargoDirectivo, string> = {
@@ -277,6 +278,12 @@ export function SocioDetailDrawer({
           >
             Historial
           </button>
+          <button
+            className={`soc-tab ${tab === "padron" ? "is-active" : ""}`}
+            onClick={() => setTab("padron")}
+          >
+            Padrón histórico
+          </button>
         </div>
 
         <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
@@ -385,6 +392,7 @@ export function SocioDetailDrawer({
             />
           )}
           {tab === "cuotas" && <SocioCuotasTab socioId={socio.id} />}
+          {tab === "padron" && <SocioPadronTab socioId={socio.id} />}
           {tab === "historial" && (
             <ol className="historial">
               {socio.estadoLog.map((l) => (
