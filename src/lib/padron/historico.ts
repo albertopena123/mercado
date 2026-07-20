@@ -1,23 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { normalizeToken, searchTokens } from "@/lib/socios/normalize";
+import { searchTokens } from "@/lib/socios/normalize";
+import {
+  antiguedadDesdeSlots, construirSlots, firmaNombre, masAntiguoEntrePuestos,
+} from "./continuidad";
 import type {
-  AntiguedadSocio, AntiguedadPuesto, LinajePuesto, RegistroBusqueda, SlotLinaje,
+  AntiguedadSocio, AntiguedadPuesto, LinajePuesto, RegistroBusqueda,
 } from "./types";
-
-// Firma normalizada de un nombre para comparar titulares entre gestiones: sin
-// tildes, sin anotaciones entre paréntesis, sin palabras cortas, y ORDENADA —
-// así "MONDRAGON CONDORI JULIA" y "JULIA MONDRAGON CONDORI" son el mismo
-// titular. El nombre solo se usa para comparar dentro de UN MISMO puesto; nunca
-// para unir registros entre puestos distintos.
-function firmaNombre(s: string | null): string {
-  return normalizeToken(s ?? "")
-    .replace(/\([^)]*\)/g, " ")
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length > 2)
-    .sort()
-    .join(" ");
-}
 
 export async function getLinajePuesto(puestoId: string): Promise<LinajePuesto | null> {
   const puesto = await prisma.puesto.findUnique({
@@ -40,25 +29,14 @@ export async function getLinajePuesto(puestoId: string): Promise<LinajePuesto | 
   const registros = await prisma.padronRegistro.findMany({ where: { puestoId } });
   const porGestion = new Map(registros.map((r) => [r.empadronamientoId, r]));
 
-  // `cambioDeTitular` se compara contra el ÚLTIMO slot CON DATO, no contra el
-  // inmediatamente anterior: 2014 y 2019 fueron empadronamientos incompletos, y
-  // comparar contra un hueco reportaría un traspaso que nunca ocurrió.
-  let ultimaFirma: string | null = null;
-  const slots: SlotLinaje[] = gestiones.map((g) => {
-    const r = porGestion.get(g.id);
-    if (!r) {
-      return { anio: g.anio, gestion: g.nombre, orden: g.orden, registro: null, cambioDeTitular: false };
-    }
-    const firma = firmaNombre(r.nombre ?? r.nombreOriginal);
-    const cambio = ultimaFirma !== null && firma !== "" && firma !== ultimaFirma;
-    if (firma !== "") ultimaFirma = firma;
+  // La construcción de slots y el cálculo de `cambioDeTitular` viven en
+  // continuidad.ts (lógica pura, sin Prisma) para poder probarse sin BD.
+  const slots = construirSlots(gestiones, (gestionId) => {
+    const r = porGestion.get(gestionId);
+    if (!r) return null;
     return {
-      anio: g.anio, gestion: g.nombre, orden: g.orden,
-      registro: {
-        nombre: r.nombre, nombreOriginal: r.nombreOriginal, observacion: r.observacion,
-        numeroPadron: r.numeroPadron, numeroDocumento: r.numeroDocumento, socioId: r.socioId,
-      },
-      cambioDeTitular: cambio,
+      nombre: r.nombre, nombreOriginal: r.nombreOriginal, observacion: r.observacion,
+      numeroPadron: r.numeroPadron, numeroDocumento: r.numeroDocumento, socioId: r.socioId,
     };
   });
 
@@ -103,28 +81,18 @@ export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSoc
     const linaje = await getLinajePuesto(asig.puesto.id);
     if (!linaje) continue;
 
-    // Se recorre de la gestión MÁS RECIENTE hacia atrás mientras el titular siga
-    // siendo el mismo. Al primer titular distinto se corta: antes de ese punto el
-    // puesto era de otra persona.
-    let desdeAnio: number | null = null;
-    let desdeGestion: string | null = null;
-    for (const slot of [...linaje.slots].reverse()) {
-      if (!slot.registro) continue;
-      const firma = firmaNombre(slot.registro.nombre ?? slot.registro.nombreOriginal);
-      if (firma === "" || firma !== firmaActual) break;
-      desdeAnio = slot.anio;
-      desdeGestion = slot.gestion;
-    }
+    // El recorrido hacia atrás y el corte en el titular anterior distinto viven
+    // en continuidad.ts (lógica pura, sin Prisma) para poder probarse sin BD.
+    const { desdeAnio, desdeGestion } = antiguedadDesdeSlots(linaje.slots, firmaActual);
     porPuesto.push({
       puestoId: asig.puesto.id, puestoCodigo: asig.puesto.codigo, desdeAnio, desdeGestion,
     });
   }
 
-  // Agregado: el empadronamiento MÁS ANTIGUO entre sus puestos. Un socio con un
-  // puesto desde 2014 y otro comprado en 2021 es un socio de 2014.
-  const conDato = porPuesto.filter((p) => p.desdeAnio !== null);
-  if (conDato.length === 0) return { ...vacio, porPuesto };
-  const masAntiguo = conDato.reduce((a, b) => (a.desdeAnio! <= b.desdeAnio! ? a : b));
+  // Agregado: el empadronamiento MÁS ANTIGUO entre sus puestos (con desempate
+  // determinista) — ver comentario en continuidad.ts.
+  const masAntiguo = masAntiguoEntrePuestos(porPuesto);
+  if (!masAntiguo) return { ...vacio, porPuesto };
   return {
     desdeAnio: masAntiguo.desdeAnio,
     desdeGestion: masAntiguo.desdeGestion,
