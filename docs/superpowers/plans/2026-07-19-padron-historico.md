@@ -29,7 +29,7 @@
 | `prisma/schema.prisma` *(mod)* | Modelos `Empadronamiento` y `PadronRegistro` + relaciones inversas en `Puesto` y `Socio`. |
 | `prisma/migrations/<ts>_padron_historico/` *(nuevo)* | Migración generada por Prisma. |
 | `prisma/import-historico-clean.py` *(nuevo)* | Excel → `prisma/_historico.json`. Único lugar que sabe de openpyxl y celdas combinadas. |
-| `prisma/_historico.json` *(nuevo)* | Payload intermedio, versionado como `_padron.json`/`_etapa1.json`. |
+| `prisma/_historico.json` *(generado)* | Payload intermedio. **NO se versiona**: `/prisma/_*` está en `.gitignore`, como todos los JSON intermedios del repo. Se regenera con el limpiador. |
 | `prisma/import-historico.ts` *(nuevo)* | JSON → BD. Dry-run/apply/rollback. Único lugar con la regla de enlace por DNI. |
 | `prisma/verify-historico.ts` *(nuevo)* | Aserciones sobre el modelo y la capa de lectura. |
 | `src/lib/padron/searchKey.ts` *(nuevo)* | `buildPadronRegistroSearchKey`. Sin `server-only`: lo usan el importador y la app. |
@@ -290,9 +290,11 @@ descartadas    : 3 [(709, 'PUESTOS SIN EMPADRONAR', 704), (710, None, 296), (711
 - [ ] **Step 3: Commit**
 
 ```bash
-git add prisma/import-historico-clean.py prisma/_historico.json
+git add prisma/import-historico-clean.py
 git commit -m "feat(padron): limpiador del Excel histórico a JSON"
 ```
+
+**No añadas `prisma/_historico.json`**: `/prisma/_*` está en `.gitignore`. El JSON es un artefacto regenerable, no una fuente. Queda en el árbol para que la Task 3 lo consuma.
 
 ---
 
