@@ -48,8 +48,8 @@ import {
   validateSocioInput,
   buildSocioUpdateData,
 } from "@/lib/socios/update";
-import { getAntiguedadSocio } from "@/lib/padron/historico";
-import type { AntiguedadSocio } from "@/lib/padron/types";
+import { getAntiguedadSocio, buscarRegistros } from "@/lib/padron/historico";
+import type { AntiguedadSocio, RegistroBusqueda } from "@/lib/padron/types";
 
 const ESTADO_LABEL: Record<EstadoSocio, string> = {
   activo: "Activo",
@@ -1094,5 +1094,18 @@ export async function getPadronHistoricoSocio(
     if (e instanceof Denied) return fail(e.message);
     console.error("getPadronHistoricoSocio", e);
     return fail("No se pudo cargar el padrón histórico del socio.");
+  }
+}
+
+export async function buscarPadronHistorico(
+  q: string,
+): Promise<ActionResult<RegistroBusqueda[]>> {
+  try {
+    await authorize("socios.read");
+    return ok(await buscarRegistros(q));
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("buscarPadronHistorico", e);
+    return fail("No se pudo buscar en el padrón histórico.");
   }
 }

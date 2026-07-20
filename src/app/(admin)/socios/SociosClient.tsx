@@ -147,6 +147,11 @@ export function SociosClient({
               )}
             </Link>
           )}
+          {perms.canRead && (
+            <Link href="/socios/historico" className="btn btn--ghost">
+              Padrón histórico
+            </Link>
+          )}
           <button
             className="btn btn--ghost"
             onClick={handleExport}
