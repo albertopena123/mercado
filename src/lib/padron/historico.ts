@@ -83,7 +83,10 @@ export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSoc
 
     // El recorrido hacia atrás y el corte en el titular anterior distinto viven
     // en continuidad.ts (lógica pura, sin Prisma) para poder probarse sin BD.
-    const { desdeAnio, desdeGestion } = antiguedadDesdeSlots(linaje.slots, firmaActual);
+    // Se pasa `socioId` para que un enlace ya verificado por DNI (2021) decida
+    // la continuidad sin depender de que la firma de nombre calce — ver
+    // comentario de `antiguedadDesdeSlots`.
+    const { desdeAnio, desdeGestion } = antiguedadDesdeSlots(linaje.slots, firmaActual, socioId);
     porPuesto.push({
       puestoId: asig.puesto.id, puestoCodigo: asig.puesto.codigo, desdeAnio, desdeGestion,
     });

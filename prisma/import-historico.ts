@@ -13,6 +13,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { normalizeToken } from "../src/lib/socios/normalize";
 import { buildPadronRegistroSearchKey } from "../src/lib/padron/searchKey";
+import { partirNombre } from "../src/lib/padron/parseNombreHistorico";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -42,17 +43,6 @@ function normDni(raw: unknown): string | null {
   if (s.length >= 5 && s.length <= 7) return s.padStart(8, "0");
   if (s.length === 8) return s;
   return null;
-}
-
-// Separa "APELLIDOS NOMBRES (vendido 2023)" en nombre limpio + anotación.
-function partirNombre(raw: string | null): { nombre: string | null; observacion: string | null } {
-  if (!raw) return { nombre: null, observacion: null };
-  const m = raw.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-  if (!m) return { nombre: raw.replace(/\s+/g, " ").trim() || null, observacion: null };
-  return {
-    nombre: m[1].replace(/\s+/g, " ").trim() || null,
-    observacion: m[2].trim() || null,
-  };
 }
 
 // Tokens significativos de un nombre, para el VETO (nunca para unir).

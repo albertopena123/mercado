@@ -66,7 +66,7 @@ export function PuestoHistorialTab({ puestoId }: { puestoId: string }) {
                 {s.registro.socioId && <> · <b>identidad verificada</b></>}
               </div>
               {s.registro.observacion && (
-                <div style={{ fontSize: 12, color: "var(--warn, #b45309)", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "var(--warn)", marginTop: 2 }}>
                   {s.registro.observacion}
                 </div>
               )}

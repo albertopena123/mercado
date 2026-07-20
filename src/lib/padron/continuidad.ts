@@ -54,22 +54,38 @@ export function construirSlots(
 }
 
 // Recorre los slots de un linaje de MÁS RECIENTE a MÁS ANTIGUO mientras el
-// titular siga siendo `firmaObjetivo`, y devuelve desde qué gestión es
-// continuo. Los huecos (`registro: null`) se SALTAN sin cortar el recorrido —
-// no hay dato, no hay contradicción. El recorrido corta en el primer slot CON
-// DATO cuyo titular sea distinto: antes de ese punto el puesto era de otra
-// persona. Una `firmaObjetivo` vacía no puede afirmar continuidad con nada.
+// titular siga siendo el mismo, y devuelve desde qué gestión es continuo. Los
+// huecos (`registro: null`) se SALTAN sin cortar el recorrido — no hay dato,
+// no hay contradicción. Una `firmaObjetivo` vacía no puede afirmar
+// continuidad con nada.
+//
+// Un slot cuenta como continuidad de dos formas, evaluadas en este orden:
+//   1. `slot.registro.socioId === socioId` — el importador (import-historico.ts)
+//      ya verificó este enlace por DNI, con veto por nombre incluido. Honrarlo
+//      aquí no crea ningún vínculo nuevo entre personas, solo respeta uno que
+//      ya pasó ese control; por eso decide SIN mirar la firma de nombre.
+//   2. Si no hay enlace por socioId en ese slot, se cae a comparar la firma de
+//      nombre contra `firmaObjetivo` — el único camino disponible en
+//      2014/2017/2019, que no traen documento.
+// El recorrido corta en el primer slot CON DATO que no cumpla ninguna de las
+// dos: antes de ese punto el puesto era de otra persona.
 export function antiguedadDesdeSlots(
   slots: SlotLinaje[],
   firmaObjetivo: string,
+  socioId: string | null,
 ): { desdeAnio: number | null; desdeGestion: string | null } {
   let desdeAnio: number | null = null;
   let desdeGestion: string | null = null;
-  if (firmaObjetivo === "") return { desdeAnio, desdeGestion };
+  if (firmaObjetivo === "" && !socioId) return { desdeAnio, desdeGestion };
   for (const slot of [...slots].reverse()) {
     if (!slot.registro) continue;
+    if (socioId && slot.registro.socioId === socioId) {
+      desdeAnio = slot.anio;
+      desdeGestion = slot.gestion;
+      continue;
+    }
     const firma = firmaNombre(slot.registro.nombre ?? slot.registro.nombreOriginal);
-    if (firma === "" || firma !== firmaObjetivo) break;
+    if (firmaObjetivo === "" || firma === "" || firma !== firmaObjetivo) break;
     desdeAnio = slot.anio;
     desdeGestion = slot.gestion;
   }

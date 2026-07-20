@@ -59,7 +59,7 @@ export function SocioPadronTab({ socioId }: { socioId: string }) {
         <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
           {data.puestoQueLoJustifica
             ? `Acreditado por el puesto ${data.puestoQueLoJustifica}.`
-            : "Ninguno de sus puestos figura en los empadronamientos anteriores."}
+            : "No se pudo acreditar que este socio sea el titular continuo de ninguno de sus puestos en los empadronamientos anteriores. Eso no significa que el puesto carezca de historia: revisa la pestaña de historial del puesto para ver a sus titulares previos."}
         </div>
       </div>
 

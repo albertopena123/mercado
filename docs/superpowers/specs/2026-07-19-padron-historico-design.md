@@ -293,8 +293,9 @@ escritura desde la UI, la única escritura es el importador por CLI.
 
 - `npx tsx prisma/import-historico.ts` (dry-run) reporta **704 puestos resueltos, 0 sin
   resolver** y el cuadro de enlaces del §3.
-- Tras `--apply`: `PadronRegistro` tiene el conteo esperado por gestión (259 / 704 / 419
-  / 704) y `Empadronamiento` tiene 4 filas.
+- Tras `--apply`: `PadronRegistro` tiene el conteo esperado por gestión (262 / 704 / 420
+  / 704) y `Empadronamiento` tiene 4 filas. Es más que el número de nombres porque también
+  se escribe registro cuando hay número de padrón sin nombre (4 casos).
 - `--rollback` deja ambas tablas vacías sin tocar socios ni puestos.
 - Reejecutar `--apply` no duplica filas (idempotencia por `upsert`).
 - `npx tsc --noEmit` limpio (filtrando el ruido conocido de `.next`) y `eslint` limpio.
