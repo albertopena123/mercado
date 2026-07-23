@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/money";
 import { esAutovaluo } from "@/lib/cuotas/autovaluo";
+import { esGuardiania } from "@/lib/cuotas/guardiania";
 import { RegistrarPagoView } from "./RegistrarPagoView";
 
 export const metadata = { title: "Registrar pago · Admin" };
@@ -82,6 +83,7 @@ export default async function Page({
         vencimiento: cuota.vencimiento ? cuota.vencimiento.toISOString() : null,
         estado: cuota.estado,
         esAutovaluo: esAutovaluo(cuota.concepto),
+        esGuardiania: esGuardiania(cuota.concepto),
         pagadoEn: cuota.pagadoEn ? cuota.pagadoEn.toISOString() : null,
         metodoPago: cuota.metodoPago,
         nroOperacion: cuota.nroOperacion,

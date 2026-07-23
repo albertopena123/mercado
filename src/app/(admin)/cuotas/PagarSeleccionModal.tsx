@@ -5,6 +5,7 @@ import { Icon } from "@/components/admin/Icon";
 import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
+import { esGuardiania } from "@/lib/cuotas/guardiania";
 import { pagarCuotasSeleccionadas, reemitirComprobantePago } from "./actions";
 
 function today(): string {
@@ -40,6 +41,13 @@ export function PagarSeleccionModal({
     () => Math.round(cuotas.reduce((a, c) => a + c.monto, 0) * 100) / 100,
     [cuotas],
   );
+  // Si la selección incluye guardianía, el N.° del recibo FÍSICO de tesorería es
+  // obligatorio (lo valida además el server). Un solo recibo cubre toda la
+  // selección, por eso basta con uno para el pago.
+  const hayGuardiania = useMemo(
+    () => cuotas.some((c) => esGuardiania(c.concepto)),
+    [cuotas],
+  );
   const toast = useToast();
   const [metodo, setMetodo] = useState("efectivo");
   const [nroOperacion, setNroOperacion] = useState("");
@@ -54,9 +62,15 @@ export function PagarSeleccionModal({
 
   useEscClose(true, onClose, submitting);
 
+  const faltaNro = hayGuardiania && !nroOperacion.trim();
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (submitting || cuotas.length === 0) return;
+    if (faltaNro) {
+      toast.error("Para guardianía, ingresa el N.° del recibo físico de tesorería.");
+      return;
+    }
     setSubmitting(true);
     const res = await pagarCuotasSeleccionadas(
       socioId,
@@ -185,15 +199,28 @@ export function PagarSeleccionModal({
               </div>
 
               {/* Siempre visible: en efectivo es el N.° del recibo físico que
-                  entrega tesorería (antes se ocultaba y no había dónde anotarlo). */}
+                  entrega tesorería (antes se ocultaba y no había dónde anotarlo).
+                  Con guardianía en la selección, es obligatorio. */}
               <label className="field">
-                <span className="field__label">N.° de recibo (opcional)</span>
+                <span className="field__label">
+                  {hayGuardiania
+                    ? "N.° de recibo de tesorería *"
+                    : "N.° de recibo (opcional)"}
+                </span>
                 <input
                   value={nroOperacion}
                   onChange={(e) => setNroOperacion(e.target.value)}
                   placeholder="Recibo de tesorería / N.° de operación"
+                  aria-invalid={faltaNro}
+                  autoFocus={hayGuardiania}
                   disabled={submitting}
                 />
+                {hayGuardiania && (
+                  <span className="field__hint">
+                    Obligatorio: la selección incluye guardianía. Un mismo recibo
+                    cubre todas las cuotas de este pago.
+                  </span>
+                )}
               </label>
             </>
           )}
@@ -242,7 +269,12 @@ export function PagarSeleccionModal({
               >
                 Cancelar
               </button>
-              <button type="submit" className="btn btn--primary" disabled={submitting}>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={submitting || faltaNro}
+                title={faltaNro ? "Ingresa el N.° del recibo físico de tesorería" : undefined}
+              >
                 {submitting ? "Registrando…" : `Pagar ${formatSoles(total)}`}
               </button>
             </>

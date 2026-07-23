@@ -1194,6 +1194,12 @@ html[data-theme="dark"] .badge--red {
   color: #d93025;
   margin-left: 4px;
 }
+/* Ayuda bajo un campo (aclara el formato o por qué es obligatorio). */
+.field__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 /* Los checkbox/radio quedan fuera: el ancho 100% + padding los deforma. */
 .field input:not([type="checkbox"]):not([type="radio"]),
 .field textarea,

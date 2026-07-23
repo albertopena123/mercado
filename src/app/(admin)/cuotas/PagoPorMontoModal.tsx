@@ -6,6 +6,7 @@ import { useToast } from "@/components/admin/toast";
 import { useEscClose } from "@/lib/ui/useEscClose";
 import { formatSoles } from "@/lib/money";
 import { esAutovaluo } from "@/lib/cuotas/autovaluo";
+import { esGuardiania } from "@/lib/cuotas/guardiania";
 import { pagarPorMonto, reemitirComprobantePago } from "./actions";
 
 function today(): string {
@@ -65,21 +66,26 @@ export function PagoPorMontoModal({
   // operación). El mismo orden que aplica el servidor. No se maneja saldo a
   // favor: si sobra dinero, el monto no coincide con cuotas completas y el pago
   // se bloquea (hay que ingresar un importe que salde cuotas enteras).
-  const { cubre, sobrante, coveredAuto } = useMemo(() => {
+  const { cubre, sobrante, coveredAuto, coveredGuard } = useMemo(() => {
     let pozo = Number(monto) || 0;
     let n = 0;
     const auto: Pendiente[] = [];
+    const guard: Pendiente[] = [];
     for (const c of pendientes) {
       if (pozo + 1e-9 >= c.monto) {
         pozo = Math.round((pozo - c.monto) * 100) / 100;
         n++;
         if (esAutovaluo(c.concepto)) auto.push(c);
+        if (esGuardiania(c.concepto)) guard.push(c);
       } else break;
     }
-    return { cubre: n, sobrante: pozo, coveredAuto: auto };
+    return { cubre: n, sobrante: pozo, coveredAuto: auto, coveredGuard: guard };
   }, [monto, pendientes]);
 
   const faltanNros = coveredAuto.some((c) => !(autoOps[c.id] ?? "").trim());
+  // Guardianía cubierta por el monto ⇒ el N.° del recibo físico es obligatorio
+  // (uno solo cubre todas las cuotas de guardianía de este pago).
+  const faltaNroGuard = coveredGuard.length > 0 && !nroOperacion.trim();
   // El monto debe saldar cuotas completas: si sobra algo, se bloquea el envío.
   const sobra = sobrante > 0.0001;
   const montoValido = (Number(monto) || 0) > 0;
@@ -100,6 +106,12 @@ export function PagoPorMontoModal({
     if (faltanNros) {
       toast.error(
         "Ingresa el N.° de operación del recibo de cada autovalúo incluido en el pago.",
+      );
+      return;
+    }
+    if (faltaNroGuard) {
+      toast.error(
+        "Para guardianía, ingresa el N.° del recibo físico de tesorería.",
       );
       return;
     }
@@ -239,13 +251,24 @@ export function PagoPorMontoModal({
               {/* Siempre visible: en efectivo es el N.° del recibo físico que
                   entrega tesorería (antes se ocultaba y no había dónde anotarlo). */}
               <label className="field">
-                <span className="field__label">N.° de recibo (opcional)</span>
+                <span className="field__label">
+                  {coveredGuard.length > 0
+                    ? "N.° de recibo de tesorería *"
+                    : "N.° de recibo (opcional)"}
+                </span>
                 <input
                   value={nroOperacion}
                   onChange={(e) => setNroOperacion(e.target.value)}
                   placeholder="Recibo de tesorería / N.° de operación"
+                  aria-invalid={faltaNroGuard}
                   disabled={submitting}
                 />
+                {coveredGuard.length > 0 && (
+                  <span className="field__hint">
+                    Obligatorio: el pago cubre {coveredGuard.length} cuota(s) de
+                    guardianía. Un mismo recibo las cubre todas.
+                  </span>
+                )}
               </label>
 
               {/* Autovalúo(s) incluidos en el pago: cada recibo exige su N.° de
@@ -365,13 +388,17 @@ export function PagoPorMontoModal({
               <button
                 type="submit"
                 className="btn btn--primary"
-                disabled={submitting || faltanNros || sobra || !montoValido}
+                disabled={
+                  submitting || faltanNros || faltaNroGuard || sobra || !montoValido
+                }
                 title={
                   sobra
                     ? "El monto debe saldar cuotas completas (no se maneja saldo a favor)"
                     : faltanNros
                       ? "Ingresa el N.° de operación de cada autovalúo incluido"
-                      : undefined
+                      : faltaNroGuard
+                        ? "Ingresa el N.° del recibo físico de tesorería"
+                        : undefined
                 }
               >
                 {submitting ? "Registrando…" : "Registrar pago"}

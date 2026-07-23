@@ -15,6 +15,7 @@ import {
   normalizaNroOperacion,
   AUTOVALUO_TOKEN,
 } from "@/lib/cuotas/autovaluo";
+import { esGuardiania } from "@/lib/cuotas/guardiania";
 import type {
   ActionResult,
   CuotaRow,
@@ -390,6 +391,12 @@ export async function pagarPorMonto(
                 `El N.° de operación "${raw.trim()}" ya está usado en otro autovalúo.`,
               );
           }
+          // Guardianía: exige el N.° del recibo físico de tesorería del pago (uno
+          // solo puede cubrir varias cuotas, por eso se usa el del pago).
+          if (!nroOpCuota && !nroOperacion && esGuardiania(c.concepto))
+            throw new Denied(
+              `Ingresa el N.° del recibo físico de tesorería: el pago incluye guardianía (${c.periodo}).`,
+            );
           // Transición condicional pendiente → pagada: si una operación
           // concurrente (p. ej. registrarPago, que no bloquea la fila del socio)
           // ya pagó/anuló esta cuota, NO la re-contamos ni gastamos el pozo en
@@ -537,6 +544,12 @@ export async function pagarCuotasSeleccionadas(
       if (cuotas.some((c) => esAutovaluo(c.concepto)))
         throw new Denied(
           "Quita las cuotas de autovalúo de la selección: se pagan individualmente con «Pagar» para registrar el N.° de su recibo.",
+        );
+      // Guardianía: exige el N.° del recibo físico. Un solo recibo puede cubrir
+      // toda la selección, por eso basta con el del pago (no se pide uno por cuota).
+      if (!nroOperacion && cuotas.some((c) => esGuardiania(c.concepto)))
+        throw new Denied(
+          "Ingresa el N.° del recibo físico de tesorería: la selección incluye cuotas de guardianía.",
         );
 
       let recaudado = 0;
@@ -840,6 +853,15 @@ export async function registrarPago(
     // Autovalúo: el N.° de operación del recibo es obligatorio y NO puede
     // reusarse en otra cuota de autovalúo (otro año/socio). El índice único
     // parcial es el respaldo duro; esta validación da el mensaje claro.
+    // Guardianía: el N.° del recibo FÍSICO de tesorería es obligatorio (respaldo
+    // en papel del cobro). A diferencia del autovalúo NO se exige único: un mismo
+    // recibo puede cubrir varios meses/puestos del socio.
+    if (esGuardiania(cuota.concepto) && !nroOperacion)
+      return fail(
+        "Para guardianía, ingresa el N.° del recibo físico de tesorería.",
+        { nroOperacion: "Obligatorio para guardianía." },
+      );
+
     const autovaluo = esAutovaluo(cuota.concepto);
     if (autovaluo) {
       if (!nroOperacion)

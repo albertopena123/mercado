@@ -49,6 +49,7 @@ type Cuota = {
   vencimiento: string | null;
   estado: string;
   esAutovaluo: boolean;
+  esGuardiania: boolean;
   pagadoEn: string | null;
   metodoPago: string | null;
   nroOperacion: string | null;
@@ -89,18 +90,25 @@ export function RegistrarPagoView({
   } | null>(null);
 
   const esAuto = cuota.esAutovaluo;
-  // El N.° de operación es obligatorio siempre para el autovalúo (aunque sea en
-  // efectivo). Para otros métodos distintos de efectivo también se pide, pero es
-  // opcional. Con efectivo normal no hace falta.
-  const pideNro = esAuto || metodo !== "efectivo";
-  const faltaNroAuto = esAuto && !nroOperacion.trim();
+  const esGuard = cuota.esGuardiania;
+  // El N.° de recibo FÍSICO (el del talonario que emite tesorería) se registra
+  // SIEMPRE, incluso en efectivo: es el respaldo en papel del cobro. Es
+  // OBLIGATORIO en autovalúo (además único, antifraude) y en guardianía (donde un
+  // mismo recibo sí puede cubrir varios meses). Es independiente del comprobante
+  // del sistema, que lleva su propio folio correlativo + código QR.
+  const nroRequerido = esAuto || esGuard;
+  const faltaNroAuto = nroRequerido && !nroOperacion.trim();
   const yaPagada = cuota.estado !== "pendiente";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (submitting || yaPagada) return;
     if (faltaNroAuto) {
-      toast.error("Para el autovalúo, ingresa el N.° de operación del recibo.");
+      toast.error(
+        esAuto
+          ? "Para el autovalúo, ingresa el N.° de operación del recibo."
+          : "Para guardianía, ingresa el N.° del recibo físico de tesorería.",
+      );
       return;
     }
     setSubmitting(true);
@@ -321,6 +329,24 @@ export function RegistrarPagoView({
               </div>
             )}
 
+            {esGuard && !yaPagada && (
+              <div
+                className="soc-error"
+                role="note"
+                style={{
+                  background: "#e0f2fe",
+                  color: "#075985",
+                  borderColor: "#bae6fd",
+                }}
+              >
+                <Icon name="info" size={16} />
+                <span>
+                  <b>Guardianía:</b> el N.° del recibo físico de tesorería es{" "}
+                  <b>obligatorio</b>. Un mismo recibo sí puede cubrir varios meses.
+                </span>
+              </div>
+            )}
+
             <div className="soc-formgrid soc-formgrid--2col">
               <label className="field">
                 <span className="field__label">Monto pagado (S/)</span>
@@ -359,32 +385,36 @@ export function RegistrarPagoView({
               </select>
             </label>
 
-            {pideNro && (
-              <label className={`field rp-nro ${esAuto ? "rp-nro--req" : ""}`}>
-                <span className="field__label">
-                  {esAuto
-                    ? "N.° de recibo del autovalúo *"
-                    : "N.° de recibo (opcional)"}
-                </span>
-                <input
-                  value={nroOperacion}
-                  onChange={(e) => setNroOperacion(e.target.value)}
-                  placeholder={
-                    esAuto
-                      ? "N.° de recibo / operación del autovalúo"
-                      : "Recibo de tesorería / N.° de operación"
-                  }
-                  aria-invalid={faltaNroAuto}
-                  autoFocus={esAuto}
-                  disabled={submitting || yaPagada}
-                />
-                <span className="rp-nro__hint">
-                  {esAuto
-                    ? "Escríbelo tal como figura en el recibo del autovalúo."
-                    : "Anota el código de la transferencia, Yape/Plin o depósito."}
-                </span>
-              </label>
-            )}
+            <label className={`field rp-nro ${nroRequerido ? "rp-nro--req" : ""}`}>
+              <span className="field__label">
+                {esAuto
+                  ? "N.° de recibo del autovalúo *"
+                  : esGuard
+                    ? "N.° de recibo de tesorería *"
+                    : "N.° de recibo de tesorería (opcional)"}
+              </span>
+              <input
+                value={nroOperacion}
+                onChange={(e) => setNroOperacion(e.target.value)}
+                placeholder={
+                  esAuto
+                    ? "N.° de recibo / operación del autovalúo"
+                    : "N.° del recibo físico entregado al socio"
+                }
+                aria-invalid={faltaNroAuto}
+                autoFocus={nroRequerido}
+                disabled={submitting || yaPagada}
+              />
+              <span className="rp-nro__hint">
+                {esAuto
+                  ? "Escríbelo tal como figura en el recibo del autovalúo."
+                  : esGuard
+                    ? "Obligatorio: número del talonario físico que emite la tesorera. El sistema genera aparte su propio comprobante con folio."
+                    : metodo === "efectivo"
+                      ? "Número del talonario físico que emite la tesorera. El sistema genera aparte su propio comprobante con folio."
+                      : "N.° del recibo físico, o el código de la transferencia, Yape/Plin o depósito."}
+              </span>
+            </label>
 
             <div className="rp-form__foot">
               <button
@@ -401,7 +431,9 @@ export function RegistrarPagoView({
                 disabled={submitting || yaPagada || faltaNroAuto}
                 title={
                   faltaNroAuto
-                    ? "Ingresa el N.° de operación del recibo del autovalúo"
+                    ? esAuto
+                      ? "Ingresa el N.° de operación del recibo del autovalúo"
+                      : "Ingresa el N.° del recibo físico de tesorería"
                     : undefined
                 }
               >
