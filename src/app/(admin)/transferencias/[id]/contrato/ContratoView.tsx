@@ -46,7 +46,15 @@ function trato(sexo: string | null): string {
   return sexo === "F" ? "doña" : sexo === "M" ? "don" : "don(ña)";
 }
 
-export function ContratoView({ data }: { data: Data }) {
+export function ContratoView({
+  data,
+  back,
+}: {
+  data: Data;
+  // Enlace "volver": la plantilla se abre en pestaña nueva desde el expediente,
+  // así que no hay historial que retroceder; se navega a la ruta explícita.
+  back: { href: string; label: string };
+}) {
   const router = useRouter();
   const tr = data.transferente;
   const adq = data.adquiriente;
@@ -57,10 +65,10 @@ export function ContratoView({ data }: { data: Data }) {
       <div className="constancia-toolbar no-print">
         <button
           className="btn btn--ghost"
-          onClick={() => router.back()}
+          onClick={() => router.push(back.href)}
         >
           <Icon name="chevron-right" size={14} style={{ transform: "rotate(180deg)" }} />
-          <span>Volver</span>
+          <span>{back.label}</span>
         </button>
         <button className="btn--cta" onClick={() => window.print()}>
           <Icon name="download" size={16} />

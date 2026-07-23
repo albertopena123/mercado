@@ -65,6 +65,10 @@ export default async function Page({
 
   return (
     <ContratoView
+      back={{
+        href: `/transferencias/${t.id}`,
+        label: "Volver a la transferencia",
+      }}
       data={{
         fecha: t.fecha.toISOString(),
         transferente: {
