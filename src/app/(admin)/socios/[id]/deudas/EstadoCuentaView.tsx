@@ -151,8 +151,15 @@ export function EstadoCuentaView({ socio }: { socio: SocioHeader }) {
   const filtroActivo = search.trim() !== "" || estadoFilter !== "todas";
 
   // Paginación en cliente (las cuotas ya vienen cargadas). Cualquier cambio de
-  // filtro/búsqueda/tamaño vuelve a la página 1 para no quedar fuera de rango.
-  useEffect(() => { setPage(1); }, [search, estadoFilter, pageSize]);
+  // filtro/búsqueda/tamaño vuelve a la página 1 para no quedar fuera de rango. Se
+  // ajusta DURANTE el render (no en un efecto) para evitar el render en cascada
+  // que marca react-hooks/set-state-in-effect — patrón recomendado de React.
+  const filtrosKey = `${search} ${estadoFilter} ${pageSize}`;
+  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey);
+  if (prevFiltrosKey !== filtrosKey) {
+    setPrevFiltrosKey(filtrosKey);
+    setPage(1);
+  }
   const paginadas = useMemo(
     () => cuotasFiltradas.slice((page - 1) * pageSize, page * pageSize),
     [cuotasFiltradas, page, pageSize],
