@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import type { Empadronamiento } from "@/generated/prisma/client";
 import { searchTokens } from "@/lib/socios/normalize";
 import {
   antiguedadDesdeSlots, construirSlots, firmaNombre, masAntiguoEntrePuestos,
@@ -8,7 +9,13 @@ import type {
   AntiguedadSocio, AntiguedadPuesto, LinajePuesto, RegistroBusqueda,
 } from "./types";
 
-export async function getLinajePuesto(puestoId: string): Promise<LinajePuesto | null> {
+export async function getLinajePuesto(
+  puestoId: string,
+  // Gestiones precargadas: al recorrer los puestos de un mismo socio
+  // (getHistoricoSocio) se leen UNA sola vez y se pasan aquí, en vez de releer
+  // la tabla completa de Empadronamiento por cada puesto.
+  gestionesPre?: Empadronamiento[],
+): Promise<LinajePuesto | null> {
   const puesto = await prisma.puesto.findUnique({
     where: { id: puestoId },
     select: {
@@ -25,7 +32,7 @@ export async function getLinajePuesto(puestoId: string): Promise<LinajePuesto | 
   });
   if (!puesto) return null;
 
-  const gestiones = await prisma.empadronamiento.findMany({ orderBy: { orden: "asc" } });
+  const gestiones = gestionesPre ?? await prisma.empadronamiento.findMany({ orderBy: { orden: "asc" } });
   const registros = await prisma.padronRegistro.findMany({ where: { puestoId } });
   const porGestion = new Map(registros.map((r) => [r.empadronamientoId, r]));
 
@@ -55,7 +62,15 @@ export async function getLinajePuesto(puestoId: string): Promise<LinajePuesto | 
   };
 }
 
-export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSocio> {
+// Devuelve, en UNA sola pasada, la antigüedad agregada del socio Y el linaje
+// completo de cada uno de sus puestos vigentes. Antes había dos recorridos: uno
+// aquí (que calculaba los linajes y los descartaba) y otro en la capa de acción
+// que volvía a pedir cada linaje — el doble de queries por puesto. Ahora los
+// linajes se calculan una vez y se reusan para ambos fines, y las gestiones se
+// leen una sola vez para todos los puestos.
+export async function getHistoricoSocio(
+  socioId: string,
+): Promise<{ antiguedad: AntiguedadSocio; linajes: LinajePuesto[] }> {
   const vacio: AntiguedadSocio = {
     desdeAnio: null, desdeGestion: null, puestoQueLoJustifica: null, porPuesto: [],
   };
@@ -70,16 +85,20 @@ export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSoc
       },
     },
   });
-  if (!socio || socio.asignacionesPuesto.length === 0) return vacio;
+  if (!socio || socio.asignacionesPuesto.length === 0) return { antiguedad: vacio, linajes: [] };
 
   const firmaActual = firmaNombre(
     [socio.apellidoPaterno, socio.apellidoMaterno, socio.nombres].filter(Boolean).join(" "),
   );
+  // Una sola lectura de gestiones para todos los puestos del socio.
+  const gestiones = await prisma.empadronamiento.findMany({ orderBy: { orden: "asc" } });
 
+  const linajes: LinajePuesto[] = [];
   const porPuesto: AntiguedadPuesto[] = [];
   for (const asig of socio.asignacionesPuesto) {
-    const linaje = await getLinajePuesto(asig.puesto.id);
+    const linaje = await getLinajePuesto(asig.puesto.id, gestiones);
     if (!linaje) continue;
+    linajes.push(linaje);
 
     // El recorrido hacia atrás y el corte en el titular anterior distinto viven
     // en continuidad.ts (lógica pura, sin Prisma) para poder probarse sin BD.
@@ -95,13 +114,21 @@ export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSoc
   // Agregado: el empadronamiento MÁS ANTIGUO entre sus puestos (con desempate
   // determinista) — ver comentario en continuidad.ts.
   const masAntiguo = masAntiguoEntrePuestos(porPuesto);
-  if (!masAntiguo) return { ...vacio, porPuesto };
-  return {
-    desdeAnio: masAntiguo.desdeAnio,
-    desdeGestion: masAntiguo.desdeGestion,
-    puestoQueLoJustifica: masAntiguo.puestoCodigo,
-    porPuesto,
-  };
+  const antiguedad: AntiguedadSocio = masAntiguo
+    ? {
+        desdeAnio: masAntiguo.desdeAnio,
+        desdeGestion: masAntiguo.desdeGestion,
+        puestoQueLoJustifica: masAntiguo.puestoCodigo,
+        porPuesto,
+      }
+    : { ...vacio, porPuesto };
+  return { antiguedad, linajes };
+}
+
+// Solo la antigüedad agregada (sin los linajes). Delega en getHistoricoSocio
+// para no duplicar el recorrido ni recalcular los linajes.
+export async function getAntiguedadSocio(socioId: string): Promise<AntiguedadSocio> {
+  return (await getHistoricoSocio(socioId)).antiguedad;
 }
 
 export async function buscarRegistros(q: string, limit = 50): Promise<RegistroBusqueda[]> {

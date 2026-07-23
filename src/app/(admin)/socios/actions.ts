@@ -48,8 +48,8 @@ import {
   validateSocioInput,
   buildSocioUpdateData,
 } from "@/lib/socios/update";
-import { getAntiguedadSocio, buscarRegistros } from "@/lib/padron/historico";
-import type { AntiguedadSocio, RegistroBusqueda } from "@/lib/padron/types";
+import { getAntiguedadSocio, buscarRegistros, getHistoricoSocio } from "@/lib/padron/historico";
+import type { AntiguedadSocio, RegistroBusqueda, LinajePuesto } from "@/lib/padron/types";
 
 const ESTADO_LABEL: Record<EstadoSocio, string> = {
   activo: "Activo",
@@ -1093,6 +1093,25 @@ export async function getPadronHistoricoSocio(
   } catch (e) {
     if (e instanceof Denied) return fail(e.message);
     console.error("getPadronHistoricoSocio", e);
+    return fail("No se pudo cargar el padrón histórico del socio.");
+  }
+}
+
+// Solo lectura: además del agregado de antigüedad, devuelve la línea de tiempo
+// COMPLETA de cada puesto vigente del socio (quién fue el titular en cada
+// empadronamiento). Así el tab del socio muestra toda la historia —no solo el
+// resumen "desde 2021"— sin escribir nada.
+export async function getHistoricoCompletoSocio(
+  socioId: string,
+): Promise<ActionResult<{ antiguedad: AntiguedadSocio; linajes: LinajePuesto[] }>> {
+  try {
+    await authorize("socios.read");
+    // getHistoricoSocio calcula antigüedad y linajes en una sola pasada (sin
+    // recalcular los linajes ni releer las gestiones por puesto).
+    return ok(await getHistoricoSocio(socioId));
+  } catch (e) {
+    if (e instanceof Denied) return fail(e.message);
+    console.error("getHistoricoCompletoSocio", e);
     return fail("No se pudo cargar el padrón histórico del socio.");
   }
 }
