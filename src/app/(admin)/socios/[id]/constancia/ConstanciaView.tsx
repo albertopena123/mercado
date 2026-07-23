@@ -259,6 +259,21 @@ export function ConstanciaView({
         </div>
       )}
 
+      {/* Atajo para saldar la deuda que bloquea la constancia de no adeudo:
+          lleva al estado de cuenta del MISMO socio, donde se registra el pago. */}
+      {!emitida && noAdeudoBloqueado && data.deuda > 0 && (
+        <div className="no-print" style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className="btn--cta"
+            onClick={() => router.push(`/socios/${socioId}/deudas`)}
+          >
+            <Icon name="card" size={16} />
+            <span>Ir a pagar la deuda ({formatSoles(data.deuda)})</span>
+          </button>
+        </div>
+      )}
+
       {!emitida && !noAdeudoBloqueado && (
         <div className="constancia-aviso no-print">
           <Icon name="info" size={16} />
