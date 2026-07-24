@@ -266,6 +266,13 @@ export const PERMISSIONS: PermissionDef[] = [
     category: "Reportes",
   },
   {
+    key: "sistema.read",
+    name: "Ver estado del servidor",
+    description:
+      "Consultar los recursos del equipo donde corre el sistema (CPU, memoria y disco)",
+    category: "Sistema",
+  },
+  {
     key: "portal.read",
     name: "Portal del socio",
     description:
@@ -336,6 +343,7 @@ export const ROLE_DEFS = [
       "inventario.delete",
       "inventario.move",
       "reportes.read",
+      "sistema.read",
     ],
   },
   {

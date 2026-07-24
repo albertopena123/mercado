@@ -1,0 +1,85 @@
+/* Módulo Servidor (/sistema). Los chips del semáforo usan las clases globales
+   .badge--green/--amber/--red (con override de tema oscuro en globals.css). */
+
+.sis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.sis-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: var(--surface, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sis-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.sis-card__titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sis-card__valor {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sis-card__detalle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Barra de uso: el riel toma el tono suave del tema; el relleno usa colores
+   saturados del semáforo, legibles en claro y oscuro. */
+.sis-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-soft, #f1f0f6);
+  overflow: hidden;
+}
+.sis-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+.sis-bar__fill--ok { background: #16a34a; }
+.sis-bar__fill--ambar { background: #d97706; }
+.sis-bar__fill--rojo { background: #dc2626; }
+.sis-bar__fill--nd { background: #9ca3af; }
+
+/* Banner de error del sondeo (misma apariencia que .soc-error, con tema). */
+.sis-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+html[data-theme="dark"] .sis-error {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.sis-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 14px;
+}

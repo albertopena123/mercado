@@ -31,4 +31,5 @@ export const SIDEBAR_NAV: SidebarItem[] = [
   { id: "asambleas", label: "Asambleas", icon: "calendar", href: "/asambleas" },
   { id: "reportes", label: "Reportes", icon: "chart", href: "/reportes" },
   { id: "anuncios", label: "Anuncios", icon: "bell", href: "/anuncios" },
+  { id: "sistema", label: "Servidor", icon: "device", href: "/sistema" },
 ];
