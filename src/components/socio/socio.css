@@ -1127,6 +1127,19 @@
   .pt-brand__name {
     display: none;
   }
+  /* El panel de la campana se ancla al borde derecho de la CAMPANA, que en
+     móvil no es el borde de la pantalla (a su derecha están "Salir" y el
+     padding del topbar): con width fija 340px el panel se salía cortado por la
+     izquierda. En pantallas chicas pasa a fijo a lo ancho del viewport, justo
+     bajo el topbar (~64px de alto + margen). */
+  .pt-notif {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 70px;
+    width: auto;
+    max-width: none;
+  }
 }
 
 /* ───────── Pase de asistencia (check-in del socio) ───────── */
