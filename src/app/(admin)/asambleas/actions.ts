@@ -197,6 +197,7 @@ export async function getAsamblea(
           : x.socio.numeroDocumento,
         estado: x.estado,
         observacion: x.observacion,
+        marcadoEn: x.updatedAt.toISOString(),
       })),
     });
   } catch (e) {
@@ -809,6 +810,8 @@ export async function exportAsistenciaXlsx(
       ],
       columns,
       rows,
+      // Filas altas para que la columna "Firma" tenga espacio real de escritura.
+      rowHeight: 34,
     });
     const stamp = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Lima",

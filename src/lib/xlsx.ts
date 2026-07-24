@@ -224,6 +224,12 @@ export interface StyledXlsxOptions {
   meta?: string[];
   columns: XlsxColumn[];
   rows: XlsxValue[][];
+  /**
+   * Alto de cada fila de datos en puntos. Si se omite, Excel usa el alto por
+   * defecto (una línea). Súbelo para dejar espacio de escritura a mano, p. ej.
+   * la columna "Firma" de la hoja de asistencia.
+   */
+  rowHeight?: number;
 }
 
 // Serial de fecha de Excel (días desde 1899-12-30). Se calcula desde los
@@ -425,14 +431,17 @@ export function buildStyledXlsx(opts: StyledXlsxOptions): Buffer {
     .join("");
   parts.push(`<row r="${headerRow}" ht="24" customHeight="1">${headerCells}</row>`);
 
-  // Filas de datos (cebra en las impares).
+  // Filas de datos (cebra en las impares). Alto opcional: deja espacio de firma.
+  const dataRowAttr = opts.rowHeight
+    ? ` ht="${opts.rowHeight}" customHeight="1"`
+    : "";
   rows.forEach((row, ri) => {
     const zebra = ri % 2 === 1;
     const rowNum = firstDataRow + ri;
     const cells = columns
       .map((c, ci) => styledCell(`${colLetter(ci)}${rowNum}`, bodyStyleIndex(c, zebra), c, row[ci]))
       .join("");
-    parts.push(`<row r="${rowNum}">${cells}</row>`);
+    parts.push(`<row r="${rowNum}"${dataRowAttr}>${cells}</row>`);
   });
 
   const cols = columns

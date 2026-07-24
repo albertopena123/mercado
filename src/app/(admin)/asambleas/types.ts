@@ -31,6 +31,9 @@ export type AsistenciaRow = {
   socioDni: string | null;
   estado: EstadoAsistencia;
   observacion: string | null;
+  // ISO del último cambio de estado; se usa para ordenar la vista "Registrados"
+  // (el recién marcado arriba) y que la lista crezca en vivo al registrar.
+  marcadoEn: string | null;
 };
 
 export type AsambleaDetail = {

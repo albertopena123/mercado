@@ -63,6 +63,10 @@ export function AsambleaDetailClient({
     initial.asistencias,
   );
   const [filter, setFilter] = useState("");
+  // Vista de la lista: "registrados" (solo presentes/tardanzas, creciendo en
+  // vivo al registrar) es la principal; "todos" expone el padrón completo para
+  // correcciones (justificar, marcar ausente). Por defecto: registrados.
+  const [view, setView] = useState<"registrados" | "todos">("registrados");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [, startTransition] = useTransition();
@@ -162,7 +166,9 @@ export function AsambleaDetailClient({
     const d = res.data!;
     setAsistencias((prev) =>
       prev.map((a) =>
-        a.socioCodigo === d.socioCodigo ? { ...a, estado: d.estado } : a,
+        a.socioCodigo === d.socioCodigo
+          ? { ...a, estado: d.estado, marcadoEn: d.hora }
+          : a,
       ),
     );
     const horaTxt = horaLima(d.hora);
@@ -240,14 +246,26 @@ export function AsambleaDetailClient({
     (mt > 0 ? counts.tardanza : 0) * mt + (mi > 0 ? counts.ausente : 0) * mi;
 
   const filtered = useMemo(() => {
+    // Base según la vista: "registrados" = presentes/tardanzas, con el último
+    // marcado arriba (la lista crece desde el tope al registrar); "todos" = el
+    // padrón completo en orden alfabético del servidor.
+    const base =
+      view === "registrados"
+        ? asistencias
+            .filter((a) => a.estado === "presente" || a.estado === "tardanza")
+            .slice()
+            .sort((a, b) =>
+              (b.marcadoEn ?? "").localeCompare(a.marcadoEn ?? ""),
+            )
+        : asistencias;
     const q = filter.trim().toLowerCase();
-    if (!q) return asistencias;
-    return asistencias.filter(
+    if (!q) return base;
+    return base.filter(
       (a) =>
         a.socioNombre.toLowerCase().includes(q) ||
         a.socioCodigo.toLowerCase().includes(q),
     );
-  }, [asistencias, filter]);
+  }, [asistencias, filter, view]);
 
   // Paginación client-side (10/pág por defecto). currentPage va acotado por si
   // el filtro reduce los resultados por debajo de la página actual.
@@ -265,8 +283,12 @@ export function AsambleaDetailClient({
     // los check-ins/cambios hechos durante la sesión si la acción falla.
     const prev = asistencias;
     setBulkPending(true);
+    const now = new Date().toISOString();
+    const marca = estado === "presente" || estado === "tardanza";
     // Optimista
-    setAsistencias((p) => p.map((a) => ({ ...a, estado })));
+    setAsistencias((p) =>
+      p.map((a) => ({ ...a, estado, marcadoEn: marca ? now : a.marcadoEn })),
+    );
     const res = await marcarTodosAsistencia(initial.id, estado);
     setBulkPending(false);
     if (!res.ok) {
@@ -282,16 +304,26 @@ export function AsambleaDetailClient({
     if (!perms.canAttendance || row.estado === estado || savingIds.has(row.id))
       return;
     setSavingIds((s) => new Set(s).add(row.id));
+    // Al marcar asistencia manualmente, sella la hora para que suba al tope de
+    // "Registrados"; los demás estados conservan su marca previa.
+    const marcadoEn =
+      estado === "presente" || estado === "tardanza"
+        ? new Date().toISOString()
+        : row.marcadoEn;
     // Optimista
     setAsistencias((prev) =>
-      prev.map((a) => (a.id === row.id ? { ...a, estado } : a)),
+      prev.map((a) => (a.id === row.id ? { ...a, estado, marcadoEn } : a)),
     );
     startTransition(async () => {
       const res = await setAsistencia(row.id, estado);
       if (!res.ok) {
         // revertir
         setAsistencias((prev) =>
-          prev.map((a) => (a.id === row.id ? { ...a, estado: row.estado } : a)),
+          prev.map((a) =>
+            a.id === row.id
+              ? { ...a, estado: row.estado, marcadoEn: row.marcadoEn }
+              : a,
+          ),
         );
         toast.error(res.error);
       }
@@ -679,6 +711,40 @@ export function AsambleaDetailClient({
       )}
 
       <div className="asm-toolbar">
+        {total > 0 && (
+          <div
+            className="asm-viewtabs"
+            role="tablist"
+            aria-label="Vista de asistencia"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "registrados"}
+              className={`asm-viewtab${view === "registrados" ? " is-active" : ""}`}
+              onClick={() => {
+                setView("registrados");
+                setPage(1);
+              }}
+            >
+              Registrados
+              <span className="asm-viewtab__n">{asistieron}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "todos"}
+              className={`asm-viewtab${view === "todos" ? " is-active" : ""}`}
+              onClick={() => {
+                setView("todos");
+                setPage(1);
+              }}
+            >
+              Todos
+              <span className="asm-viewtab__n">{total}</span>
+            </button>
+          </div>
+        )}
         <input
           className="socios-toolbar__search"
           placeholder="Filtrar socio por nombre o código…"
@@ -732,7 +798,16 @@ export function AsambleaDetailClient({
         </div>
       ) : filtered.length === 0 ? (
         <div className="socios-empty">
-          <p>Sin coincidencias para “{filter}”.</p>
+          {filter.trim() !== "" ? (
+            <p>Sin coincidencias para “{filter}”.</p>
+          ) : view === "registrados" ? (
+            <p>
+              Aún no hay socios registrados. Escanea el DNI o busca al socio
+              arriba para registrar la asistencia; irán apareciendo aquí.
+            </p>
+          ) : (
+            <p>No hay socios en la lista.</p>
+          )}
         </div>
       ) : (
         <>
@@ -941,27 +1016,46 @@ function CheckinSuccessModal({
     btnRef.current?.focus();
   }, []);
   const estadoTxt = result.estado === "tardanza" ? "Tardanza" : "Presente";
+  // Un re-escaneo de alguien ya marcado NO registra nada (gana el primer
+  // registro). Se distingue visualmente del alta real —banda ámbar + reloj en
+  // vez de verde/azul + check— para que el operador de la puerta lo note de un
+  // vistazo y no crea que acaba de registrarlo.
+  const ya = result.yaRegistrado;
+  const tone = ya ? "ya" : result.estado;
   return (
     <div className="confirm-backdrop" onClick={onClose}>
-      <div className="confirm checkin-ok" onClick={(e) => e.stopPropagation()}>
-        <div className={`checkin-ok__icon checkin-ok__icon--${result.estado}`}>
-          <Icon name="check" size={34} />
+      <div
+        className="confirm checkin-ok"
+        role="alertdialog"
+        aria-live="assertive"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`checkin-ok__banner checkin-ok__banner--${tone}`}>
+          <div className="checkin-ok__icon">
+            <Icon name={ya ? "clock" : "check"} size={30} />
+          </div>
+          <p className="checkin-ok__estado">{ya ? "Ya registrado" : estadoTxt}</p>
+          <p className="checkin-ok__time">{horaLima(result.hora)}</p>
         </div>
-        <h3 className="checkin-ok__title">¡Asistencia registrada!</h3>
-        <p className="checkin-ok__name">{result.socioNombre}</p>
-        <div className={`checkin-ok__badge checkin-ok__badge--${result.estado}`}>
-          {estadoTxt} · {horaLima(result.hora)}
+        <div className="checkin-ok__body">
+          <p className="checkin-ok__name">{result.socioNombre}</p>
+          <p className="checkin-ok__code">{result.socioCodigo}</p>
+          <p className="checkin-ok__status">
+            {ya
+              ? `Se conserva su registro original (${estadoTxt}) — sin cambios.`
+              : "Asistencia registrada correctamente."}
+          </p>
+          <button
+            ref={btnRef}
+            className="btn btn--primary checkin-ok__done"
+            onClick={onClose}
+          >
+            Listo
+          </button>
+          <p className="checkin-ok__hint">
+            Pulsa <kbd>Enter</kbd> para seguir registrando
+          </p>
         </div>
-        {result.yaRegistrado && (
-          <p className="checkin-ok__note">Ya estaba registrado antes.</p>
-        )}
-        <button
-          ref={btnRef}
-          className="btn btn--primary checkin-ok__done"
-          onClick={onClose}
-        >
-          Listo
-        </button>
       </div>
     </div>
   );

@@ -369,62 +369,114 @@
   font-weight: 600;
 }
 
-/* Modal de confirmación de asistencia */
+/* ─────────── Modal de confirmación de asistencia (check-in puerta) ───────────
+   El color de la banda superior comunica el estado de un vistazo; el nombre es
+   el protagonista para que el operador de la puerta verifique a quién marcó. */
 .checkin-ok {
+  max-width: 400px;
   text-align: center;
+  animation: checkin-pop 0.22s ease-out;
+}
+
+/* Banda superior a color según el estado */
+.checkin-ok__banner {
+  padding: 26px 24px 22px;
+  color: #fff;
+}
+.checkin-ok__banner--presente {
+  background: linear-gradient(150deg, #16a34a, #15803d);
+}
+.checkin-ok__banner--tardanza {
+  background: linear-gradient(150deg, #2563eb, #1d4ed8);
+}
+/* Re-escaneo de alguien ya registrado: banda ámbar (no es un alta nueva). */
+.checkin-ok__banner--ya {
+  background: linear-gradient(150deg, #f59e0b, #d97706);
 }
 .checkin-ok__icon {
-  width: 64px;
-  height: 64px;
-  margin: 4px auto 14px;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 12px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
 }
-.checkin-ok__icon--presente {
-  background: #16a34a;
-}
-.checkin-ok__icon--tardanza {
-  background: #2563eb;
-}
-.checkin-ok__title {
+.checkin-ok__estado {
+  margin: 0;
   font-family: "Google Sans", sans-serif;
-  font-size: 19px;
+  font-size: 24px;
   font-weight: 600;
-  margin: 0 0 6px;
+  letter-spacing: -0.01em;
 }
-.checkin-ok__name {
-  font-size: 15px;
+.checkin-ok__time {
+  margin: 2px 0 0;
+  font-size: 14px;
   font-weight: 500;
-  margin: 0 0 12px;
-  color: var(--text);
-}
-.checkin-ok__badge {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums;
 }
-.checkin-ok__badge--presente {
-  background: #dcfce7;
-  color: #166534;
+
+/* Cuerpo: quién y confirmación */
+.checkin-ok__body {
+  padding: 20px 24px 22px;
 }
-.checkin-ok__badge--tardanza {
-  background: #dbeafe;
-  color: #1e40af;
+.checkin-ok__name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
 }
-.checkin-ok__note {
-  margin: 12px 0 0;
-  font-size: 12.5px;
+.checkin-ok__code {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.checkin-ok__status {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-muted);
 }
 .checkin-ok__done {
-  margin-top: 20px;
+  margin-top: 18px;
   width: 100%;
   justify-content: center;
+}
+.checkin-ok__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.checkin-ok__hint kbd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
+
+@keyframes checkin-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkin-ok {
+    animation: none;
+  }
 }
 
 .asm-toolbar {
@@ -433,6 +485,54 @@
   align-items: center;
   margin-bottom: 16px;
   flex-wrap: wrap;
+}
+
+/* Selector de vista de la lista: Registrados (en vivo) / Todos (padrón). */
+.asm-viewtabs {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.asm-viewtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.asm-viewtab:hover {
+  color: var(--text);
+}
+.asm-viewtab.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.asm-viewtab__n {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.asm-viewtab.is-active .asm-viewtab__n {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 @media (max-width: 640px) {
