@@ -9,7 +9,13 @@ import {
 } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/admin/Icon";
+import { getNotificacionesPortal } from "@/app/(socio)/portal/actions";
 import type { Notificacion, TipoNotificacion } from "@/lib/portal/data";
+
+// Cada cuánto re-consultar las notificaciones con la pestaña visible. El layout
+// solo las calcula al renderizar; sin esto, un comunicado publicado con el
+// portal ya abierto no aparecería nunca (hasta un F5).
+const POLL_MS = 60_000;
 
 const TIPO_ICON: Record<TipoNotificacion, IconName> = {
   reunion: "calendar",
@@ -50,9 +56,48 @@ function markSeen(ids: string[]): void {
   seenListeners.forEach((l) => l());
 }
 
-export function NotificationBell({ items }: { items: Notificacion[] }) {
+export function NotificationBell({ items: initial }: { items: Notificacion[] }) {
   const [open, setOpen] = useState(false);
+  // Arranca con lo que calculó el servidor (sin parpadeo) y se mantiene fresco
+  // por sondeo + al recuperar el foco/visibilidad de la pestaña. Si una
+  // navegación trae un `initial` nuevo del layout, se adopta durante el render
+  // (patrón de React para derivar estado de un prop que cambia).
+  const [items, setItems] = useState<Notificacion[]>(initial);
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    setItems(initial);
+  }
   const ref = useRef<HTMLDivElement>(null);
+  const enVuelo = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refrescar() {
+      // Sin solapar peticiones y sin gastar red con la pestaña oculta.
+      if (enVuelo.current || document.hidden) return;
+      enVuelo.current = true;
+      try {
+        const r = await getNotificacionesPortal();
+        if (!cancelled && r.ok && r.data) setItems(r.data);
+      } finally {
+        enVuelo.current = false;
+      }
+    }
+    const timer = setInterval(refrescar, POLL_MS);
+    // Al volver a la pestaña (celular desbloqueado, cambio de app) refresca ya.
+    function onVisible() {
+      if (!document.hidden) void refrescar();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, []);
 
   const seenRaw = useSyncExternalStore(subscribeSeen, readSeen, serverSeen);
   const seen = useMemo<Set<string>>(() => {

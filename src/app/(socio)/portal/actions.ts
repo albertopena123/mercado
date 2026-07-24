@@ -7,7 +7,27 @@ import { isQrTokenValid } from "@/lib/asambleas/qrToken";
 import { Prisma, type TipoDocumento } from "@/generated/prisma/client";
 import { lookupDniUnamad, type DniLookupResult } from "@/lib/socios/dni-lookup";
 import { validateSocioInput } from "@/lib/socios/update";
+import { getMisNotificaciones, type Notificacion } from "@/lib/portal/data";
 import type { ActionResult, CreateSocioInput } from "@/app/(admin)/socios/types";
+
+/**
+ * Refresco en vivo de la campana. El layout calcula las notificaciones UNA vez
+ * al renderizar en el servidor; una pestaña del portal que quedó abierta no se
+ * enteraría de un comunicado publicado después (ni de una reunión iniciada).
+ * La campana llama esto por sondeo y al recuperar el foco.
+ */
+export async function getNotificacionesPortal(): Promise<
+  ActionResult<Notificacion[]>
+> {
+  const r = await getSocioActual();
+  if (!r) return { ok: false, error: "Debes iniciar sesión como socio." };
+  try {
+    return { ok: true, data: await getMisNotificaciones(r.socio.id) };
+  } catch (e) {
+    console.error("getNotificacionesPortal", e);
+    return { ok: false, error: "No se pudieron cargar las notificaciones." };
+  }
+}
 
 export type CheckinResult =
   | { ok: true; estado: "presente" | "tardanza"; yaRegistrado: boolean }
