@@ -69,12 +69,12 @@ next-env.d.ts
 # Playwright MCP scratch (browser snapshots + console logs from agent sessions)
 /.playwright-mcp/
 
-# Agent screenshot scratch
-/socios-*.png
-/drawer-*.png
-/historial.png
-/create-modal.png
-/search-*.png
+# Agent screenshot scratch (capturas de prueba sueltas en la raíz)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp
 
 # Audit working notes (not committed)
 /.audit-findings.md
