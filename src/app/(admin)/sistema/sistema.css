@@ -1,65 +1,290 @@
 /* Módulo Servidor (/sistema). Los chips del semáforo usan las clases globales
-   .badge--green/--amber/--red (con override de tema oscuro en globals.css). */
+   .badge--green/--amber/--red (con override de tema oscuro en globals.css).
+   La firma del módulo son los medidores radiales con las marcas de umbral
+   dibujadas sobre el dial, coronados por una barra de acento superior que
+   pinta cada tarjeta según su estado. */
 
+/* ── Cabecera propia del módulo (no depende del CSS de otros módulos) ── */
+.sis-page {
+  max-width: 1120px;
+}
+.sis-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.sis-head h1 {
+  margin: 0 0 2px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.sis-head__sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sis-head__datos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sis-head__dato {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Veredicto: la conclusión en palabras, coloreada por el peor estado ── */
+.sis-veredicto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  border: 1px solid;
+  box-shadow: var(--shadow-sm);
+}
+.sis-veredicto__punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+  background: currentColor;
+}
+.sis-veredicto--ok { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.sis-veredicto--ambar { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.sis-veredicto--rojo { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.sis-veredicto--nd {
+  background: var(--bg-soft, #f8f9fa);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+html[data-theme="dark"] .sis-veredicto--ok {
+  background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35);
+}
+html[data-theme="dark"] .sis-veredicto--ambar {
+  background: rgba(245, 158, 11, 0.12); color: #fcd34d; border-color: rgba(245, 158, 11, 0.35);
+}
+html[data-theme="dark"] .sis-veredicto--rojo {
+  background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* ── Rejilla y tarjetas ── */
 .sis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
 }
 
 .sis-card {
+  position: relative;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-radius: 16px;
+  padding: 16px 18px 14px;
   background: var(--surface, #fff);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
 }
+.sis-card:hover {
+  box-shadow: var(--shadow-md);
+}
+/* Barra de acento superior: el estado de la tarjeta se ve desde lejos. */
+.sis-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+}
+.sis-card--ok::before { background: #16a34a; }
+.sis-card--ambar::before { background: #d97706; }
+.sis-card--rojo::before { background: #dc2626; }
+.sis-card--nd::before { background: var(--border); }
 
 .sis-card__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
-
 .sis-card__titulo {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text, #202124);
+}
+html[data-theme="dark"] .sis-card__titulo { color: #e8eaed; }
+
+.sis-card__medidor {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 0;
 }
 
-.sis-card__valor {
-  font-size: 34px;
+/* ── Medidor radial ── */
+.sis-gauge {
+  width: 168px;
+  max-width: 100%;
+}
+.sis-gauge__riel {
+  fill: none;
+  stroke: var(--bg-soft, #f1f3f4);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+html[data-theme="dark"] .sis-gauge__riel { stroke: #2d3034; }
+.sis-gauge__arco {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.7s ease, stroke 0.4s ease;
+}
+.sis-gauge__arco--ok { stroke: #16a34a; }
+.sis-gauge__arco--ambar { stroke: #d97706; }
+.sis-gauge__arco--rojo { stroke: #dc2626; }
+.sis-gauge__arco--nd { stroke: #9ca3af; }
+
+/* Marcas de umbral sobre el dial. */
+.sis-gauge__marca { stroke-width: 2; }
+.sis-gauge__marca--ambar { stroke: #d97706; opacity: 0.5; }
+.sis-gauge__marca--rojo { stroke: #dc2626; opacity: 0.65; }
+
+.sis-gauge__valor {
+  font-size: 25px;
   font-weight: 700;
-  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text, #202124);
+}
+.sis-gauge__unidad {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--text-muted, #5f6368);
+}
+html[data-theme="dark"] .sis-gauge__valor { fill: #e8eaed; }
+html[data-theme="dark"] .sis-gauge__unidad { fill: #9aa0a6; }
+
+/* ── Tendencia (sparkline) y dato destacado ── */
+.sis-card__tendencia {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sis-spark {
+  width: 100%;
+  height: 34px;
+  display: block;
+  border-bottom: 1px solid var(--border);
+}
+.sis-spark--vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 8px;
+  border-bottom: none;
+  background: var(--bg-soft, #f8f9fa);
+}
+.sis-spark--vacia span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sis-spark__linea {
+  fill: none;
+  stroke: #5f6dd6;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.sis-spark__area {
+  fill: rgba(95, 109, 214, 0.12);
+  stroke: none;
+}
+html[data-theme="dark"] .sis-spark__linea { stroke: #8ab4f8; }
+html[data-theme="dark"] .sis-spark__area { fill: rgba(138, 180, 248, 0.12); }
+.sis-card__tendencia-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
 }
 
-.sis-card__detalle {
-  font-size: 12.5px;
+.sis-card__destacado {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  height: 37px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+}
+.sis-card__destacado-valor {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #16a34a;
+}
+.sis-card--ambar .sis-card__destacado-valor { color: #d97706; }
+.sis-card--rojo .sis-card__destacado-valor { color: #dc2626; }
+.sis-card__destacado-etiqueta {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
-/* Barra de uso: el riel toma el tono suave del tema; el relleno usa colores
-   saturados del semáforo, legibles en claro y oscuro. */
-.sis-bar {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--bg-soft, #f1f0f6);
+/* ── Filas etiqueta → valor ── */
+.sis-card__filas {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sis-card__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+.sis-card__fila dt {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: none;
+}
+.sis-card__fila dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
-.sis-bar__fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.6s ease;
-}
-.sis-bar__fill--ok { background: #16a34a; }
-.sis-bar__fill--ambar { background: #d97706; }
-.sis-bar__fill--rojo { background: #dc2626; }
-.sis-bar__fill--nd { background: #9ca3af; }
 
-/* Banner de error del sondeo (misma apariencia que .soc-error, con tema). */
+/* ── Banner de error del sondeo (mismo tono que .soc-error, con tema) ── */
 .sis-error {
   background: #fee2e2;
   color: #991b1b;
@@ -78,8 +303,36 @@ html[data-theme="dark"] .sis-error {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* ── Pie: estado del sondeo ── */
 .sis-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 14px;
+  margin-top: 16px;
+}
+.sis-meta__pulso {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #16a34a;
+  flex: none;
+}
+.sis-meta__pulso--off {
+  background: #dc2626;
+  animation: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sis-meta__pulso:not(.sis-meta__pulso--off) {
+    animation: sis-pulso 2.4s ease-in-out infinite;
+  }
+}
+@keyframes sis-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(22, 163, 74, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sis-gauge__arco { transition: none; }
+  .sis-card { transition: none; }
 }
